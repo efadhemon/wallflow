@@ -29,6 +29,15 @@
     {
       "identifier": "opener:allow-reveal-item-in-dir",
       "allow": [{ "path": "$HOME/**" }]
+    },
+    {
+      "identifier": "opener:allow-open-url",
+      "allow": [
+        { "url": "https://github.com/efadhemon" },
+        { "url": "https://github.com/efadhemon/*" },
+        { "url": "https://www.linkedin.com/in/efadhemon" },
+        { "url": "https://linkedin.com/in/efadhemon" }
+      ]
     }
   ]
 }

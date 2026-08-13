@@ -1,5 +1,5 @@
-import { Copy, FolderOpen, RefreshCw, ScrollText } from "lucide-react";
-import { openPath } from "@tauri-apps/plugin-opener";
+import { Copy, ExternalLink, FolderOpen, RefreshCw, ScrollText, User } from "lucide-react";
+import { openPath, openUrl } from "@tauri-apps/plugin-opener";
 import { useCallback, useEffect, useState } from "react";
 import { Button, Card, Divider, SectionTitle } from "../components/ui";
 import { api } from "../lib/api";
@@ -47,6 +47,43 @@ export function About() {
       </section>
 
       <section className="flex flex-col gap-3">
+        <SectionTitle>Developer</SectionTitle>
+        <Card>
+          <div className="flex items-center justify-between gap-4 px-4 py-3">
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-ink">Emon Hossain</p>
+              <p className="mt-0.5 text-xs text-ink-muted">GitHub @efadhemon</p>
+            </div>
+            <Button
+              size="icon"
+              variant="ghost"
+              aria-label="Open GitHub profile"
+              title="Open GitHub profile"
+              onClick={() => void openUrl("https://github.com/efadhemon")}
+            >
+              <User size={16} />
+            </Button>
+          </div>
+          <Divider />
+          <div className="flex items-center justify-between gap-4 px-4 py-3">
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-ink">LinkedIn</p>
+              <p className="mt-0.5 truncate font-mono text-xs text-ink-muted">linkedin.com/in/efadhemon</p>
+            </div>
+            <Button
+              size="icon"
+              variant="ghost"
+              aria-label="Open LinkedIn profile"
+              title="Open LinkedIn profile"
+              onClick={() => void openUrl("https://www.linkedin.com/in/efadhemon")}
+            >
+              <ExternalLink size={16} />
+            </Button>
+          </div>
+        </Card>
+      </section>
+
+      <section className="flex flex-col gap-3">
         <SectionTitle>Locations</SectionTitle>
         <Card>
           <PathRow label="Settings file" value={environment?.configPath} />
@@ -89,22 +126,12 @@ export function About() {
   );
 }
 
-function PathRow({
-  label,
-  value,
-  openable,
-}: {
-  label: string;
-  value?: string;
-  openable?: boolean;
-}) {
+function PathRow({ label, value, openable }: { label: string; value?: string; openable?: boolean }) {
   return (
     <div className="flex items-center justify-between gap-4 px-4 py-3">
       <div className="min-w-0">
         <p className="text-sm font-medium text-ink">{label}</p>
-        <p className="mt-0.5 truncate font-mono text-xs text-ink-muted select-text">
-          {value ?? "..."}
-        </p>
+        <p className="mt-0.5 truncate font-mono text-xs text-ink-muted select-text">{value ?? "..."}</p>
       </div>
       {openable && value && (
         <Button

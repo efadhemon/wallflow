@@ -2,6 +2,11 @@
   "name": "wallflow",
   "private": true,
   "version": "1.0.0",
+  "author": "Emon Hossain",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/efadhemon/wallflow.git"
+  },
   "type": "module",
   "scripts": {
     "dev": "vite",

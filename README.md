@@ -71,9 +71,9 @@ will ask you to confirm via *More info* to *Run anyway*.
 
 | | Linux | Windows |
 | --- | --- | --- |
-| Settings | `~/.config/io.github.wallflow.app/config.json` | `%APPDATA%\io.github.wallflow.app\config.json` |
-| Log | `~/.local/share/io.github.wallflow.app/logs/wallflow.log` | `%APPDATA%\io.github.wallflow.app\logs\wallflow.log` |
-| Thumbnails | `~/.cache/io.github.wallflow.app/` | `%LOCALAPPDATA%\io.github.wallflow.app\` |
+| Settings | `~/.config/com.efadhemon.wallflow/config.json` | `%APPDATA%\com.efadhemon.wallflow\config.json` |
+| Log | `~/.local/share/com.efadhemon.wallflow/logs/wallflow.log` | `%APPDATA%\com.efadhemon.wallflow\logs\wallflow.log` |
+| Thumbnails | `~/.cache/com.efadhemon.wallflow/` | `%LOCALAPPDATA%\com.efadhemon.wallflow\` |
 
 The About screen links to all three and shows the tail of the log.
 
