@@ -494,6 +494,13 @@
   dependencies:
     tslib "^2.4.0"
 
+"@types/node@^26.2.0":
+  version "26.2.0"
+  resolved "https://registry.yarnpkg.com/@types/node/-/node-26.2.0.tgz#5a4875a862fda8fdc57de8faa579bb81ecba1685"
+  integrity sha512-5IviulTZeRNp2vAJ514cc/HUlY5nZ9fCbq9DMyC52BrhFZACo3nI0R7qBxhQmo/d27NFe96ur/b7Wwxklda+kg==
+  dependencies:
+    undici-types "~8.3.0"
+
 "@types/react-dom@^19.2.4":
   version "19.2.4"
   resolved "https://registry.yarnpkg.com/@types/react-dom/-/react-dom-19.2.4.tgz#165ab5e97dfb081847b0f6755060cf40a3f6666b"
@@ -970,6 +977,11 @@ typescript@^7.0.2:
     "@typescript/typescript-sunos-x64" "7.0.2"
     "@typescript/typescript-win32-arm64" "7.0.2"
     "@typescript/typescript-win32-x64" "7.0.2"
+
+undici-types@~8.3.0:
+  version "8.3.0"
+  resolved "https://registry.yarnpkg.com/undici-types/-/undici-types-8.3.0.tgz#44e9fc9f3244648cdea35e4f9bb2d681e9410809"
+  integrity sha512-j375ScV60dom+YkPFIfTLcOiPxkN/buHz5GobjLhixFuANaNs3C9l4GmrWqejgXWJ7BbJcFYpTEUkS1Ge8bpZQ==
 
 vite@^8.2.1:
   version "8.2.1"
