@@ -22,24 +22,24 @@ there is no bundled browser runtime.
 
 ## Supported systems
 
-| System | Requirement |
-| --- | --- |
-| Ubuntu / Debian | 24.04 LTS or newer (needs `libwebkit2gtk-4.1-0`) |
-| Other Linux | Any distribution, via the AppImage |
-| Windows | Windows 10 (1803) or newer |
-| macOS | 10.15 Catalina or newer (Apple Silicon and Intel) |
+| System          | Requirement                                       |
+| --------------- | ------------------------------------------------- |
+| Ubuntu / Debian | 24.04 LTS or newer (needs `libwebkit2gtk-4.1-0`)  |
+| Other Linux     | Any distribution, via the AppImage                |
+| Windows         | Windows 10 (1803) or newer                        |
+| macOS           | 10.15 Catalina or newer (Apple Silicon and Intel) |
 
 On Linux the wallpaper is applied through whatever your desktop provides:
 
-| Desktop | Mechanism |
-| --- | --- |
-| GNOME, Unity, Budgie, Pantheon | `gsettings` on `org.gnome.desktop.background` |
-| KDE Plasma | `qdbus` script on `plasmashell`, falling back to `plasma-apply-wallpaperimage` |
-| Xfce | `xfconf-query`, applied to every monitor it lists |
-| Cinnamon | `gsettings` on `org.cinnamon.desktop.background` |
-| MATE | `gsettings` on `org.mate.background` |
-| LXQt | `pcmanfm-qt` |
-| Anything else | Tries gsettings, then qdbus, then `feh` |
+| Desktop                        | Mechanism                                                                      |
+| ------------------------------ | ------------------------------------------------------------------------------ |
+| GNOME, Unity, Budgie, Pantheon | `gsettings` on `org.gnome.desktop.background`                                  |
+| KDE Plasma                     | `qdbus` script on `plasmashell`, falling back to `plasma-apply-wallpaperimage` |
+| Xfce                           | `xfconf-query`, applied to every monitor it lists                              |
+| Cinnamon                       | `gsettings` on `org.cinnamon.desktop.background`                               |
+| MATE                           | `gsettings` on `org.mate.background`                                           |
+| LXQt                           | `pcmanfm-qt`                                                                   |
+| Anything else                  | Tries gsettings, then qdbus, then `feh`                                        |
 
 Windows uses the `IDesktopWallpaper` COM interface, which is what makes per-monitor
 wallpapers possible, and falls back to `SystemParametersInfoW` if that is unavailable.
@@ -69,22 +69,22 @@ chmod +x Wallflow_1.0.0_amd64.AppImage
 
 Run `Wallflow_1.0.0_x64-setup.exe`. It installs for the current user only, so no
 administrator prompt appears. The installer is not code-signed yet, so SmartScreen
-will ask you to confirm via *More info* to *Run anyway*.
+will ask you to confirm via _More info_ to _Run anyway_.
 
 **macOS**
 
 Open `Wallflow_1.0.0_aarch64.dmg` on Apple Silicon, or `Wallflow_1.0.0_x64.dmg` on
 Intel, and drag Wallflow into Applications. The disk image is not notarized, so the
-first launch is blocked by Gatekeeper: right-click the app, choose *Open*, then
-confirm *Open* again.
+first launch is blocked by Gatekeeper: right-click the app, choose _Open_, then
+confirm _Open_ again.
 
 ## Where things are stored
 
-| | Linux | Windows | macOS |
-| --- | --- | --- | --- |
-| Settings | `~/.config/com.efadhemon.wallflow/config.json` | `%APPDATA%\com.efadhemon.wallflow\config.json` | `~/Library/Application Support/com.efadhemon.wallflow/config.json` |
-| Log | `~/.local/share/com.efadhemon.wallflow/logs/wallflow.log` | `%APPDATA%\com.efadhemon.wallflow\logs\wallflow.log` | `~/Library/Logs/com.efadhemon.wallflow/wallflow.log` |
-| Thumbnails | `~/.cache/com.efadhemon.wallflow/` | `%LOCALAPPDATA%\com.efadhemon.wallflow\` | `~/Library/Caches/com.efadhemon.wallflow/` |
+|            | Linux                                                     | Windows                                              | macOS                                                              |
+| ---------- | --------------------------------------------------------- | ---------------------------------------------------- | ------------------------------------------------------------------ |
+| Settings   | `~/.config/com.efadhemon.wallflow/config.json`            | `%APPDATA%\com.efadhemon.wallflow\config.json`       | `~/Library/Application Support/com.efadhemon.wallflow/config.json` |
+| Log        | `~/.local/share/com.efadhemon.wallflow/logs/wallflow.log` | `%APPDATA%\com.efadhemon.wallflow\logs\wallflow.log` | `~/Library/Logs/com.efadhemon.wallflow/wallflow.log`               |
+| Thumbnails | `~/.cache/com.efadhemon.wallflow/`                        | `%LOCALAPPDATA%\com.efadhemon.wallflow\`             | `~/Library/Caches/com.efadhemon.wallflow/`                         |
 
 The About screen links to all three and shows the tail of the log.
 
@@ -120,10 +120,10 @@ Apple Silicon (`aarch64-apple-darwin`) and Intel (`x86_64-apple-darwin`).
 - WebP images are transcoded to PNG in the thumbnail cache before being applied,
   because Windows cannot render WebP wallpapers and GNOME only can with
   `webp-pixbuf-loader` installed.
-- Closing the window hides it. Use *Quit* in the tray menu to stop the app.
+- Closing the window hides it. Use _Quit_ in the tray menu to stop the app.
 - Per-monitor wallpapers are available on Windows and macOS; the Linux backends
   set every monitor to the same image.
-- macOS has no wallpaper tile mode, so *Tile* is applied as *Center*.
+- macOS has no wallpaper tile mode, so _Tile_ is applied as _Center_.
 - Xfce only exposes its wallpaper properties after the Desktop Settings dialog has
   been opened once on a fresh install.
 

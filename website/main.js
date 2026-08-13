@@ -48,28 +48,16 @@
 
   function detectPlatform() {
     const uaData = navigator.userAgentData;
-    const platformHint = (
-      (uaData && uaData.platform) ||
-      navigator.platform ||
-      ""
-    ).toLowerCase();
+    const platformHint = ((uaData && uaData.platform) || navigator.platform || "").toLowerCase();
     const ua = (navigator.userAgent || "").toLowerCase();
 
-    if (
-      platformHint.includes("mac") ||
-      ua.includes("mac os") ||
-      ua.includes("macintosh")
-    ) {
+    if (platformHint.includes("mac") || ua.includes("mac os") || ua.includes("macintosh")) {
       return "macos";
     }
     if (platformHint.includes("win") || ua.includes("windows")) {
       return "windows";
     }
-    if (
-      platformHint.includes("linux") ||
-      ua.includes("linux") ||
-      ua.includes("x11")
-    ) {
+    if (platformHint.includes("linux") || ua.includes("linux") || ua.includes("x11")) {
       return "linux";
     }
     return null;

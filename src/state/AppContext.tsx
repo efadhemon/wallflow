@@ -1,13 +1,4 @@
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type ReactNode,
-} from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { api, onStatus } from "../lib/api";
 import type { Config, Environment, Status, Theme } from "../lib/types";
 
@@ -32,6 +23,7 @@ interface AppContextValue {
 
 const AppContext = createContext<AppContextValue | null>(null);
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useApp(): AppContextValue {
   const value = useContext(AppContext);
   if (!value) throw new Error("useApp must be used inside <AppProvider>");
@@ -53,22 +45,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const notify = useCallback((message: string, tone: "info" | "error" = "info") => {
     const id = nextToastId.current++;
-    setToasts((current) => [...current, { id, message, tone }]);
+    setToasts(current => [...current, { id, message, tone }]);
     window.setTimeout(
-      () => setToasts((current) => current.filter((toast) => toast.id !== id)),
+      () => setToasts(current => current.filter(toast => toast.id !== id)),
       tone === "error" ? 7000 : 3500,
     );
   }, []);
 
   const dismissToast = useCallback((id: number) => {
-    setToasts((current) => current.filter((toast) => toast.id !== id));
+    setToasts(current => current.filter(toast => toast.id !== id));
   }, []);
 
   const refresh = useCallback(async () => {
-    const [nextStatus, nextConfig] = await Promise.all([
-      api.getStatus(),
-      api.getConfig(),
-    ]);
+    const [nextStatus, nextConfig] = await Promise.all([api.getStatus(), api.getConfig()]);
     setStatus(nextStatus);
     setConfigState(nextConfig);
   }, []);

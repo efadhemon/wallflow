@@ -1,3 +1,8 @@
 {
-  "cSpell.words": ["efadhemon", "Emon", "Hossain", "Wallflow"]
+  "cSpell.words": ["efadhemon", "Emon", "Hossain", "Wallflow"],
+  "files.autoSave": "onWindowChange",
+  "editor.formatOnSave": true,
+  "[json]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  }
 }

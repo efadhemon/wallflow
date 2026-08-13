@@ -35,8 +35,8 @@ export function Thumbnail({
     if (visible || !holder.current) return;
 
     const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries.some((entry) => entry.isIntersecting)) {
+      entries => {
+        if (entries.some(entry => entry.isIntersecting)) {
           setVisible(true);
           observer.disconnect();
         }
@@ -53,7 +53,7 @@ export function Thumbnail({
 
     api
       .getThumbnail(path)
-      .then((file) => {
+      .then(file => {
         if (!cancelled) setSrc(convertFileSrc(file));
       })
       .catch(() => {
@@ -68,11 +68,7 @@ export function Thumbnail({
   return (
     <div
       ref={holder}
-      className={cn(
-        "relative overflow-hidden bg-surface-muted",
-        !src && !failed && "animate-pulse",
-        className,
-      )}
+      className={cn("relative overflow-hidden bg-surface-muted", !src && !failed && "animate-pulse", className)}
     >
       {src && (
         <img

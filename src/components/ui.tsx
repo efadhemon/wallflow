@@ -8,8 +8,7 @@ type ButtonSize = "sm" | "md" | "lg" | "icon";
 const VARIANTS: Record<ButtonVariant, string> = {
   primary:
     "bg-brand text-on-brand hover:bg-brand-hover active:bg-brand shadow-sm disabled:bg-line disabled:text-ink-muted disabled:shadow-none",
-  secondary:
-    "bg-surface text-ink border border-line hover:bg-surface-muted disabled:text-ink-muted",
+  secondary: "bg-surface text-ink border border-line hover:bg-surface-muted disabled:text-ink-muted",
   ghost: "text-ink-muted hover:bg-surface-muted hover:text-ink",
   danger: "bg-danger-soft text-danger hover:bg-danger/15",
 };
@@ -26,12 +25,7 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   size?: ButtonSize;
 }
 
-export function Button({
-  variant = "secondary",
-  size = "md",
-  className,
-  ...props
-}: ButtonProps) {
+export function Button({ variant = "secondary", size = "md", className, ...props }: ButtonProps) {
   return (
     <button
       className={cn(
@@ -45,31 +39,16 @@ export function Button({
   );
 }
 
-export function Card({
-  className,
-  children,
-}: {
-  className?: string;
-  children: ReactNode;
-}) {
+export function Card({ className, children }: { className?: string; children: ReactNode }) {
   return (
-    <div
-      className={cn(
-        "rounded-xl border border-line bg-surface shadow-[0_1px_2px_rgb(0_0_0/0.04)]",
-        className,
-      )}
-    >
+    <div className={cn("rounded-xl border border-line bg-surface shadow-[0_1px_2px_rgb(0_0_0/0.04)]", className)}>
       {children}
     </div>
   );
 }
 
 export function SectionTitle({ children }: { children: ReactNode }) {
-  return (
-    <h2 className="text-xs font-semibold tracking-wider text-ink-muted uppercase">
-      {children}
-    </h2>
-  );
+  return <h2 className="text-xs font-semibold tracking-wider text-ink-muted uppercase">{children}</h2>;
 }
 
 /** Label + description + control, the building block of the settings screen. */
@@ -87,10 +66,7 @@ export function Field({
   return (
     <div className="flex items-center justify-between gap-6 px-4 py-3.5">
       <div className="min-w-0">
-        <label
-          htmlFor={htmlFor}
-          className="block text-sm font-medium text-ink"
-        >
+        <label htmlFor={htmlFor} className="block text-sm font-medium text-ink">
           {label}
         </label>
         {hint && <p className="mt-0.5 text-xs text-ink-muted">{hint}</p>}
@@ -137,10 +113,7 @@ export function Switch({
   );
 }
 
-export function Select({
-  className,
-  ...props
-}: SelectHTMLAttributes<HTMLSelectElement>) {
+export function Select({ className, ...props }: SelectHTMLAttributes<HTMLSelectElement>) {
   return (
     <div className="relative inline-flex items-center">
       <select
@@ -150,11 +123,7 @@ export function Select({
         )}
         {...props}
       />
-      <ChevronDown
-        size={15}
-        aria-hidden
-        className="pointer-events-none absolute right-3 text-ink-muted"
-      />
+      <ChevronDown size={15} aria-hidden className="pointer-events-none absolute right-3 text-ink-muted" />
     </div>
   );
 }
@@ -185,7 +154,7 @@ export function NumberInput({
         value={value}
         min={min}
         max={max}
-        onChange={(event) => {
+        onChange={event => {
           const parsed = Number.parseInt(event.target.value, 10);
           if (!Number.isNaN(parsed)) onChange(clamp(parsed));
         }}
@@ -252,9 +221,7 @@ export function Banner({
       role={tone === "error" ? "alert" : "status"}
       className={cn(
         "flex items-start gap-3 rounded-xl border px-4 py-3",
-        tone === "error"
-          ? "border-danger/30 bg-danger-soft text-danger"
-          : "border-brand/25 bg-brand-soft text-ink",
+        tone === "error" ? "border-danger/30 bg-danger-soft text-danger" : "border-brand/25 bg-brand-soft text-ink",
       )}
     >
       <div className="min-w-0 flex-1">

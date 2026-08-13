@@ -22,7 +22,7 @@ export function Titlebar() {
     };
 
     void sync();
-    void window.onResized(sync).then((fn) => {
+    void window.onResized(sync).then(fn => {
       unlisten = fn;
     });
 
@@ -47,24 +47,13 @@ export function Titlebar() {
       </div>
 
       <div className="flex items-center gap-1.5 pr-2.5">
-        <WindowButton
-          label="Minimize"
-          onClick={() => void getCurrentWindow().minimize()}
-        >
+        <WindowButton label="Minimize" onClick={() => void getCurrentWindow().minimize()}>
           <Minus size={12} strokeWidth={2.4} />
         </WindowButton>
         <WindowButton label={maximized ? "Restore" : "Maximize"} onClick={onToggleMaximize}>
-          {maximized ? (
-            <Copy size={11} strokeWidth={2.2} />
-          ) : (
-            <Square size={11} strokeWidth={2.2} />
-          )}
+          {maximized ? <Copy size={11} strokeWidth={2.2} /> : <Square size={11} strokeWidth={2.2} />}
         </WindowButton>
-        <WindowButton
-          label="Close"
-          danger
-          onClick={() => void getCurrentWindow().hide()}
-        >
+        <WindowButton label="Close" danger onClick={() => void getCurrentWindow().hide()}>
           <X size={12} strokeWidth={2.4} />
         </WindowButton>
       </div>
@@ -88,12 +77,10 @@ function WindowButton({
       type="button"
       aria-label={label}
       onClick={onClick}
-      onMouseDown={(event) => event.stopPropagation()}
+      onMouseDown={event => event.stopPropagation()}
       className={cn(
         "flex h-6 w-6 cursor-pointer items-center justify-center rounded-full bg-ink/10 text-ink-muted transition-colors",
-        danger
-          ? "hover:bg-danger hover:text-white"
-          : "hover:bg-ink/20 hover:text-ink",
+        danger ? "hover:bg-danger hover:text-white" : "hover:bg-ink/20 hover:text-ink",
       )}
     >
       {children}

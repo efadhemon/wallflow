@@ -9,11 +9,9 @@ export const api = {
   getConfig: () => invoke<Config>("get_config"),
   setConfig: (config: Config) => invoke<Config>("set_config", { config }),
 
-  addFolder: (path: string, recursive: boolean) =>
-    invoke<Config>("add_folder", { path, recursive }),
+  addFolder: (path: string, recursive: boolean) => invoke<Config>("add_folder", { path, recursive }),
   removeFolder: (path: string) => invoke<Config>("remove_folder", { path }),
-  setFolderRecursive: (path: string, recursive: boolean) =>
-    invoke<Config>("set_folder_recursive", { path, recursive }),
+  setFolderRecursive: (path: string, recursive: boolean) => invoke<Config>("set_folder_recursive", { path, recursive }),
   listFolders: () => invoke<FolderEntry[]>("list_folders"),
 
   listImages: () => invoke<ImageEntry[]>("list_images"),
@@ -30,5 +28,5 @@ export const api = {
 };
 
 export function onStatus(handler: (status: Status) => void): Promise<UnlistenFn> {
-  return listen<Status>(STATUS_EVENT, (event) => handler(event.payload));
+  return listen<Status>(STATUS_EVENT, event => handler(event.payload));
 }

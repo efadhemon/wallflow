@@ -12,13 +12,7 @@ const NAV: { id: Route; label: string; icon: ComponentType<{ size?: number }> }[
   { id: "about", label: "About", icon: Info },
 ];
 
-export function Sidebar({
-  active,
-  onNavigate,
-}: {
-  active: Route;
-  onNavigate: (route: Route) => void;
-}) {
+export function Sidebar({ active, onNavigate }: { active: Route; onNavigate: (route: Route) => void }) {
   const { status } = useApp();
 
   return (
@@ -37,9 +31,7 @@ export function Sidebar({
             aria-current={active === id ? "page" : undefined}
             className={cn(
               "focus-ring flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition",
-              active === id
-                ? "bg-brand-soft text-brand"
-                : "text-ink-muted hover:bg-surface-muted hover:text-ink",
+              active === id ? "bg-brand-soft text-brand" : "text-ink-muted hover:bg-surface-muted hover:text-ink",
             )}
           >
             <Icon size={17} />
@@ -53,18 +45,10 @@ export function Sidebar({
           <span
             className={cn(
               "h-2 w-2 rounded-full",
-              status?.lastError
-                ? "bg-danger"
-                : status?.paused
-                  ? "bg-ink-muted"
-                  : "bg-emerald-500",
+              status?.lastError ? "bg-danger" : status?.paused ? "bg-ink-muted" : "bg-emerald-500",
             )}
           />
-          {status?.lastError
-            ? "Error"
-            : status?.paused
-              ? "Paused"
-              : "Rotating"}
+          {status?.lastError ? "Error" : status?.paused ? "Paused" : "Rotating"}
         </span>
       </div>
     </nav>

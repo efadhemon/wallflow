@@ -25,9 +25,7 @@ export function formatCountdown(msRemaining: number): string {
   const seconds = total % 60;
   const pad = (value: number) => value.toString().padStart(2, "0");
 
-  return hours > 0
-    ? `${hours}:${pad(minutes)}:${pad(seconds)}`
-    : `${pad(minutes)}:${pad(seconds)}`;
+  return hours > 0 ? `${hours}:${pad(minutes)}:${pad(seconds)}` : `${pad(minutes)}:${pad(seconds)}`;
 }
 
 /** Collapses a long path to its last few segments for display. */

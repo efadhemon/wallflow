@@ -1,25 +1,9 @@
 import { open } from "@tauri-apps/plugin-dialog";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
-import {
-  Check,
-  EyeOff,
-  FolderOpen,
-  FolderPlus,
-  ImageIcon,
-  RefreshCw,
-  Trash2,
-  TriangleAlert,
-} from "lucide-react";
+import { Check, EyeOff, FolderOpen, FolderPlus, ImageIcon, RefreshCw, Trash2, TriangleAlert } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Thumbnail } from "../components/Thumbnail";
-import {
-  Button,
-  Card,
-  Divider,
-  EmptyState,
-  SectionTitle,
-  Switch,
-} from "../components/ui";
+import { Button, Card, Divider, EmptyState, SectionTitle, Switch } from "../components/ui";
 import { api } from "../lib/api";
 import type { FolderEntry, ImageEntry } from "../lib/types";
 import { cn } from "../lib/utils";
@@ -38,10 +22,7 @@ export function Library() {
 
   const reload = useCallback(async () => {
     try {
-      const [nextFolders, nextImages] = await Promise.all([
-        api.listFolders(),
-        api.listImages(),
-      ]);
+      const [nextFolders, nextImages] = await Promise.all([api.listFolders(), api.listImages()]);
       setFolders(nextFolders);
       setImages(nextImages);
     } catch (error) {
@@ -63,9 +44,9 @@ export function Library() {
     const node = sentinel.current;
     if (!node) return;
 
-    const observer = new IntersectionObserver((entries) => {
-      if (entries.some((entry) => entry.isIntersecting)) {
-        setVisibleCount((count) => Math.min(count + PAGE_SIZE, images.length));
+    const observer = new IntersectionObserver(entries => {
+      if (entries.some(entry => entry.isIntersecting)) {
+        setVisibleCount(count => Math.min(count + PAGE_SIZE, images.length));
       }
     });
     observer.observe(node);
@@ -126,9 +107,7 @@ export function Library() {
                 <div className="flex items-center gap-4 px-4 py-3">
                   <div className="min-w-0 flex-1">
                     <p className="flex items-center gap-1.5 truncate text-sm font-medium text-ink">
-                      {!folder.exists && (
-                        <TriangleAlert size={14} className="shrink-0 text-danger" />
-                      )}
+                      {!folder.exists && <TriangleAlert size={14} className="shrink-0 text-danger" />}
                       {folder.path}
                     </p>
                     <p className="mt-0.5 text-xs text-ink-muted">
@@ -144,13 +123,7 @@ export function Library() {
                       label={`Include subfolders of ${folder.path}`}
                       checked={folder.recursive}
                       disabled={busy}
-                      onChange={(recursive) =>
-                        act(() =>
-                          api
-                            .setFolderRecursive(folder.path, recursive)
-                            .then(setConfig),
-                        )
-                      }
+                      onChange={recursive => act(() => api.setFolderRecursive(folder.path, recursive).then(setConfig))}
                     />
                   </label>
 
@@ -160,9 +133,7 @@ export function Library() {
                     disabled={busy}
                     aria-label={`Remove ${folder.path}`}
                     title="Remove folder"
-                    onClick={() =>
-                      act(() => api.removeFolder(folder.path).then(setConfig))
-                    }
+                    onClick={() => act(() => api.removeFolder(folder.path).then(setConfig))}
                   >
                     <Trash2 size={16} />
                   </Button>
@@ -175,9 +146,7 @@ export function Library() {
 
       <section className="flex flex-col gap-3">
         <div className="flex items-center justify-between">
-          <SectionTitle>
-            Images {images.length > 0 && `(${images.length})`}
-          </SectionTitle>
+          <SectionTitle>Images {images.length > 0 && `(${images.length})`}</SectionTitle>
           <Button size="sm" variant="ghost" onClick={() => void reload()} disabled={busy}>
             <RefreshCw size={14} />
             Rescan
@@ -195,7 +164,7 @@ export function Library() {
         ) : (
           <>
             <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-3">
-              {visible.map((image) => (
+              {visible.map(image => (
                 <ImageTile
                   key={image.path}
                   image={image}

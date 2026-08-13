@@ -1,0 +1,21 @@
+# Dependencies and build output
+node_modules
+dist
+dist-ssr
+src-tauri/target
+src-tauri/gen
+
+# Lockfiles
+yarn.lock
+src-tauri/Cargo.lock
+
+# Env and logs
+.env
+.env.*
+*.log
+
+# Generated / binary
+*.min.js
+*.png
+*.ico
+*.icns

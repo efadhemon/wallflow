@@ -41,7 +41,7 @@ function Toasts() {
 
   return (
     <div className="pointer-events-none fixed inset-x-0 bottom-0 z-50 flex flex-col items-center gap-2 p-5">
-      {toasts.map((toast) => (
+      {toasts.map(toast => (
         <div
           key={toast.id}
           role={toast.tone === "error" ? "alert" : "status"}

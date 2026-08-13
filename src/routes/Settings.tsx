@@ -1,13 +1,5 @@
 import { useMemo, useState } from "react";
-import {
-  Card,
-  Divider,
-  Field,
-  NumberInput,
-  SectionTitle,
-  Select,
-  Switch,
-} from "../components/ui";
+import { Card, Divider, Field, NumberInput, SectionTitle, Select, Switch } from "../components/ui";
 import type { FillMode, Order, Theme } from "../lib/types";
 import { useApp } from "../state/AppContext";
 
@@ -21,10 +13,8 @@ const UNIT_SECONDS: Record<Unit, number> = {
 
 /** Shows the interval in the largest unit that divides it exactly. */
 function splitInterval(totalSeconds: number): { value: number; unit: Unit } {
-  if (totalSeconds % UNIT_SECONDS.hours === 0)
-    return { value: totalSeconds / UNIT_SECONDS.hours, unit: "hours" };
-  if (totalSeconds % UNIT_SECONDS.minutes === 0)
-    return { value: totalSeconds / UNIT_SECONDS.minutes, unit: "minutes" };
+  if (totalSeconds % UNIT_SECONDS.hours === 0) return { value: totalSeconds / UNIT_SECONDS.hours, unit: "hours" };
+  if (totalSeconds % UNIT_SECONDS.minutes === 0) return { value: totalSeconds / UNIT_SECONDS.minutes, unit: "minutes" };
   return { value: totalSeconds, unit: "seconds" };
 }
 
@@ -32,7 +22,7 @@ export function Settings() {
   const { config, environment, updateConfig } = useApp();
   const derived = useMemo(
     () => (config ? splitInterval(config.intervalSeconds) : null),
-    [config?.intervalSeconds, config],
+    [config],
   );
   const [unit, setUnit] = useState<Unit | null>(null);
 
@@ -65,14 +55,12 @@ export function Settings() {
                   label="Interval"
                   value={intervalValue}
                   min={activeUnit === "seconds" ? 5 : 1}
-                  onChange={(value) => setInterval(value, activeUnit)}
+                  onChange={value => setInterval(value, activeUnit)}
                 />
                 <Select
                   aria-label="Interval unit"
                   value={activeUnit}
-                  onChange={(event) =>
-                    setInterval(intervalValue, event.target.value as Unit)
-                  }
+                  onChange={event => setInterval(intervalValue, event.target.value as Unit)}
                 >
                   <option value="seconds">seconds</option>
                   <option value="minutes">minutes</option>
@@ -89,9 +77,7 @@ export function Settings() {
               <Select
                 aria-label="Order"
                 value={config.order}
-                onChange={(event) =>
-                  void updateConfig({ order: event.target.value as Order })
-                }
+                onChange={event => void updateConfig({ order: event.target.value as Order })}
               >
                 <option value="shuffle">Shuffle</option>
                 <option value="sequential">Sequential</option>
@@ -107,7 +93,7 @@ export function Settings() {
               <Switch
                 label="Change on startup"
                 checked={config.changeOnStartup}
-                onChange={(changeOnStartup) => void updateConfig({ changeOnStartup })}
+                onChange={changeOnStartup => void updateConfig({ changeOnStartup })}
               />
             }
           />
@@ -124,9 +110,7 @@ export function Settings() {
               <Select
                 aria-label="Fill mode"
                 value={config.fillMode}
-                onChange={(event) =>
-                  void updateConfig({ fillMode: event.target.value as FillMode })
-                }
+                onChange={event => void updateConfig({ fillMode: event.target.value as FillMode })}
               >
                 <option value="fill">Fill</option>
                 <option value="fit">Fit</option>
@@ -149,7 +133,7 @@ export function Settings() {
                 label="Different image per monitor"
                 checked={config.perMonitor}
                 disabled={!environment?.supportsPerMonitor}
-                onChange={(perMonitor) => void updateConfig({ perMonitor })}
+                onChange={perMonitor => void updateConfig({ perMonitor })}
               />
             }
           />
@@ -166,7 +150,7 @@ export function Settings() {
               <Switch
                 label="Start at login"
                 checked={config.autostart}
-                onChange={(autostart) => void updateConfig({ autostart })}
+                onChange={autostart => void updateConfig({ autostart })}
               />
             }
           />
@@ -179,7 +163,7 @@ export function Settings() {
                 label="Start in the tray"
                 checked={config.startMinimized}
                 disabled={!config.autostart}
-                onChange={(startMinimized) => void updateConfig({ startMinimized })}
+                onChange={startMinimized => void updateConfig({ startMinimized })}
               />
             }
           />
@@ -190,9 +174,7 @@ export function Settings() {
               <Select
                 aria-label="Theme"
                 value={config.theme}
-                onChange={(event) =>
-                  void updateConfig({ theme: event.target.value as Theme })
-                }
+                onChange={event => void updateConfig({ theme: event.target.value as Theme })}
               >
                 <option value="system">Match system</option>
                 <option value="light">Light</option>
@@ -202,8 +184,7 @@ export function Settings() {
           />
         </Card>
         <p className="px-1 text-xs text-ink-muted">
-          Closing this window leaves Wallflow running in the tray. Use Quit
-          in the tray menu to stop it completely.
+          Closing this window leaves Wallflow running in the tray. Use Quit in the tray menu to stop it completely.
         </p>
       </section>
     </div>

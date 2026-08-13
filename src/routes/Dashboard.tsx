@@ -1,13 +1,4 @@
-import {
-  AlertTriangle,
-  ImageIcon,
-  Monitor,
-  Pause,
-  Play,
-  SkipBack,
-  SkipForward,
-  Timer,
-} from "lucide-react";
+import { AlertTriangle, ImageIcon, Monitor, Pause, Play, SkipBack, SkipForward, Timer } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Thumbnail } from "../components/Thumbnail";
 import { Banner, Button, Card, EmptyState } from "../components/ui";
@@ -37,7 +28,7 @@ export function Dashboard({ onBrowse }: { onBrowse: () => void }) {
   const { current, paused, nextChangeAt, playlistSize, position, lastError } = status;
 
   const run = (action: () => Promise<unknown>) => () => {
-    action().catch((error) => notify(String(error), "error"));
+    action().catch(error => notify(String(error), "error"));
   };
 
   if (playlistSize === 0) {
@@ -70,12 +61,7 @@ export function Dashboard({ onBrowse }: { onBrowse: () => void }) {
       <Card className="overflow-hidden">
         <div className="relative aspect-video w-full bg-surface-muted">
           {current ? (
-            <Thumbnail
-              eager
-              path={current.path}
-              alt={current.name}
-              className="h-full w-full"
-            />
+            <Thumbnail eager path={current.path} alt={current.name} className="h-full w-full" />
           ) : (
             <div className="flex h-full items-center justify-center text-ink-muted">
               <ImageIcon size={28} />
@@ -83,12 +69,8 @@ export function Dashboard({ onBrowse }: { onBrowse: () => void }) {
           )}
 
           <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 to-transparent px-5 pt-14 pb-4">
-            <p className="truncate text-base font-semibold text-white">
-              {current?.name ?? "No wallpaper set"}
-            </p>
-            <p className="mt-0.5 truncate text-xs text-white/70">
-              {current?.folder ?? ""}
-            </p>
+            <p className="truncate text-base font-semibold text-white">{current?.name ?? "No wallpaper set"}</p>
+            <p className="mt-0.5 truncate text-xs text-white/70">{current?.folder ?? ""}</p>
           </div>
 
           <span className="absolute top-4 right-4 rounded-full bg-black/55 px-2.5 py-1 text-xs font-medium text-white tabular-nums">
@@ -104,41 +86,23 @@ export function Dashboard({ onBrowse }: { onBrowse: () => void }) {
             ) : nextChangeAt ? (
               <span>
                 Next in{" "}
-                <span className="font-semibold text-ink tabular-nums">
-                  {formatCountdown(nextChangeAt - now)}
-                </span>
+                <span className="font-semibold text-ink tabular-nums">{formatCountdown(nextChangeAt - now)}</span>
               </span>
             ) : (
               <span>Waiting</span>
             )}
-            <span className="text-ink-muted/60">
-              &middot; every {formatDuration(status.intervalSeconds)}
-            </span>
+            <span className="text-ink-muted/60">&middot; every {formatDuration(status.intervalSeconds)}</span>
           </div>
 
           <div className="flex items-center gap-2">
-            <Button
-              size="icon"
-              onClick={run(api.previous)}
-              aria-label="Previous wallpaper"
-              title="Previous wallpaper"
-            >
+            <Button size="icon" onClick={run(api.previous)} aria-label="Previous wallpaper" title="Previous wallpaper">
               <SkipBack size={16} />
             </Button>
-            <Button
-              variant="primary"
-              onClick={run(api.togglePause)}
-              className="w-28"
-            >
+            <Button variant="primary" onClick={run(api.togglePause)} className="w-28">
               {paused ? <Play size={16} /> : <Pause size={16} />}
               {paused ? "Resume" : "Pause"}
             </Button>
-            <Button
-              size="icon"
-              onClick={run(api.next)}
-              aria-label="Next wallpaper"
-              title="Next wallpaper"
-            >
+            <Button size="icon" onClick={run(api.next)} aria-label="Next wallpaper" title="Next wallpaper">
               <SkipForward size={16} />
             </Button>
           </div>
@@ -164,15 +128,7 @@ export function Dashboard({ onBrowse }: { onBrowse: () => void }) {
   );
 }
 
-function Stat({
-  label,
-  value,
-  icon,
-}: {
-  label: string;
-  value: string;
-  icon?: React.ReactNode;
-}) {
+function Stat({ label, value, icon }: { label: string; value: string; icon?: React.ReactNode }) {
   return (
     <Card className="px-4 py-3">
       <p className="flex items-center gap-1.5 text-xs text-ink-muted">
