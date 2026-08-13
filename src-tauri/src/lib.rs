@@ -122,6 +122,11 @@ fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     watcher::rewatch(&state);
 
     if let Some(window) = app.get_webview_window(tray::MAIN_WINDOW) {
+        // GNOME draws CSD controls over the webview, so they ignore clicks until
+        // a resize. Linux uses an in-page titlebar instead.
+        #[cfg(target_os = "linux")]
+        window.set_decorations(false)?;
+
         let launched_at_login = std::env::args().any(|arg| arg == MINIMIZED_FLAG);
         if !(start_minimized && launched_at_login) {
             window.show()?;
