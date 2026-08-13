@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#6366f1" />
+      <stop offset="55%" stop-color="#8b5cf6" />
+      <stop offset="100%" stop-color="#d946ef" />
+    </linearGradient>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.95" />
+      <stop offset="100%" stop-color="#e0e7ff" stop-opacity="0.9" />
+    </linearGradient>
+  </defs>
+
+  <rect width="1024" height="1024" rx="230" fill="url(#bg)" />
+
+  <g transform="translate(0,-18)">
+    <rect x="212" y="286" width="600" height="420" rx="44" fill="url(#sky)" />
+    <circle cx="356" cy="404" r="52" fill="#fbbf24" />
+    <path d="M212 618 L392 452 L520 570 L620 490 L812 652 L812 662 A44 44 0 0 1 768 706 L256 706 A44 44 0 0 1 212 662 Z" fill="#4c1d95" />
+    <path d="M512 566 L640 466 L812 610 L812 662 A44 44 0 0 1 768 706 L392 706 Z" fill="#6d28d9" />
+  </g>
+
+  <g fill="none" stroke="#ffffff" stroke-width="52" stroke-linecap="round">
+    <path d="M300 796 A 212 212 0 0 1 724 796" stroke-opacity="0.0" />
+  </g>
+
+  <g transform="translate(512,742)">
+    <path d="M-150 0 A150 150 0 0 1 92 -118" fill="none" stroke="#ffffff" stroke-width="46" stroke-linecap="round" />
+    <path d="M150 0 A150 150 0 0 1 -92 118" fill="none" stroke="#ffffff" stroke-width="46" stroke-linecap="round" />
+    <path d="M92 -118 L96 -30 L18 -96 Z" fill="#ffffff" />
+    <path d="M-92 118 L-96 30 L-18 96 Z" fill="#ffffff" />
+  </g>
+</svg>
