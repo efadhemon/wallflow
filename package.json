@@ -1,7 +1,7 @@
 {
   "name": "wallflow",
   "private": true,
-  "version": "0.0.1",
+  "version": "1.0.0",
   "author": "Emon Hossain",
   "repository": {
     "type": "git",
@@ -17,7 +17,10 @@
     "lint:fix": "eslint . --fix",
     "prettier": "prettier --check --ignore-path .prettierignore .",
     "prettier:fix": "prettier --write --ignore-path .prettierignore .",
-    "sync:version": "node scripts/sync-version.mjs"
+    "version:sync": "node scripts/sync-version.mjs",
+    "version:patch": "node scripts/bump-version.js patch && yarn version:sync",
+    "version:minor": "node scripts/bump-version.js minor && yarn version:sync",
+    "version:major": "node scripts/bump-version.js major && yarn version:sync"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.11.1",
@@ -29,6 +32,7 @@
     "lucide-react": "^1.31.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
+    "semver": "^7.8.5",
     "tailwind-merge": "^3.6.0"
   },
   "devDependencies": {

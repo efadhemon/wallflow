@@ -99,6 +99,6 @@ if (websiteOnly) {
 }
 
 if (checkOnly && drift) {
-  console.error('Run "yarn sync:version" to fix.');
+  console.error('Run "yarn version:sync" to fix.');
   process.exit(1);
 }
