@@ -1,0 +1,420 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Wallflow — rotate your desktop wallpaper on a schedule</title>
+    <meta
+      name="description"
+      content="Wallflow picks images from folders you choose and rotates your desktop background on a schedule. A small tray app for Linux and Windows."
+    />
+    <link rel="apple-touch-icon" sizes="180x180" href="assets/favicons/apple-touch-icon.png" />
+    <link rel="icon" type="image/png" sizes="32x32" href="assets/favicons/favicon-32x32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="assets/favicons/favicon-16x16.png" />
+    <link rel="manifest" href="assets/favicons/site.webmanifest" />
+
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+
+    <header class="site-header">
+      <div class="wrap header-inner">
+        <a class="brand" href="#top">
+          <img src="assets/app-icon.png" alt="" width="32" height="32" />
+          <span>Wallflow</span>
+        </a>
+
+        <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="site-nav">
+          <span class="sr-only">Menu</span>
+          <span class="nav-toggle-bar"></span>
+          <span class="nav-toggle-bar"></span>
+          <span class="nav-toggle-bar"></span>
+        </button>
+
+        <nav id="site-nav" class="site-nav" aria-label="Primary">
+          <a href="#features">Features</a>
+          <a href="#demo">Demo</a>
+          <a href="#download">Download</a>
+          <a href="#about">About</a>
+          <a class="btn btn-ghost btn-small" href="https://github.com/efadhemon/wallflow" target="_blank" rel="noopener noreferrer">GitHub</a>
+        </nav>
+      </div>
+    </header>
+
+    <main id="main">
+      <section id="top" class="hero">
+        <div class="wrap hero-inner">
+          <div class="hero-copy">
+            <p class="eyebrow">Desktop app for Linux and Windows</p>
+            <h1>Rotate your wallpaper through folders of your own images, on a schedule you choose.</h1>
+            <p class="lede">
+              Wallflow lives in the system tray, starts with your session, and stays out of the way. Built with Tauri 2
+              — the installers are a few megabytes and there is no bundled browser runtime.
+            </p>
+            <div class="hero-actions">
+              <a class="btn btn-primary" href="#download">Download</a>
+              <a class="btn btn-secondary" href="https://github.com/efadhemon/wallflow" target="_blank" rel="noopener noreferrer">View on GitHub</a>
+            </div>
+          </div>
+          <figure class="hero-shot">
+            <img
+              src="assets/screenshots/hero.png"
+              alt="Placeholder screenshot of the Wallflow dashboard"
+              width="1280"
+              height="800"
+            />
+            <figcaption>Replace this image with a real screenshot of the app.</figcaption>
+          </figure>
+        </div>
+      </section>
+
+      <section id="features" class="section">
+        <div class="wrap">
+          <header class="section-head">
+            <p class="eyebrow">What it does</p>
+            <h2>Your folders. Your schedule. Your desktop.</h2>
+            <p>
+              Point Wallflow at the pictures you already have. It picks them up, rotates them, and lets you skip, pause,
+              or apply one immediately.
+            </p>
+          </header>
+
+          <ul class="feature-grid">
+            <li>
+              <h3>Watch any folders</h3>
+              <p>
+                Point it at one or more folders. JPG, JPEG, PNG, WebP and BMP files are picked up. New images join the
+                rotation without a restart.
+              </p>
+            </li>
+            <li>
+              <h3>Your interval</h3>
+              <p>Choose how often the wallpaper changes — in seconds, minutes, or hours.</p>
+            </li>
+            <li>
+              <h3>Shuffle, sequential, or random</h3>
+              <p>
+                Shuffle plays every image once before repeating. Sequential walks the library in order. Random picks
+                without a playlist.
+              </p>
+            </li>
+            <li>
+              <h3>Fill, fit, stretch, center, or tile</h3>
+              <p>Fit modes map to whatever your desktop calls them, so the image lands the way you expect.</p>
+            </li>
+            <li>
+              <h3>Thumbnail library</h3>
+              <p>
+                Browse the whole library as thumbnails. Click one to apply it immediately, or exclude images you would
+                rather not see.
+              </p>
+            </li>
+            <li>
+              <h3>Skip, pause, tray</h3>
+              <p>
+                Skip forwards and backwards, or pause, from the window or the tray menu. Closing the window hides it;
+                Quit in the tray stops the app.
+              </p>
+            </li>
+            <li>
+              <h3>Per-monitor on Windows</h3>
+              <p>A different image per monitor on Windows. Linux backends set every monitor to the same image.</p>
+            </li>
+            <li>
+              <h3>Starts at login</h3>
+              <p>It starts with your session and stays in the tray so the rotation keeps going in the background.</p>
+            </li>
+          </ul>
+        </div>
+      </section>
+
+      <section id="demo" class="section section-alt">
+        <div class="wrap">
+          <header class="section-head">
+            <p class="eyebrow">How to use</p>
+            <h2>From install to rotating in a few minutes</h2>
+            <p>
+              A short walkthrough of the usual first session. Screenshot slots below are placeholders until real
+              captures are dropped in.
+            </p>
+          </header>
+
+          <ol class="demo-steps">
+            <li class="demo-step">
+              <div class="demo-copy">
+                <span class="step-num">1</span>
+                <h3>Add folders of images</h3>
+                <p>
+                  Open Settings and add one or more folders. Wallflow scans for JPG, JPEG, PNG, WebP and BMP files and
+                  watches those folders for new images.
+                </p>
+              </div>
+              <figure>
+                <img
+                  src="assets/screenshots/settings.png"
+                  alt="Placeholder screenshot of the Settings screen, folders section"
+                  width="1280"
+                  height="800"
+                />
+              </figure>
+            </li>
+            <li class="demo-step demo-step-reverse">
+              <div class="demo-copy">
+                <span class="step-num">2</span>
+                <h3>Set the interval and order</h3>
+                <p>
+                  Choose how often the wallpaper changes, then pick shuffle (every image once before repeating),
+                  sequential, or plain random.
+                </p>
+              </div>
+              <figure>
+                <img
+                  src="assets/screenshots/dashboard.png"
+                  alt="Placeholder screenshot of the Dashboard with interval and playback controls"
+                  width="1280"
+                  height="800"
+                />
+              </figure>
+            </li>
+            <li class="demo-step">
+              <div class="demo-copy">
+                <span class="step-num">3</span>
+                <h3>Choose how the image fits</h3>
+                <p>Fill, fit, stretch, center, or tile — mapped to whatever your desktop environment calls it.</p>
+              </div>
+              <figure>
+                <img
+                  src="assets/screenshots/settings.png"
+                  alt="Placeholder screenshot of the Settings screen, fit mode"
+                  width="1280"
+                  height="800"
+                />
+              </figure>
+            </li>
+            <li class="demo-step demo-step-reverse">
+              <div class="demo-copy">
+                <span class="step-num">4</span>
+                <h3>Browse the library</h3>
+                <p>
+                  Open Library to see every image as a thumbnail. Click one to apply it now, or exclude pictures you do
+                  not want in the rotation.
+                </p>
+              </div>
+              <figure>
+                <img
+                  src="assets/screenshots/library.png"
+                  alt="Placeholder screenshot of the Library thumbnail grid"
+                  width="1280"
+                  height="800"
+                />
+              </figure>
+            </li>
+            <li class="demo-step">
+              <div class="demo-copy">
+                <span class="step-num">5</span>
+                <h3>Control it from the tray</h3>
+                <p>
+                  Skip, pause, or quit from the system tray. The window can stay closed; Wallflow keeps rotating in the
+                  background and starts again at login.
+                </p>
+              </div>
+              <figure>
+                <img
+                  src="assets/screenshots/tray.png"
+                  alt="Placeholder screenshot of the Wallflow system tray menu"
+                  width="1280"
+                  height="800"
+                />
+              </figure>
+            </li>
+          </ol>
+        </div>
+      </section>
+
+      <section id="download" class="section">
+        <div class="wrap">
+          <header class="section-head">
+            <p class="eyebrow">Install</p>
+            <h2>Download Wallflow 1.0.0</h2>
+            <p>
+              Grab the file for your system from the
+              <a href="https://github.com/efadhemon/wallflow/releases/latest" target="_blank" rel="noopener noreferrer">latest GitHub release</a>. Buttons below
+              always point at that page so they stay current.
+            </p>
+          </header>
+
+          <div class="download-grid">
+            <article class="download-card" data-os="linux">
+              <p class="os-label">Ubuntu / Debian</p>
+              <h3>.deb package</h3>
+              <p>24.04 LTS or newer. Needs <code>libwebkit2gtk-4.1-0</code>.</p>
+              <a class="btn btn-primary" href="https://github.com/efadhemon/wallflow/releases/latest" target="_blank" rel="noopener noreferrer">Download .deb</a>
+              <pre><code>sudo apt install ./Wallflow_1.0.0_amd64.deb</code></pre>
+            </article>
+
+            <article class="download-card" data-os="linux">
+              <p class="os-label">Other Linux</p>
+              <h3>AppImage</h3>
+              <p>Any distribution. Make it executable, then run it.</p>
+              <a class="btn btn-primary" href="https://github.com/efadhemon/wallflow/releases/latest"
+                 target="_blank" rel="noopener noreferrer">Download AppImage</a
+              >
+              <pre><code>chmod +x Wallflow_1.0.0_amd64.AppImage
+./Wallflow_1.0.0_amd64.AppImage</code></pre>
+            </article>
+
+            <article class="download-card" data-os="windows">
+              <p class="os-label">Windows</p>
+              <h3>NSIS installer</h3>
+              <p>
+                Windows 10 (1803) or newer. Installs for the current user only. Not code-signed yet, so SmartScreen may
+                ask you to confirm via
+                <em>More info</em> then <em>Run anyway</em>.
+              </p>
+              <a class="btn btn-primary" href="https://github.com/efadhemon/wallflow/releases/latest" target="_blank" rel="noopener noreferrer">Download .exe</a>
+              <pre><code>Wallflow_1.0.0_x64-setup.exe</code></pre>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section id="systems" class="section section-alt">
+        <div class="wrap">
+          <header class="section-head">
+            <p class="eyebrow">Compatibility</p>
+            <h2>Supported systems</h2>
+            <p>
+              On Linux the wallpaper is applied through whatever your desktop provides. Windows uses the
+              <code>IDesktopWallpaper</code> COM interface, with a fallback if that is unavailable.
+            </p>
+          </header>
+
+          <div class="tables">
+            <div class="table-wrap">
+              <h3>Requirements</h3>
+              <table>
+                <thead>
+                  <tr>
+                    <th>System</th>
+                    <th>Requirement</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>Ubuntu / Debian</td>
+                    <td>24.04 LTS or newer (needs <code>libwebkit2gtk-4.1-0</code>)</td>
+                  </tr>
+                  <tr>
+                    <td>Other Linux</td>
+                    <td>Any distribution, via the AppImage</td>
+                  </tr>
+                  <tr>
+                    <td>Windows</td>
+                    <td>Windows 10 (1803) or newer</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="table-wrap">
+              <h3>Linux desktops</h3>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Desktop</th>
+                    <th>Mechanism</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>GNOME, Unity, Budgie, Pantheon</td>
+                    <td><code>gsettings</code> on <code>org.gnome.desktop.background</code></td>
+                  </tr>
+                  <tr>
+                    <td>KDE Plasma</td>
+                    <td>
+                      <code>qdbus</code> on plasmashell, falling back to
+                      <code>plasma-apply-wallpaperimage</code>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>Xfce</td>
+                    <td><code>xfconf-query</code>, applied to every listed monitor</td>
+                  </tr>
+                  <tr>
+                    <td>Cinnamon</td>
+                    <td><code>gsettings</code> on <code>org.cinnamon.desktop.background</code></td>
+                  </tr>
+                  <tr>
+                    <td>MATE</td>
+                    <td><code>gsettings</code> on <code>org.mate.background</code></td>
+                  </tr>
+                  <tr>
+                    <td>LXQt</td>
+                    <td><code>pcmanfm-qt</code></td>
+                  </tr>
+                  <tr>
+                    <td>Anything else</td>
+                    <td>Tries gsettings, then qdbus, then <code>feh</code></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="about" class="section">
+        <div class="wrap about-grid">
+          <div>
+            <p class="eyebrow">About</p>
+            <h2>Built by Emon Hossain</h2>
+            <p>
+              Wallflow is a small open-source utility: MIT licensed, a few megabytes to install, and written so it can
+              sit in the tray without getting in the way.
+            </p>
+            <p>
+              Developer:
+              <a href="https://github.com/efadhemon" target="_blank" rel="noopener noreferrer">Emon Hossain (@efadhemon)</a>
+            </p>
+            <ul class="about-links">
+              <li>
+                <a href="https://github.com/efadhemon/wallflow" target="_blank" rel="noopener noreferrer">Source on GitHub</a>
+              </li>
+              <li>
+                <a href="https://github.com/efadhemon/wallflow/releases" target="_blank" rel="noopener noreferrer">Releases</a>
+              </li>
+              <li>
+                <a href="https://github.com/efadhemon/wallflow/issues" target="_blank" rel="noopener noreferrer">Issues</a>
+              </li>
+              <li>
+                <a href="https://github.com/efadhemon/wallflow/blob/main/LICENSE" target="_blank" rel="noopener noreferrer">MIT License</a>
+              </li>
+            </ul>
+          </div>
+          <aside class="about-card">
+            <img src="assets/app-icon.png" alt="" width="64" height="64" />
+            <p class="about-name">Wallflow</p>
+            <p>Version 1.0.0</p>
+            <p>Identifier <code>com.efadhemon.wallflow</code></p>
+            <p>© 2026 Emon Hossain</p>
+          </aside>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="wrap footer-inner">
+        <p>© 2026 Emon Hossain. Wallflow is released under the MIT License.</p>
+        <p>
+          <a href="https://github.com/efadhemon/wallflow" target="_blank" rel="noopener noreferrer">GitHub</a>
+          ·
+          <a href="https://github.com/efadhemon/wallflow/blob/main/LICENSE" target="_blank" rel="noopener noreferrer">License</a>
+        </p>
+      </div>
+    </footer>
+
+    <script src="main.js"></script>
+  </body>
+</html>
