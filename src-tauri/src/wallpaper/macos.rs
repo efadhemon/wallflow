@@ -75,7 +75,7 @@ fn apply_on_screens(paths: &[PathBuf], mode: FillMode, mtm: MainThreadMarker) ->
         // scaling and clipping keys, which is what AppKit expects.
         unsafe {
             workspace
-                .setDesktopImageURL_forScreen_options_error(&url, screen, options.as_super())
+                .setDesktopImageURL_forScreen_options_error(&url, &screen, options.as_super())
                 .map_err(|err| {
                     anyhow!(
                         "setting the wallpaper on screen {index} to {}: {}",
