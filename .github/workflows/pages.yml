@@ -26,6 +26,9 @@ jobs:
       # Requires Settings → Pages → Source = GitHub Actions before the first run.
       - uses: actions/configure-pages@v6
 
+      - name: Inject version into website
+        run: node scripts/sync-version.mjs --website
+
       - uses: actions/upload-pages-artifact@v5
         with:
           path: website

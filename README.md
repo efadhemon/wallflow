@@ -55,25 +55,25 @@ Grab the file for your system from the
 **Ubuntu and other Debian-based systems**
 
 ```bash
-sudo apt install ./Wallflow_1.0.0_amd64.deb
+sudo apt install ./Wallflow_<version>_amd64.deb
 ```
 
 **Any other Linux distribution**
 
 ```bash
-chmod +x Wallflow_1.0.0_amd64.AppImage
-./Wallflow_1.0.0_amd64.AppImage
+chmod +x Wallflow_<version>_amd64.AppImage
+./Wallflow_<version>_amd64.AppImage
 ```
 
 **Windows**
 
-Run `Wallflow_1.0.0_x64-setup.exe`. It installs for the current user only, so no
+Run `Wallflow_<version>_x64-setup.exe`. It installs for the current user only, so no
 administrator prompt appears. The installer is not code-signed yet, so SmartScreen
 will ask you to confirm via _More info_ to _Run anyway_.
 
 **macOS**
 
-Open `Wallflow_1.0.0_aarch64.dmg` on Apple Silicon, or `Wallflow_1.0.0_x64.dmg` on
+Open `Wallflow_<version>_aarch64.dmg` on Apple Silicon, or `Wallflow_<version>_x64.dmg` on
 Intel, and drag Wallflow into Applications. The disk image is not notarized, so the
 first launch is blocked by Gatekeeper: right-click the app, choose _Open_, then
 confirm _Open_ again.

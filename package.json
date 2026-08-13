@@ -1,7 +1,7 @@
 {
   "name": "wallflow",
   "private": true,
-  "version": "1.0.0",
+  "version": "0.0.1",
   "author": "Emon Hossain",
   "repository": {
     "type": "git",
@@ -16,7 +16,8 @@
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "prettier": "prettier --check --ignore-path .prettierignore .",
-    "prettier:fix": "prettier --write --ignore-path .prettierignore ."
+    "prettier:fix": "prettier --write --ignore-path .prettierignore .",
+    "sync:version": "node scripts/sync-version.mjs"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.11.1",

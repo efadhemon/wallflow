@@ -42,6 +42,9 @@ jobs:
 
       - run: yarn install --frozen-lockfile
 
+      - name: Check version sync
+        run: node scripts/sync-version.mjs --check
+
       # tauri.conf.json points at ../dist, which must exist before the Rust build
       # script reads it.
       - name: Build the frontend
