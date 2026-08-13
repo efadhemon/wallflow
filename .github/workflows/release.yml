@@ -10,7 +10,7 @@ permissions:
   contents: write
 
 jobs:
-  build:
+  publish:
     strategy:
       fail-fast: false
       matrix:
@@ -23,7 +23,7 @@ jobs:
             args: "--bundles deb,appimage"
           - platform: windows-latest
             target: x86_64-pc-windows-msvc
-            args: "--bundles nsis,msi"
+            args: "--bundles nsis"
 
     runs-on: ${{ matrix.platform }}
 
@@ -43,7 +43,10 @@ jobs:
             libssl-dev \
             build-essential \
             pkg-config \
-            patchelf
+            patchelf \
+            libfuse2 \
+            file \
+            xdg-utils
 
       - uses: dtolnay/rust-toolchain@stable
         with:
@@ -64,10 +67,20 @@ jobs:
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # linuxdeploy is itself an AppImage; GitHub runners cannot mount FUSE.
+          APPIMAGE_EXTRACT_AND_RUN: "1"
         with:
-          tagName: ${{ github.ref_name }}
-          releaseName: "Wallflow ${{ github.ref_name }}"
-          releaseBody: "Download the installer for your system from the assets below."
-          releaseDraft: true
+          # On a v* tag, attach to that tag. On a manual run, use the version
+          # from tauri.conf.json (the action replaces __VERSION__).
+          tagName: ${{ github.ref_type == 'tag' && github.ref_name || 'v__VERSION__' }}
+          releaseName: "Wallflow ${{ github.ref_type == 'tag' && github.ref_name || 'v__VERSION__' }}"
+          releaseBody: |
+            Download the installer for your system from the assets below.
+
+            - **Ubuntu / Debian:** `Wallflow_*_amd64.deb`
+            - **Other Linux:** `Wallflow_*_amd64.AppImage`
+            - **Windows:** `Wallflow_*_x64-setup.exe`
+          releaseDraft: false
           prerelease: false
+          includeUpdaterJson: false
           args: ${{ matrix.args }} --target ${{ matrix.target }}
