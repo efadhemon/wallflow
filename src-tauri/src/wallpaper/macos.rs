@@ -80,7 +80,7 @@ fn apply_on_screens(paths: &[PathBuf], mode: FillMode, mtm: MainThreadMarker) ->
                     anyhow!(
                         "setting the wallpaper on screen {index} to {}: {}",
                         path.display(),
-                        &*err
+                        *err
                     )
                 })?;
         }
