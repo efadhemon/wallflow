@@ -1,6 +1,6 @@
 [package]
 name = "wallflow"
-version = "1.0.0"
+version = "1.0.1"
 edition = "2021"
 authors = ["Emon Hossain"]
 repository = "https://github.com/efadhemon/wallflow"
