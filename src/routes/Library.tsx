@@ -254,7 +254,7 @@ function ImageTile({
       </div>
 
       {image.isCurrent && (
-        <span className="absolute top-2 left-2 flex h-5 w-5 items-center justify-center rounded-full bg-brand text-white">
+        <span className="absolute top-2 left-2 flex h-5 w-5 items-center justify-center rounded-full bg-brand text-on-brand">
           <Check size={12} />
         </span>
       )}

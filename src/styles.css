@@ -10,12 +10,20 @@
   --color-ink: oklch(22% 0.015 285);
   --color-ink-muted: oklch(52% 0.014 285);
   --color-brand: oklch(58% 0.19 292);
+  --color-brand-hover: oklch(52% 0.19 292);
   --color-brand-soft: oklch(94% 0.03 292);
+  /* Text/icons drawn on top of --color-brand. */
+  --color-on-brand: oklch(100% 0 0);
   --color-danger: oklch(58% 0.2 25);
   --color-danger-soft: oklch(95% 0.03 25);
 }
 
+:root {
+  color-scheme: light;
+}
+
 .dark {
+  color-scheme: dark;
   --color-canvas: oklch(18% 0.012 285);
   --color-surface: oklch(22% 0.014 285);
   --color-surface-muted: oklch(26% 0.015 285);
@@ -23,7 +31,9 @@
   --color-ink: oklch(96% 0.005 285);
   --color-ink-muted: oklch(70% 0.014 285);
   --color-brand: oklch(70% 0.17 292);
+  --color-brand-hover: oklch(76% 0.15 292);
   --color-brand-soft: oklch(30% 0.05 292);
+  --color-on-brand: oklch(20% 0.03 292);
   --color-danger: oklch(70% 0.17 25);
   --color-danger-soft: oklch(30% 0.06 25);
 }
@@ -61,6 +71,27 @@
     user-select: text;
   }
 
+  /* WebKitGTK paints native form widgets with the GTK theme, which ignores our
+     palette and leaves selects unreadable in dark mode. Draw them ourselves. */
+  select {
+    appearance: none;
+  }
+
+  option {
+    background-color: var(--color-surface);
+    color: var(--color-ink);
+  }
+
+  input[type="number"] {
+    appearance: textfield;
+  }
+
+  input[type="number"]::-webkit-outer-spin-button,
+  input[type="number"]::-webkit-inner-spin-button {
+    appearance: none;
+    margin: 0;
+  }
+
   ::-webkit-scrollbar {
     width: 10px;
     height: 10px;
@@ -82,6 +113,16 @@
   outline: none;
 
   &:focus-visible {
+    outline: 2px solid var(--color-brand);
+    outline-offset: 2px;
+  }
+}
+
+/* For controls that wrap the real focus target, such as the number stepper. */
+@utility focus-ring-within {
+  outline: none;
+
+  &:focus-within {
     outline: 2px solid var(--color-brand);
     outline-offset: 2px;
   }
