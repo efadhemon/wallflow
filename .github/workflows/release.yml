@@ -24,6 +24,12 @@ jobs:
           - platform: windows-latest
             target: x86_64-pc-windows-msvc
             args: "--bundles nsis"
+          - platform: macos-14
+            target: aarch64-apple-darwin
+            args: "--bundles dmg"
+          - platform: macos-14
+            target: x86_64-apple-darwin
+            args: "--bundles dmg"
 
     runs-on: ${{ matrix.platform }}
 
@@ -80,6 +86,8 @@ jobs:
             - **Ubuntu / Debian:** `Wallflow_*_amd64.deb`
             - **Other Linux:** `Wallflow_*_amd64.AppImage`
             - **Windows:** `Wallflow_*_x64-setup.exe`
+            - **macOS (Apple Silicon):** `Wallflow_*_aarch64.dmg`
+            - **macOS (Intel):** `Wallflow_*_x64.dmg`
           releaseDraft: false
           prerelease: false
           includeUpdaterJson: false

@@ -2,8 +2,10 @@ use crate::config::FillMode;
 use anyhow::Result;
 use std::path::{Path, PathBuf};
 
-#[cfg(not(windows))]
+#[cfg(target_os = "linux")]
 pub mod linux;
+#[cfg(target_os = "macos")]
+pub mod macos;
 #[cfg(windows)]
 pub mod windows;
 
@@ -37,12 +39,19 @@ pub trait WallpaperBackend: Send + Sync {
     }
 }
 
+#[cfg(not(any(windows, target_os = "linux", target_os = "macos")))]
+compile_error!("Wallflow supports Windows, macOS and Linux");
+
 pub fn detect() -> Box<dyn WallpaperBackend> {
     #[cfg(windows)]
     {
         Box::new(windows::WindowsBackend::new())
     }
-    #[cfg(not(windows))]
+    #[cfg(target_os = "macos")]
+    {
+        Box::new(macos::MacosBackend::new())
+    }
+    #[cfg(target_os = "linux")]
     {
         Box::new(linux::LinuxBackend::new())
     }

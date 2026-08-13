@@ -55,6 +55,13 @@
     ).toLowerCase();
     const ua = (navigator.userAgent || "").toLowerCase();
 
+    if (
+      platformHint.includes("mac") ||
+      ua.includes("mac os") ||
+      ua.includes("macintosh")
+    ) {
+      return "macos";
+    }
     if (platformHint.includes("win") || ua.includes("windows")) {
       return "windows";
     }

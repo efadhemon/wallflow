@@ -6,7 +6,7 @@
     <title>Wallflow — rotate your desktop wallpaper on a schedule</title>
     <meta
       name="description"
-      content="Wallflow picks images from folders you choose and rotates your desktop background on a schedule. A small tray app for Linux and Windows."
+      content="Wallflow picks images from folders you choose and rotates your desktop background on a schedule. A small tray app for Linux, Windows and macOS."
     />
     <link rel="apple-touch-icon" sizes="180x180" href="assets/favicons/apple-touch-icon.png" />
     <link rel="icon" type="image/png" sizes="32x32" href="assets/favicons/favicon-32x32.png" />
@@ -46,7 +46,7 @@
       <section id="top" class="hero">
         <div class="wrap hero-inner">
           <div class="hero-copy">
-            <p class="eyebrow">Desktop app for Linux and Windows</p>
+            <p class="eyebrow">Desktop app for Linux, Windows and macOS</p>
             <h1>Rotate your wallpaper through folders of your own images, on a schedule you choose.</h1>
             <p class="lede">
               Wallflow lives in the system tray, starts with your session, and stays out of the way. Built with Tauri 2
@@ -118,8 +118,10 @@
               </p>
             </li>
             <li>
-              <h3>Per-monitor on Windows</h3>
-              <p>A different image per monitor on Windows. Linux backends set every monitor to the same image.</p>
+              <h3>Per-monitor on Windows and macOS</h3>
+              <p>
+                A different image per monitor on Windows and macOS. Linux backends set every monitor to the same image.
+              </p>
             </li>
             <li>
               <h3>Starts at login</h3>
@@ -134,26 +136,25 @@
           <header class="section-head">
             <p class="eyebrow">How to use</p>
             <h2>From install to rotating in a few minutes</h2>
-            <p>
-              A short walkthrough of the usual first session. Screenshot slots below are placeholders until real
-              captures are dropped in.
-            </p>
+            <p>A short walkthrough of the usual first session, matching what you see in the app.</p>
           </header>
 
           <ol class="demo-steps">
             <li class="demo-step">
               <div class="demo-copy">
                 <span class="step-num">1</span>
-                <h3>Add folders of images</h3>
+                <h3>Add folders in Library</h3>
                 <p>
-                  Open Settings and add one or more folders. Wallflow scans for JPG, JPEG, PNG, WebP and BMP files and
-                  watches those folders for new images.
+                  Open Library and click <strong>Add folder</strong>. Wallflow scans for JPG, JPEG, PNG, WebP and BMP
+                  files. Turn on <strong>Subfolders</strong> to include nested directories, or hit <strong>Rescan</strong>
+                  after you drop in new pictures. Click a thumbnail to apply it now — the current wallpaper gets a
+                  checkmark.
                 </p>
               </div>
               <figure>
                 <img
-                  src="assets/screenshots/settings.png"
-                  alt="Placeholder screenshot of the Settings screen, folders section"
+                  src="assets/screenshots/library.png"
+                  alt="Wallflow Library: a watched folder with six image thumbnails, the current wallpaper marked with a check"
                   width="1280"
                   height="800"
                 />
@@ -162,16 +163,18 @@
             <li class="demo-step demo-step-reverse">
               <div class="demo-copy">
                 <span class="step-num">2</span>
-                <h3>Set the interval and order</h3>
+                <h3>Set the schedule and fill in Settings</h3>
                 <p>
-                  Choose how often the wallpaper changes, then pick shuffle (every image once before repeating),
-                  sequential, or plain random.
+                  Under Rotation, set <strong>Change every</strong> and pick <strong>Order</strong> — Shuffle plays every
+                  image once before repeating. Under Appearance, choose a <strong>Fill mode</strong> (fill, fit, stretch,
+                  center, or tile). Turn on <strong>Start at login</strong> and <strong>Start in the tray</strong> if you
+                  want it running after reboot without opening the window.
                 </p>
               </div>
               <figure>
                 <img
-                  src="assets/screenshots/dashboard.png"
-                  alt="Placeholder screenshot of the Dashboard with interval and playback controls"
+                  src="assets/screenshots/settings.png"
+                  alt="Wallflow Settings: change every 2 minutes, shuffle order, fill mode, and start at login"
                   width="1280"
                   height="800"
                 />
@@ -180,13 +183,17 @@
             <li class="demo-step">
               <div class="demo-copy">
                 <span class="step-num">3</span>
-                <h3>Choose how the image fits</h3>
-                <p>Fill, fit, stretch, center, or tile — mapped to whatever your desktop environment calls it.</p>
+                <h3>Watch it on the Dashboard</h3>
+                <p>
+                  The Dashboard shows the current wallpaper, its filename, and how long until the next change. Use
+                  <strong>Previous</strong>, <strong>Pause</strong>, and <strong>Next</strong> there. The cards below list
+                  how many images are in rotation, how many were found on disk, and which desktop Wallflow detected.
+                </p>
               </div>
               <figure>
                 <img
-                  src="assets/screenshots/settings.png"
-                  alt="Placeholder screenshot of the Settings screen, fit mode"
+                  src="assets/screenshots/dashboard.png"
+                  alt="Wallflow Dashboard: current wallpaper preview, countdown to the next change, and Previous, Pause, Next controls"
                   width="1280"
                   height="800"
                 />
@@ -195,34 +202,17 @@
             <li class="demo-step demo-step-reverse">
               <div class="demo-copy">
                 <span class="step-num">4</span>
-                <h3>Browse the library</h3>
-                <p>
-                  Open Library to see every image as a thumbnail. Click one to apply it now, or exclude pictures you do
-                  not want in the rotation.
-                </p>
-              </div>
-              <figure>
-                <img
-                  src="assets/screenshots/library.png"
-                  alt="Placeholder screenshot of the Library thumbnail grid"
-                  width="1280"
-                  height="800"
-                />
-              </figure>
-            </li>
-            <li class="demo-step">
-              <div class="demo-copy">
-                <span class="step-num">5</span>
                 <h3>Control it from the tray</h3>
                 <p>
-                  Skip, pause, or quit from the system tray. The window can stay closed; Wallflow keeps rotating in the
-                  background and starts again at login.
+                  Closing the window leaves Wallflow running. The tray (or menu bar) menu shows the current file, then
+                  <strong>Next wallpaper</strong>, <strong>Previous wallpaper</strong>, <strong>Pause</strong>,
+                  <strong>Open Wallflow</strong>, and <strong>Quit</strong>. Use Quit there to stop the app completely.
                 </p>
               </div>
               <figure>
                 <img
                   src="assets/screenshots/tray.png"
-                  alt="Placeholder screenshot of the Wallflow system tray menu"
+                  alt="Wallflow tray menu showing the current wallpaper name, Next wallpaper, Previous wallpaper, Pause, Open Wallflow, and Quit"
                   width="1280"
                   height="800"
                 />
@@ -264,6 +254,18 @@
 ./Wallflow_1.0.0_amd64.AppImage</code></pre>
             </article>
 
+            <article class="download-card" data-os="macos">
+              <p class="os-label">macOS</p>
+              <h3>Disk image</h3>
+              <p>
+                macOS 10.15 or newer. Apple Silicon and Intel. Not notarized, so the first launch needs a right-click
+                then <em>Open</em>.
+              </p>
+              <a class="btn btn-primary" href="https://github.com/efadhemon/wallflow/releases/latest" target="_blank" rel="noopener noreferrer">Download .dmg</a>
+              <pre><code>Wallflow_1.0.0_aarch64.dmg
+Wallflow_1.0.0_x64.dmg</code></pre>
+            </article>
+
             <article class="download-card" data-os="windows">
               <p class="os-label">Windows</p>
               <h3>NSIS installer</h3>
@@ -286,7 +288,8 @@
             <h2>Supported systems</h2>
             <p>
               On Linux the wallpaper is applied through whatever your desktop provides. Windows uses the
-              <code>IDesktopWallpaper</code> COM interface, with a fallback if that is unavailable.
+              <code>IDesktopWallpaper</code> COM interface, with a fallback if that is unavailable. macOS uses
+              <code>NSWorkspace</code>, which supports a different image per display.
             </p>
           </header>
 
@@ -312,6 +315,10 @@
                   <tr>
                     <td>Windows</td>
                     <td>Windows 10 (1803) or newer</td>
+                  </tr>
+                  <tr>
+                    <td>macOS</td>
+                    <td>10.15 Catalina or newer (Apple Silicon and Intel)</td>
                   </tr>
                 </tbody>
               </table>
