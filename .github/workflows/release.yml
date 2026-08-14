@@ -70,9 +70,25 @@ jobs:
 
       - run: yarn install --frozen-lockfile
 
+      # Vite inlines this at build time into the update banner (useUpdateCheck).
+      # Set it as a repository variable (or secret) to the public version.json URL,
+      # e.g. https://wallflow.efadhemon.dev/api/version.json
+      - name: Require version API URL
+        shell: bash
+        env:
+          VITE_VERSION_API_URL: ${{ vars.VITE_VERSION_API_URL || secrets.VITE_VERSION_API_URL }}
+        run: |
+          if [ -z "$VITE_VERSION_API_URL" ]; then
+            echo "Set repository variable VITE_VERSION_API_URL to the public version.json URL." >&2
+            echo "Example: https://wallflow.efadhemon.dev/api/version.json" >&2
+            exit 1
+          fi
+          echo "Update check URL: $VITE_VERSION_API_URL"
+
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VITE_VERSION_API_URL: ${{ vars.VITE_VERSION_API_URL || secrets.VITE_VERSION_API_URL }}
           # linuxdeploy is itself an AppImage; GitHub runners cannot mount FUSE.
           APPIMAGE_EXTRACT_AND_RUN: "1"
         with:
@@ -92,3 +108,50 @@ jobs:
           prerelease: false
           includeUpdaterJson: false
           args: ${{ matrix.args }} --target ${{ matrix.target }}
+
+      - name: Stage installers
+        shell: bash
+        run: |
+          mkdir -p installers
+          find "src-tauri/target/${{ matrix.target }}/release/bundle" \
+            \( -name 'Wallflow_*.deb' -o -name 'Wallflow_*.AppImage' -o -name 'Wallflow_*.dmg' -o -name 'Wallflow_*-setup.exe' \) \
+            ! -name '*.tar.gz' \
+            -exec cp {} installers/ \;
+          ls -la installers
+          test -n "$(ls -A installers)"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: installers-${{ matrix.target }}
+          path: installers/*
+          if-no-files-found: error
+
+  # Copies the just-built installers into website/downloads and publishes the
+  # public site. Skips if any platform job failed so we never advertise a
+  # partial set of downloads.
+  #
+  # Requires repo secrets:
+  #   VERCEL_TOKEN       — https://vercel.com/account/tokens
+  #   VERCEL_ORG_ID      — team_JGwTVKG5B5y6xw4UYJ0LpOQy
+  #   VERCEL_PROJECT_ID  — prj_SqrD2Qd9x9X77ZL7x5uwnycpGWwP
+  deploy-website:
+    needs: publish
+    runs-on: ubuntu-latest
+    concurrency:
+      group: website-production
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: installers-*
+          path: website/downloads
+          merge-multiple: true
+
+      - name: Deploy website to Vercel
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: bash scripts/deploy-website.sh
