@@ -59,6 +59,7 @@ pub fn run() {
             commands::toggle_exclude,
             commands::get_environment,
             commands::read_logs,
+            commands::fetch_latest_version,
         ])
         .setup(setup)
         .build(tauri::generate_context!())

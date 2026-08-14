@@ -27,6 +27,7 @@ const websiteOnly = args.has("--website");
 const cargoPath = join(root, "src-tauri", "Cargo.toml");
 const cargoLockPath = join(root, "src-tauri", "Cargo.lock");
 const websitePath = join(root, "website", "index.html");
+const versionJsonPath = join(root, "website", "api", "version.json");
 
 let drift = false;
 
@@ -90,12 +91,33 @@ function syncWebsite() {
   console.log(`Updated website/index.html -> ${version}`);
 }
 
+// --- website/api/version.json: the version field ---
+function syncVersionJson() {
+  const original = readFileSync(versionJsonPath, "utf8");
+  let current;
+  try {
+    current = JSON.parse(original).version;
+  } catch {
+    current = undefined;
+  }
+  if (current === version) return;
+  drift = true;
+  if (checkOnly) {
+    console.error(`version.json (${current}) does not match package.json (${version}).`);
+    return;
+  }
+  writeFileSync(versionJsonPath, `${JSON.stringify({ version }, null, 2)}\n`);
+  console.log(`Updated website/api/version.json -> ${version}`);
+}
+
 if (websiteOnly) {
   syncWebsite();
+  syncVersionJson();
 } else {
   syncCargo();
   syncCargoLock();
   if (!checkOnly) syncWebsite();
+  syncVersionJson();
 }
 
 if (checkOnly && drift) {

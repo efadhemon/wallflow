@@ -280,6 +280,39 @@ pub fn read_logs(state: State<'_, Arc<AppState>>) -> Reply<String> {
     Ok(lines[start..].join("\n"))
 }
 
+/// Fetches a remote version.json (or GitHub-style release) outside the webview so
+/// CSP / CORS never block the update check.
+#[tauri::command]
+pub async fn fetch_latest_version(url: String) -> Reply<Option<String>> {
+    let parsed = reqwest::Url::parse(&url).map_err(fail)?;
+    if parsed.scheme() != "http" && parsed.scheme() != "https" {
+        return Err("only http(s) URLs are allowed".into());
+    }
+
+    let response = reqwest::Client::new()
+        .get(parsed)
+        .header(reqwest::header::ACCEPT, "application/json")
+        .timeout(std::time::Duration::from_secs(8))
+        .send()
+        .await
+        .map_err(fail)?;
+
+    if !response.status().is_success() {
+        return Ok(None);
+    }
+
+    let data: serde_json::Value = response.json().await.map_err(fail)?;
+    let raw = data
+        .get("version")
+        .or_else(|| data.get("tag_name"))
+        .and_then(|value| value.as_str())
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(|value| value.strip_prefix('v').unwrap_or(value).to_string());
+
+    Ok(raw)
+}
+
 fn persist_and_reload(
     app: &AppHandle,
     state: &State<'_, Arc<AppState>>,

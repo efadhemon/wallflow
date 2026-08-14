@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
-import { gt } from "semver";
+import semver from "semver";
+import { api } from "./api";
 import { useApp } from "../state/AppContext";
 
 const DISMISSED_KEY = "wallflow:dismissed-update";
-const RELEASES_URL = "https://api.github.com/repos/efadhemon/wallflow/releases/latest";
 
 function readDismissed(): string | null {
   try {
@@ -26,26 +26,22 @@ export function useUpdateCheck(): { version: string; dismiss: () => void } | nul
   const { environment } = useApp();
   const [available, setAvailable] = useState<string | null>(null);
   const [dismissed, setDismissed] = useState(false);
+  const versionApiUrl = import.meta.env.VITE_VERSION_API_URL;
 
   useEffect(() => {
     const current = environment?.appVersion;
-    if (!current) return;
+    if (!current || !versionApiUrl) return;
 
     let cancelled = false;
 
     (async () => {
       try {
-        const response = await fetch(RELEASES_URL, {
-          headers: { Accept: "application/vnd.github+json" },
-        });
-        if (!response.ok) return;
-
-        const data = (await response.json()) as { tag_name?: string };
-        const raw = data.tag_name?.trim();
+        // Rust-side HTTP avoids webview CSP/CORS restrictions.
+        const raw = await api.fetchLatestVersion(versionApiUrl);
         if (!raw) return;
 
         const latest = raw.startsWith("v") ? raw.slice(1) : raw;
-        if (!gt(latest, current)) return;
+        if (!semver.gt(latest, current)) return;
 
         if (readDismissed() === latest) {
           if (!cancelled) setDismissed(true);
@@ -57,14 +53,14 @@ export function useUpdateCheck(): { version: string; dismiss: () => void } | nul
           setAvailable(latest);
         }
       } catch {
-        // Offline or blocked — no banner.
+        // Offline or unreachable — no banner.
       }
     })();
 
     return () => {
       cancelled = true;
     };
-  }, [environment?.appVersion]);
+  }, [environment?.appVersion, versionApiUrl]);
 
   const dismiss = useCallback(() => {
     if (!available) return;

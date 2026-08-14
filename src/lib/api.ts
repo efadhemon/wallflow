@@ -25,6 +25,7 @@ export const api = {
 
   getEnvironment: () => invoke<Environment>("get_environment"),
   readLogs: () => invoke<string>("read_logs"),
+  fetchLatestVersion: (url: string) => invoke<string | null>("fetch_latest_version", { url }),
 };
 
 export function onStatus(handler: (status: Status) => void): Promise<UnlistenFn> {
