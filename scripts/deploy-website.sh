@@ -39,8 +39,10 @@ done
 
 # Copy out of the git worktree so the repo-root .gitignore cannot exclude
 # website/downloads when the Vercel CLI decides which files to upload.
+# Keep a website/ subdirectory: the Vercel project Root Directory is "website".
 stage="$(mktemp -d)"
 trap 'rm -rf "$stage"' EXIT
-cp -a "$root/website/." "$stage/"
+mkdir -p "$stage/website"
+cp -a "$root/website/." "$stage/website/"
 
 npx --yes vercel@56 deploy "$stage" --prod --yes --token "$VERCEL_TOKEN"
