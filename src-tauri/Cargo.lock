@@ -5394,7 +5394,7 @@ dependencies = [
 
 [[package]]
 name = "wallflow"
-version = "1.0.1"
+version = "1.0.2"
 dependencies = [
  "anyhow",
  "dispatch2",
