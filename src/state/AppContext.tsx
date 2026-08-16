@@ -1,3 +1,4 @@
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { api, onStatus } from "../lib/api";
 import type { Config, Environment, Status, Theme } from "../lib/types";
@@ -34,6 +35,8 @@ function applyTheme(theme: Theme) {
   const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
   const dark = theme === "dark" || (theme === "system" && prefersDark);
   document.documentElement.classList.toggle("dark", dark);
+  // Native chrome (macOS titlebar) follows this; in-page titlebars use CSS.
+  void getCurrentWindow().setTheme(theme === "system" ? null : theme);
 }
 
 export function AppProvider({ children }: { children: ReactNode }) {

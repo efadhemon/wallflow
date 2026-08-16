@@ -91,6 +91,7 @@ fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     }
     let start_minimized = config.start_minimized;
     let autostart = config.autostart;
+    let theme = config.theme;
 
     let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
     let state = Arc::new(AppState {
@@ -123,10 +124,18 @@ fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     watcher::rewatch(&state);
 
     if let Some(window) = app.get_webview_window(tray::MAIN_WINDOW) {
-        // GNOME draws CSD controls over the webview, so they ignore clicks until
-        // a resize. Linux uses an in-page titlebar instead.
-        #[cfg(target_os = "linux")]
+        // GNOME draws CSD controls over the webview, so they ignore clicks until a resize.
+        // Linux and Windows use an in-page titlebar instead; 
+        // macOS keeps the native chrome.
+        #[cfg(any(target_os = "linux", windows))]
         window.set_decorations(false)?;
+
+        let window_theme = match theme {
+            config::Theme::Light => Some(tauri::Theme::Light),
+            config::Theme::Dark => Some(tauri::Theme::Dark),
+            config::Theme::System => None,
+        };
+        window.set_theme(window_theme)?;
 
         let launched_at_login = std::env::args().any(|arg| arg == MINIMIZED_FLAG);
         if !(start_minimized && launched_at_login) {

@@ -4,9 +4,10 @@ import { useEffect, useState, type ReactNode } from "react";
 import { cn } from "../lib/utils";
 
 /**
- * Client-side window chrome for Linux. GNOME paints CSD buttons over the
- * webview, so they do not receive clicks (or hover) until the window is
- * resized. Drawing the controls in the page avoids that.
+ * Client-side window chrome for Linux and Windows. GNOME paints CSD buttons over the webview,
+ * so they do not receive clicks (or hover) until the window is resized.
+ * Windows native chrome also ignores the in-page dark class.
+ * Drawing the controls in the page avoids both.
  */
 export function Titlebar() {
   const [maximized, setMaximized] = useState(false);
