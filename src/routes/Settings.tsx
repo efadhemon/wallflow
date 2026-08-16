@@ -20,10 +20,7 @@ function splitInterval(totalSeconds: number): { value: number; unit: Unit } {
 
 export function Settings() {
   const { config, environment, updateConfig } = useApp();
-  const derived = useMemo(
-    () => (config ? splitInterval(config.intervalSeconds) : null),
-    [config],
-  );
+  const derived = useMemo(() => (config ? splitInterval(config.intervalSeconds) : null), [config]);
   const [unit, setUnit] = useState<Unit | null>(null);
 
   if (!config || !derived) return null;
@@ -54,7 +51,7 @@ export function Settings() {
                 <NumberInput
                   label="Interval"
                   value={intervalValue}
-                  min={activeUnit === "seconds" ? 5 : 1}
+                  min={activeUnit === "seconds" ? 10 : 1}
                   onChange={value => setInterval(value, activeUnit)}
                 />
                 <Select
