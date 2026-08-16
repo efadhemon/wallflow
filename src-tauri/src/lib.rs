@@ -51,6 +51,8 @@ pub fn run() {
             commands::set_folder_recursive,
             commands::list_folders,
             commands::list_images,
+            commands::add_images,
+            commands::remove_image,
             commands::get_thumbnail,
             commands::apply_image,
             commands::next_wallpaper,
@@ -81,7 +83,8 @@ fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     let config_dir = app.path().app_config_dir()?;
     let cache_dir = app.path().app_cache_dir()?;
     let log_dir = app.path().app_log_dir()?;
-    for dir in [&config_dir, &cache_dir, &log_dir] {
+    let images_dir = app.path().app_data_dir()?.join("images");
+    for dir in [&config_dir, &cache_dir, &log_dir, &images_dir] {
         std::fs::create_dir_all(dir)?;
     }
 
@@ -109,6 +112,7 @@ fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
         config_dir,
         cache_dir: cache_dir.clone(),
         log_dir,
+        images_dir,
         tx,
         watcher: Mutex::new(None),
     });

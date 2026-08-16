@@ -44,6 +44,7 @@ export interface ImageEntry {
   name: string;
   excluded: boolean;
   isCurrent: boolean;
+  managed: boolean;
 }
 
 export interface FolderEntry {

@@ -10,6 +10,7 @@ there is no bundled browser runtime.
 ## Features
 
 - Point it at one or more folders; JPG, JPEG, PNG, WebP and BMP files are picked up.
+- Add individual images; they are copied into the app’s data directory and join the rotation.
 - Choose the interval in seconds, minutes or hours.
 - Shuffle (every image once before repeating), sequential, or plain random order.
 - Fill, fit, stretch, center or tile, mapped to whatever your desktop calls it.

@@ -25,7 +25,7 @@ pub async fn run(app: AppHandle, mut rx: UnboundedReceiver<Command>) {
 
     {
         let mut inner = state.inner.lock().expect("state poisoned");
-        inner.rebuild_playlist(true);
+        inner.rebuild_playlist(&state.images_dir, true);
     }
 
     let change_on_startup = state.config().change_on_startup;
@@ -79,7 +79,7 @@ async fn handle(app: &AppHandle, state: &Arc<AppState>, command: Command, last_r
         Command::Reload => {
             let images = {
                 let mut inner = state.inner.lock().expect("state poisoned");
-                inner.rebuild_playlist(true);
+                inner.rebuild_playlist(&state.images_dir, true);
                 inner.arm_timer();
                 inner.images.clone()
             };
@@ -98,7 +98,7 @@ async fn handle(app: &AppHandle, state: &Arc<AppState>, command: Command, last_r
             *last_rescan = now_ms();
             {
                 let mut inner = state.inner.lock().expect("state poisoned");
-                inner.rebuild_playlist(false);
+                inner.rebuild_playlist(&state.images_dir, false);
             }
             publish(app, state);
         }
@@ -113,7 +113,7 @@ async fn step(app: &AppHandle, state: &Arc<AppState>, forward: bool) {
     {
         let mut inner = state.inner.lock().expect("state poisoned");
         if inner.playlist.is_empty() {
-            inner.rebuild_playlist(true);
+            inner.rebuild_playlist(&state.images_dir, true);
         }
         if inner.playlist.is_empty() {
             inner.last_error = Some("No images found in the selected folders.".to_string());

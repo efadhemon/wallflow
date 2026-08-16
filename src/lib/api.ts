@@ -15,6 +15,8 @@ export const api = {
   listFolders: () => invoke<FolderEntry[]>("list_folders"),
 
   listImages: () => invoke<ImageEntry[]>("list_images"),
+  addImages: (paths: string[]) => invoke<number>("add_images", { paths }),
+  removeImage: (path: string) => invoke<void>("remove_image", { path }),
   getThumbnail: (path: string) => invoke<string>("get_thumbnail", { path }),
   applyImage: (path: string) => invoke<void>("apply_image", { path }),
   toggleExclude: (path: string) => invoke<boolean>("toggle_exclude", { path }),

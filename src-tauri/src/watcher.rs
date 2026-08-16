@@ -32,6 +32,10 @@ pub fn rewatch(state: &Arc<AppState>) {
         }
     }
 
+    if let Err(err) = watcher.watch(&state.images_dir, RecursiveMode::NonRecursive) {
+        log::warn!("could not watch {}: {err}", state.images_dir.display());
+    }
+
     // Dropping the previous watcher here also unregisters its old paths.
     *state.watcher.lock().expect("watcher poisoned") = Some(watcher);
 }
