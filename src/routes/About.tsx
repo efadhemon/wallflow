@@ -1,6 +1,7 @@
-import { Copy, ExternalLink, FolderOpen, RefreshCw, ScrollText, User } from "lucide-react";
+import { Copy, ExternalLink, FolderOpen, RefreshCw, ScrollText } from "lucide-react";
 import { openPath, openUrl } from "@tauri-apps/plugin-opener";
 import { useCallback, useEffect, useState } from "react";
+import { GitHubIcon, LinkedInIcon } from "../components/icons";
 import { Button, Card, Divider, SectionTitle } from "../components/ui";
 import { api } from "../lib/api";
 import { useApp } from "../state/AppContext";
@@ -36,14 +37,25 @@ export function About() {
 
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-6 px-8 py-8">
-      <section className="flex items-center gap-4">
-        <img src="/icon.png" alt="" width={56} height={56} className="rounded-xl" />
-        <div>
-          <h1 className="text-lg font-semibold text-ink">Wallflow</h1>
-          <p className="text-sm text-ink-muted">
-            Version {environment?.appVersion ?? "..."} &middot; {environment?.backend}
-          </p>
+      <section className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-4">
+          <img src="/icon.png" alt="" width={56} height={56} className="rounded-xl" />
+          <div>
+            <h1 className="text-lg font-semibold text-ink">Wallflow</h1>
+            <p className="text-sm text-ink-muted">
+              Version {environment?.appVersion ?? "..."} &middot; {environment?.backend}
+            </p>
+          </div>
         </div>
+        <Button
+          size="icon"
+          variant="ghost"
+          aria-label="Open Wallflow website"
+          title="Open Wallflow website"
+          onClick={() => void openUrl("https://wallflow.efadhemon.dev")}
+        >
+          <ExternalLink size={16} />
+        </Button>
       </section>
 
       <section className="flex flex-col gap-3">
@@ -61,7 +73,7 @@ export function About() {
               title="Open GitHub profile"
               onClick={() => void openUrl("https://github.com/efadhemon")}
             >
-              <User size={16} />
+              <GitHubIcon size={16} />
             </Button>
           </div>
           <Divider />
@@ -77,7 +89,7 @@ export function About() {
               title="Open LinkedIn profile"
               onClick={() => void openUrl("https://www.linkedin.com/in/efadhemon")}
             >
-              <ExternalLink size={16} />
+              <LinkedInIcon size={16} />
             </Button>
           </div>
         </Card>
