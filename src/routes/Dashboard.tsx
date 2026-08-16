@@ -38,10 +38,10 @@ export function Dashboard({ onBrowse }: { onBrowse: () => void }) {
           <EmptyState
             icon={<ImageIcon size={24} />}
             title="No wallpapers yet"
-            description="Add a folder of images and Wallflow will start rotating your desktop background."
+            description="Add a folder or individual images and Wallflow will start rotating your desktop background."
             action={
               <Button variant="primary" onClick={onBrowse}>
-                Choose a folder
+                Open Library
               </Button>
             }
           />

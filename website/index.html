@@ -6,7 +6,7 @@
     <title>Wallflow — rotate your desktop wallpaper on a schedule</title>
     <meta
       name="description"
-      content="Wallflow picks images from folders you choose and rotates your desktop background on a schedule. A small tray app for Linux, Windows and macOS."
+      content="Wallflow picks images from folders you choose, or files you add, and rotates your desktop background on a schedule. A small tray app for Linux, Windows and macOS."
     />
     <link rel="apple-touch-icon" sizes="180x180" href="assets/favicons/apple-touch-icon.png" />
     <link rel="icon" type="image/png" sizes="32x32" href="assets/favicons/favicon-32x32.png" />
@@ -53,7 +53,7 @@
         <div class="wrap hero-inner">
           <div class="hero-copy">
             <p class="eyebrow">Desktop app for Linux, Windows and macOS</p>
-            <h1>Rotate your wallpaper through folders of your own images, on a schedule you choose.</h1>
+            <h1>Rotate your wallpaper through your own images, on a schedule you choose.</h1>
             <p class="lede">
               Wallflow lives in the system tray, starts with your session, and stays out of the way. Built with Tauri 2
               — the installers are a few megabytes and there is no bundled browser runtime.
@@ -84,10 +84,10 @@
         <div class="wrap">
           <header class="section-head">
             <p class="eyebrow">What it does</p>
-            <h2>Your folders. Your schedule. Your desktop.</h2>
+            <h2>Your images. Your schedule. Your desktop.</h2>
             <p>
-              Point Wallflow at the pictures you already have. It picks them up, rotates them, and lets you skip, pause,
-              or apply one immediately.
+              Point Wallflow at folders you already have, or add individual files. Folders are watched in place; added
+              files are copied in so they stay in rotation. Skip, pause, or apply one immediately.
             </p>
           </header>
 
@@ -97,6 +97,13 @@
               <p>
                 Point it at one or more folders. JPG, JPEG, PNG, WebP and BMP files are picked up. New images join the
                 rotation without a restart.
+              </p>
+            </li>
+            <li>
+              <h3>Add individual images</h3>
+              <p>
+                Pick files one by one. Wallflow copies them into its data directory so they stay in rotation even if you
+                move the originals. Delete a copy from Library when you no longer want it.
               </p>
             </li>
             <li>
@@ -118,7 +125,7 @@
               <h3>Thumbnail library</h3>
               <p>
                 Browse the whole library as thumbnails. Click one to apply it immediately, or exclude images you would
-                rather not see.
+                rather not see. Filter the gallery to the copies you added.
               </p>
             </li>
             <li>
@@ -154,19 +161,21 @@
             <li class="demo-step">
               <div class="demo-copy">
                 <span class="step-num">1</span>
-                <h3>Add folders in Library</h3>
+                <h3>Add folders or images in Library</h3>
                 <p>
-                  Open Library and click <strong>Add folder</strong>. Wallflow scans for JPG, JPEG, PNG, WebP and BMP
-                  files. Turn on <strong>Subfolders</strong> to include nested directories, or hit
+                  Open Library and click <strong>Add folder</strong> to watch a directory, or
+                  <strong>Add images</strong> to copy individual files into Wallflow. It scans for JPG, JPEG, PNG, WebP
+                  and BMP. Turn on <strong>Subfolders</strong> to include nested directories, or hit
                   <strong>Rescan</strong>
-                  after you drop in new pictures. Click a thumbnail to apply it now — the current wallpaper gets a
-                  checkmark.
+                  after you drop in new pictures. The <strong>Added images</strong> row shows how many copies you have;
+                  the icon beside it filters the gallery to those copies. Click a thumbnail to apply it now — the
+                  current wallpaper gets a checkmark.
                 </p>
               </div>
               <figure>
                 <img
                   src="assets/screenshots/library.png"
-                  alt="Wallflow Library: a watched folder with six image thumbnails, the current wallpaper marked with a check"
+                  alt="Wallflow Library: watched folders, added images, and a gallery of thumbnails with the current wallpaper marked"
                   width="1280"
                   height="800"
                 />

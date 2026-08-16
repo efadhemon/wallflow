@@ -144,8 +144,8 @@ export function Library() {
           {folders.length === 0 && addedCount === 0 ? (
             <EmptyState
               icon={<FolderOpen size={24} />}
-              title="No folders yet"
-              description="Pick a folder of images. Everything inside it joins the rotation."
+              title="Nothing here yet"
+              description="Pick a folder of images, or add individual files. Everything you add joins the rotation."
             />
           ) : (
             <>
