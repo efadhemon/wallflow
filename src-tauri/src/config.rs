@@ -73,7 +73,7 @@ impl Default for Config {
     fn default() -> Self {
         Self {
             version: CONFIG_VERSION,
-            folders: default_folders(),
+            folders: Vec::new(),
             interval_seconds: 300,
             order: Order::Shuffle,
             fill_mode: FillMode::Fill,
@@ -126,32 +126,6 @@ impl Config {
     pub fn is_excluded(&self, path: &Path) -> bool {
         self.excluded.iter().any(|p| p == path)
     }
-}
-
-pub fn home_dir() -> Option<PathBuf> {
-    #[cfg(windows)]
-    let key = "USERPROFILE";
-    #[cfg(not(windows))]
-    let key = "HOME";
-    std::env::var_os(key)
-        .map(PathBuf::from)
-        .filter(|p| !p.as_os_str().is_empty())
-}
-
-fn default_folders() -> Vec<Folder> {
-    let Some(home) = home_dir() else {
-        return Vec::new();
-    };
-    for candidate in ["Pictures/wallpapers", "Pictures/Wallpapers", "Pictures"] {
-        let path = home.join(candidate);
-        if path.is_dir() {
-            return vec![Folder {
-                path,
-                recursive: true,
-            }];
-        }
-    }
-    Vec::new()
 }
 
 #[cfg(test)]
