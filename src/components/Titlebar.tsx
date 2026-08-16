@@ -1,6 +1,6 @@
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { Copy, Minus, Square, X } from "lucide-react";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useState, type MouseEvent, type ReactNode } from "react";
 import { cn } from "../lib/utils";
 
 /**
@@ -37,12 +37,22 @@ export function Titlebar() {
     void getCurrentWindow().toggleMaximize();
   };
 
+  const onTitleMouseDown = (event: MouseEvent<HTMLDivElement>) => {
+    if (event.buttons !== 1) return;
+    // Drag-region double-click also starts a drag; on Windows that unmaximizes then minimizes.
+    // Handle both here so the second click never drags.
+    if (event.detail === 2) {
+      onToggleMaximize();
+    } else {
+      void getCurrentWindow().startDragging();
+    }
+  };
+
   return (
     <div className="flex h-10 shrink-0 items-center border-b border-line bg-surface">
       <div
-        className="flex h-full min-w-0 flex-1 items-center justify-center"
-        data-tauri-drag-region
-        onDoubleClick={onToggleMaximize}
+        className="flex h-full min-w-0 flex-1 cursor-default items-center justify-center"
+        onMouseDown={onTitleMouseDown}
       >
         <span className="pointer-events-none text-xs text-ink-muted">Wallflow</span>
       </div>
