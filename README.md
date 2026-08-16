@@ -126,6 +126,8 @@ Apple Silicon (`aarch64-apple-darwin`) and Intel (`x86_64-apple-darwin`).
   because Windows cannot render WebP wallpapers and GNOME only can with
   `webp-pixbuf-loader` installed.
 - Closing the window hides it. Use _Quit_ in the tray menu to stop the app.
+- Release builds send anonymous start and exit events to Aptabase. No account and no
+  personal data. Debug builds and builds without `APTABASE_APP_KEY` send nothing.
 - Per-monitor wallpapers are available on Windows and macOS; the Linux backends
   set every monitor to the same image.
 - macOS has no wallpaper tile mode, so _Tile_ is applied as _Center_.

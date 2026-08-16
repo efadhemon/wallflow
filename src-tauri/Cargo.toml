@@ -19,6 +19,7 @@ rand = "0.10.2"
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.151"
 tauri = { version = "2.11.5", features = ["tray-icon", "image-png", "protocol-asset"] }
+tauri-plugin-aptabase = { git = "https://github.com/aptabase/tauri-plugin-aptabase", tag = "1.2.0", default-features = false, features = ["rustls-tls"] }
 tauri-plugin-autostart = "2.5.1"
 tauri-plugin-dialog = "2.7.2"
 tauri-plugin-log = "2.9.0"

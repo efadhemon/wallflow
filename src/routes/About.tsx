@@ -45,6 +45,10 @@ export function About() {
             <p className="text-sm text-ink-muted">
               Version {environment?.appVersion ?? "..."} &middot; {environment?.backend}
             </p>
+            <p className="mt-1 text-xs text-ink-muted">
+              Anonymous app start and exit events are sent to Aptabase. No account and no personal
+              data.
+            </p>
           </div>
         </div>
         <Button

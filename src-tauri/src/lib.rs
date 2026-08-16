@@ -12,6 +12,7 @@ use config::Config;
 use state::{AppState, Inner};
 use std::sync::{Arc, Mutex};
 use tauri::{Manager, RunEvent, WindowEvent};
+use tauri_plugin_aptabase::EventTracker;
 use tauri_plugin_autostart::MacosLauncher;
 use tauri_plugin_log::{Target, TargetKind};
 
@@ -20,6 +21,16 @@ const MINIMIZED_FLAG: &str = "--minimized";
 
 /// Base name of the log file; the log plugin appends the extension.
 pub(crate) const LOG_FILE_STEM: &str = "wallflow";
+
+/// Compiled in from the environment so the key is never committed.
+const APTABASE_APP_KEY: &str = match option_env!("APTABASE_APP_KEY") {
+    Some(key) => key,
+    None => "",
+};
+
+fn tracking_enabled() -> bool {
+    !cfg!(debug_assertions) && !APTABASE_APP_KEY.is_empty()
+}
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -42,6 +53,7 @@ pub fn run() {
             MacosLauncher::LaunchAgent,
             Some(vec![MINIMIZED_FLAG]),
         ))
+        .plugin(tauri_plugin_aptabase::Builder::new(APTABASE_APP_KEY).build())
         .invoke_handler(tauri::generate_handler![
             commands::get_status,
             commands::get_config,
@@ -66,14 +78,25 @@ pub fn run() {
         .setup(setup)
         .build(tauri::generate_context!())
         .expect("failed to start Wallflow")
-        .run(|_app, event| {
+        .run(|handler, event| match event {
+            RunEvent::Ready => {
+                if tracking_enabled() {
+                    let _ = handler.track_event("app_started", None);
+                }
+            }
+            RunEvent::Exit => {
+                if tracking_enabled() {
+                    let _ = handler.track_event("app_exited", None);
+                    handler.flush_events_blocking();
+                }
+            }
             // Closing the window only hides it, so an explicit exit is the one way out.
-            if let RunEvent::ExitRequested {
+            RunEvent::ExitRequested {
                 code: None, api, ..
-            } = event
-            {
+            } => {
                 api.prevent_exit();
             }
+            _ => {}
         });
 }
 
@@ -129,7 +152,7 @@ fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
 
     if let Some(window) = app.get_webview_window(tray::MAIN_WINDOW) {
         // GNOME draws CSD controls over the webview, so they ignore clicks until a resize.
-        // Linux and Windows use an in-page titlebar instead; 
+        // Linux and Windows use an in-page titlebar instead;
         // macOS keeps the native chrome.
         #[cfg(any(target_os = "linux", windows))]
         window.set_decorations(false)?;
