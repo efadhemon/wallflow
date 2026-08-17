@@ -1,4 +1,5 @@
 use crate::config::{self, Config, Folder};
+use crate::gallery::{self, GalleryPage, SearchParams};
 use crate::scanner;
 use crate::state::{AppState, Command, Status};
 use crate::{thumbs, watcher};
@@ -44,6 +45,13 @@ pub struct Environment {
     pub config_path: String,
     pub log_path: String,
     pub cache_path: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AddRemoteResult {
+    pub added: bool,
+    pub path: PathBuf,
 }
 
 #[tauri::command]
@@ -351,6 +359,44 @@ pub async fn fetch_latest_version(url: String) -> Reply<Option<String>> {
     Ok(raw)
 }
 
+#[tauri::command]
+pub async fn search_gallery(
+    query: Option<String>,
+    ratios: Option<String>,
+    categories: Option<String>,
+    sorting: Option<String>,
+    page: Option<u32>,
+    atleast: Option<String>,
+) -> Reply<GalleryPage> {
+    gallery::search(SearchParams {
+        query,
+        ratios,
+        categories,
+        sorting,
+        page: page.unwrap_or(1),
+        atleast,
+    })
+    .await
+    .map_err(fail)
+}
+
+#[tauri::command]
+pub async fn add_remote_image(
+    state: State<'_, Arc<AppState>>,
+    url: String,
+) -> Reply<AddRemoteResult> {
+    let bytes = gallery::download_image(&url).await.map_err(fail)?;
+    let images_dir = state.images_dir.clone();
+    let saved = tokio::task::spawn_blocking(move || save_image_bytes(&images_dir, &bytes))
+        .await
+        .map_err(fail)??;
+    state.send(Command::Reload);
+    Ok(AddRemoteResult {
+        added: saved.added,
+        path: saved.path,
+    })
+}
+
 fn persist_and_reload(
     app: &AppHandle,
     state: &State<'_, Arc<AppState>>,
@@ -383,6 +429,11 @@ pub fn apply_autostart(app: &AppHandle, enabled: bool) {
     }
 }
 
+struct SavedImage {
+    path: PathBuf,
+    added: bool,
+}
+
 fn copy_images(images_dir: &Path, paths: &[PathBuf]) -> Reply<usize> {
     let mut added = 0;
     let mut recognised = 0;
@@ -395,24 +446,15 @@ fn copy_images(images_dir: &Path, paths: &[PathBuf]) -> Reply<usize> {
                 continue;
             }
         };
-        let Some(ext) = scanner::extension_for_bytes(&bytes) else {
-            log::warn!("{} is not a supported image", path.display());
-            continue;
-        };
-        recognised += 1;
-
-        let dest = images_dir.join(format!("{}.{ext}", sha256_hex(&bytes)));
-        if dest.exists() {
-            continue;
+        match save_image_bytes(images_dir, &bytes) {
+            Ok(saved) => {
+                recognised += 1;
+                if saved.added {
+                    added += 1;
+                }
+            }
+            Err(err) => log::warn!("{}: {err}", path.display()),
         }
-        std::fs::write(&dest, &bytes).map_err(|err| {
-            format!(
-                "could not copy {} to {}: {err}",
-                path.display(),
-                dest.display()
-            )
-        })?;
-        added += 1;
     }
 
     if !paths.is_empty() && recognised == 0 {
@@ -422,6 +464,25 @@ fn copy_images(images_dir: &Path, paths: &[PathBuf]) -> Reply<usize> {
     }
 
     Ok(added)
+}
+
+fn save_image_bytes(images_dir: &Path, bytes: &[u8]) -> Reply<SavedImage> {
+    let Some(ext) = scanner::extension_for_bytes(bytes) else {
+        return Err("That file is not a supported image (JPG, PNG, WebP or BMP).".into());
+    };
+
+    let dest = images_dir.join(format!("{}.{ext}", sha256_hex(bytes)));
+    if dest.exists() {
+        return Ok(SavedImage {
+            path: dest,
+            added: false,
+        });
+    }
+    std::fs::write(&dest, bytes).map_err(|err| format!("could not save the image: {err}"))?;
+    Ok(SavedImage {
+        path: dest,
+        added: true,
+    })
 }
 
 fn sha256_hex(bytes: &[u8]) -> String {

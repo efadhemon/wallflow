@@ -1,13 +1,14 @@
-import { Images, Info, LayoutDashboard, Settings2 } from "lucide-react";
+import { Images, Info, LayoutDashboard, LayoutGrid, Settings2 } from "lucide-react";
 import type { ComponentType } from "react";
 import { cn } from "../lib/utils";
 import { useApp } from "../state/AppContext";
 
-export type Route = "dashboard" | "library" | "settings" | "about";
+export type Route = "dashboard" | "library" | "gallery" | "settings" | "about";
 
 const NAV: { id: Route; label: string; icon: ComponentType<{ size?: number }> }[] = [
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
   { id: "library", label: "Library", icon: Images },
+  { id: "gallery", label: "Gallery", icon: LayoutGrid },
   { id: "settings", label: "Settings", icon: Settings2 },
   { id: "about", label: "About", icon: Info },
 ];

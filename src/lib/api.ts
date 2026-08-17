@@ -1,6 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
-import type { Config, Environment, FolderEntry, ImageEntry, Status } from "./types";
+import type { AddRemoteResult, Config, Environment, FolderEntry, GalleryPage, ImageEntry, Status } from "./types";
 
 export const STATUS_EVENT = "wallpaper://status";
 
@@ -28,6 +28,16 @@ export const api = {
   getEnvironment: () => invoke<Environment>("get_environment"),
   readLogs: () => invoke<string>("read_logs"),
   fetchLatestVersion: (url: string) => invoke<string | null>("fetch_latest_version", { url }),
+
+  searchGallery: (args: {
+    query?: string | null;
+    ratios?: string | null;
+    categories?: string | null;
+    sorting?: string | null;
+    page: number;
+    atleast?: string | null;
+  }) => invoke<GalleryPage>("search_gallery", args),
+  addRemoteImage: (url: string) => invoke<AddRemoteResult>("add_remote_image", { url }),
 };
 
 export function onStatus(handler: (status: Status) => void): Promise<UnlistenFn> {

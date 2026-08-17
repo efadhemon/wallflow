@@ -44,7 +44,9 @@
         { "url": "https://www.linkedin.com/in/efadhemon" },
         { "url": "https://linkedin.com/in/efadhemon" },
         { "url": "https://wallflow.efadhemon.dev" },
-        { "url": "https://wallflow.efadhemon.dev/*" }
+        { "url": "https://wallflow.efadhemon.dev/*" },
+        { "url": "https://wallhaven.cc" },
+        { "url": "https://wallhaven.cc/*" }
       ]
     }
   ]

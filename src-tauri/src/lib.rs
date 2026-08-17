@@ -1,5 +1,6 @@
 mod commands;
 mod config;
+mod gallery;
 mod scanner;
 mod scheduler;
 mod state;
@@ -74,6 +75,8 @@ pub fn run() {
             commands::get_environment,
             commands::read_logs,
             commands::fetch_latest_version,
+            commands::search_gallery,
+            commands::add_remote_image,
         ])
         .setup(setup)
         .build(tauri::generate_context!())

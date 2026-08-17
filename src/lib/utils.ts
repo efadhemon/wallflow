@@ -28,6 +28,12 @@ export function formatCountdown(msRemaining: number): string {
   return hours > 0 ? `${hours}:${pad(minutes)}:${pad(seconds)}` : `${pad(minutes)}:${pad(seconds)}`;
 }
 
+/** Short file-size label for gallery tiles. */
+export function formatBytes(bytes: number): string {
+  if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
 /** Collapses a long path to its last few segments for display. */
 export function shortenPath(path: string, segments = 2): string {
   const parts = path.split(/[/\\]/).filter(Boolean);

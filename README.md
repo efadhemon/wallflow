@@ -18,6 +18,8 @@ there is no bundled browser runtime.
 - Fill, fit, stretch, center or tile, mapped to whatever your desktop calls it.
 - Browse the whole library as thumbnails; click one to apply it immediately, or
   exclude images you would rather not see. Filter the gallery to added copies only.
+- Search the Gallery for landscape wallpapers from [Wallhaven](https://wallhaven.cc)
+  (SFW only, no API key). Add one to the library, or set it as the wallpaper now.
 - Skip forwards and backwards, or pause, from the window or the tray menu.
 - New images dropped into a watched folder join the rotation without a restart.
 - A different image per monitor on Windows and macOS.

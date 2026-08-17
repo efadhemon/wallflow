@@ -7,6 +7,7 @@ import { usesCustomTitlebar } from "./lib/platform";
 import { cn } from "./lib/utils";
 import { About } from "./routes/About";
 import { Dashboard } from "./routes/Dashboard";
+import { Gallery } from "./routes/Gallery";
 import { Library } from "./routes/Library";
 import { Settings } from "./routes/Settings";
 import { useApp } from "./state/AppContext";
@@ -24,8 +25,11 @@ export function App() {
         <Sidebar active={route} onNavigate={setRoute} />
 
         <main className="flex-1 overflow-y-auto">
-          {route === "dashboard" && <Dashboard onBrowse={() => setRoute("library")} />}
+          {route === "dashboard" && (
+            <Dashboard onBrowse={() => setRoute("library")} onGallery={() => setRoute("gallery")} />
+          )}
           {route === "library" && <Library />}
+          {route === "gallery" && <Gallery />}
           {route === "settings" && <Settings />}
           {route === "about" && <About />}
         </main>
