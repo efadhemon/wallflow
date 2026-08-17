@@ -795,6 +795,127 @@ td {
   font-size: 0.9rem;
 }
 
+.error-body {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.error-main {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  padding: 3.5rem 0 4.5rem;
+  background:
+    radial-gradient(900px 420px at 80% -10%, rgba(139, 92, 246, 0.22), transparent 60%),
+    radial-gradient(700px 360px at 0% 20%, rgba(217, 70, 239, 0.1), transparent 55%);
+}
+
+.error-inner {
+  max-width: 38rem;
+  margin-inline: auto;
+  text-align: center;
+}
+
+.error-inner h1 {
+  text-wrap: balance;
+}
+
+.error-inner .lede {
+  margin-inline: auto;
+}
+
+.error-inner .hero-actions {
+  justify-content: center;
+}
+
+.error-visual {
+  position: relative;
+  width: min(22rem, 100%);
+  height: 12.5rem;
+  margin: 0 auto 2.25rem;
+}
+
+.error-frame {
+  position: absolute;
+  inset: 0.6rem 14% 1.4rem 6%;
+  border-radius: var(--radius);
+  border: 1px dashed var(--line);
+  background:
+    linear-gradient(180deg, rgba(167, 139, 250, 0.06), transparent 42%),
+    var(--surface);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.28);
+}
+
+.error-frame.is-back {
+  transform: translate(-7%, 10%) rotate(-5deg) scale(0.9);
+  opacity: 0.38;
+}
+
+.error-frame.is-mid {
+  transform: translate(10%, 12%) rotate(4deg) scale(0.94);
+  opacity: 0.58;
+}
+
+.error-frame.is-front {
+  inset: 0 10% 0.6rem 4%;
+  border-style: solid;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 1.15rem 1.25rem 1rem;
+}
+
+.error-code {
+  font-size: clamp(2.8rem, 8vw, 3.6rem);
+  font-weight: 750;
+  letter-spacing: -0.06em;
+  line-height: 1;
+  color: var(--ink);
+  background: linear-gradient(180deg, #f8f5ff 20%, var(--brand));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.error-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  align-self: flex-start;
+  color: var(--ink-muted);
+  font-size: 0.85rem;
+}
+
+.error-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--ink-muted);
+  animation: error-dot-pulse 1.8s ease-in-out infinite;
+}
+
+@keyframes error-dot-pulse {
+  0%,
+  100% {
+    opacity: 0.45;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@media (min-width: 960px) {
+  .error-inner {
+    max-width: none;
+  }
+
+  .error-inner h1 {
+    white-space: nowrap;
+    text-wrap: nowrap;
+  }
+}
+
 @media (max-width: 960px) {
   .hero-inner,
   .demo-step,
@@ -886,5 +1007,9 @@ td {
   .hero-card.is-back {
     transform: none;
     opacity: 0;
+  }
+
+  .error-dot {
+    animation: none;
   }
 }
