@@ -10,7 +10,44 @@ permissions:
   contents: write
 
 jobs:
+  # Fail fast if the tag (or package.json on a manual run) does not match
+  # website/api/version.json. The live API is updated only after this release
+  # deploys the site, so we read the file in the repo.
+  check-version:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Match version.json to this release
+        env:
+          REF_TYPE: ${{ github.ref_type }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          pkg="$(python3 -c 'import json; print(json.load(open("package.json"))["version"])')"
+          file="$(python3 -c 'import json; print(json.load(open("website/api/version.json"))["version"])')"
+
+          if [ "$REF_TYPE" = "tag" ]; then
+            tag="${REF_NAME#v}"
+            if [ "$tag" != "$pkg" ]; then
+              echo "Tag $REF_NAME does not match package.json ($pkg)." >&2
+              exit 1
+            fi
+            expected="$tag"
+          else
+            expected="$pkg"
+          fi
+
+          echo "Release version: $expected"
+          echo "website/api/version.json: $file"
+
+          if [ "$file" != "$expected" ]; then
+            echo "website/api/version.json ($file) does not match this release ($expected)." >&2
+            echo "Bump package.json and run yarn version:sync before tagging." >&2
+            exit 1
+          fi
+
   publish:
+    needs: check-version
     strategy:
       fail-fast: false
       matrix:
@@ -119,6 +156,7 @@ jobs:
             - **Windows:** `Wallflow_*_x64-setup.exe`
             - **macOS (Apple Silicon):** `Wallflow_*_aarch64.dmg`
             - **macOS (Intel):** `Wallflow_*_x64.dmg`
+          generateReleaseNotes: true
           releaseDraft: false
           prerelease: false
           includeUpdaterJson: false
