@@ -1,6 +1,9 @@
 export type Order = "shuffle" | "sequential" | "random";
 export type FillMode = "fill" | "fit" | "stretch" | "center" | "tile";
 export type Theme = "light" | "dark" | "system";
+export type WallpaperMode = "rotation" | "live";
+export type LiveSupport = "full" | "needsGnomeExtension" | "none";
+export type GnomeExtensionStatus = "notApplicable" | "notInstalled" | "needsLogout" | "active" | "failed";
 
 export interface Folder {
   path: string;
@@ -19,6 +22,12 @@ export interface Config {
   autostart: boolean;
   startMinimized: boolean;
   theme: Theme;
+  wallpaperMode: WallpaperMode;
+  livePath: string | null;
+  liveVideos: string[];
+  liveMuted: boolean;
+  pauseLiveOnFullscreen: boolean;
+  pauseLiveOnBattery: boolean;
 }
 
 export interface ImageInfo {
@@ -29,8 +38,10 @@ export interface ImageInfo {
 
 export interface Status {
   current: ImageInfo | null;
+  currentLive: ImageInfo | null;
+  mode: WallpaperMode;
   paused: boolean;
-  /** Unix milliseconds, or null when paused or idle. */
+  /** Unix milliseconds, or null when paused, idle, or in live mode. */
   nextChangeAt: number | null;
   intervalSeconds: number;
   totalImages: number;
@@ -47,6 +58,12 @@ export interface ImageEntry {
   managed: boolean;
 }
 
+export interface VideoEntry {
+  path: string;
+  name: string;
+  isCurrent: boolean;
+}
+
 export interface FolderEntry {
   path: string;
   recursive: boolean;
@@ -59,6 +76,9 @@ export interface Environment {
   backend: string;
   monitorCount: number;
   supportsPerMonitor: boolean;
+  supportsLive: boolean;
+  liveSupport: LiveSupport;
+  gnomeExtensionStatus: GnomeExtensionStatus;
   appVersion: string;
   configPath: string;
   logPath: string;

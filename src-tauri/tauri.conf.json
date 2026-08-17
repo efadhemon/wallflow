@@ -47,7 +47,15 @@
     "createUpdaterArtifacts": false,
     "linux": {
       "deb": {
-        "section": "utils"
+        "section": "utils",
+        "depends": [
+          "gstreamer1.0-plugins-base",
+          "gstreamer1.0-plugins-good",
+          "gstreamer1.0-plugins-base-apps",
+          "gstreamer1.0-libav",
+          "gstreamer1.0-x",
+          "gstreamer1.0-tools"
+        ]
       },
       "appimage": {
         "bundleMediaFramework": false

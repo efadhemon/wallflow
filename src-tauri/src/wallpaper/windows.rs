@@ -1,3 +1,4 @@
+use super::live::{LiveOpts, LiveSupport};
 use super::render::{compose, ease_in_out_cubic, FADE_FRAME_MS, FADE_MS};
 use super::WallpaperBackend;
 use crate::config::FillMode;
@@ -7,7 +8,7 @@ use std::ffi::c_void;
 use std::mem::size_of;
 use std::os::windows::ffi::OsStrExt;
 use std::path::{Path, PathBuf};
-use std::sync::Once;
+use std::sync::{Mutex, Once};
 use std::thread;
 use std::time::{Duration, Instant};
 
@@ -39,9 +40,13 @@ thread_local! {
     static COM_READY: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
 }
 
+thread_local! {
+    static COM_READY: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
 /// COM must be initialised on every thread that touches it, and the scheduler
 /// runs on whichever tokio worker picks up the task.
-fn ensure_com() {
+pub(super) fn ensure_com() {
     COM_READY.with(|ready| {
         if !ready.get() {
             // A failure here means COM is already initialised in another mode,
@@ -62,7 +67,7 @@ fn position(mode: FillMode) -> DESKTOP_WALLPAPER_POSITION {
     }
 }
 
-fn interface() -> Result<IDesktopWallpaper> {
+pub(super) fn interface() -> Result<IDesktopWallpaper> {
     ensure_com();
     let wallpaper: IDesktopWallpaper =
         unsafe { CoCreateInstance(&DesktopWallpaper, None, CLSCTX_ALL) }
@@ -70,7 +75,7 @@ fn interface() -> Result<IDesktopWallpaper> {
     Ok(wallpaper)
 }
 
-fn monitor_ids(wallpaper: &IDesktopWallpaper) -> Result<Vec<HSTRING>> {
+pub(super) fn monitor_ids(wallpaper: &IDesktopWallpaper) -> Result<Vec<HSTRING>> {
     let count = unsafe { wallpaper.GetMonitorDevicePathCount() }.context("counting monitors")?;
 
     let mut ids = Vec::with_capacity(count as usize);
@@ -90,7 +95,7 @@ fn monitor_ids(wallpaper: &IDesktopWallpaper) -> Result<Vec<HSTRING>> {
     Ok(ids)
 }
 
-fn monitor_rect(wallpaper: &IDesktopWallpaper, id: &HSTRING) -> Result<RECT> {
+pub(super) fn monitor_rect(wallpaper: &IDesktopWallpaper, id: &HSTRING) -> Result<RECT> {
     unsafe { wallpaper.GetMonitorRECT(id) }
         .with_context(|| format!("reading the rectangle of monitor {id}"))
 }
@@ -139,7 +144,7 @@ fn ensure_position(wallpaper: &IDesktopWallpaper, mode: FillMode) -> Result<()> 
     Ok(())
 }
 
-fn commit_all(wallpaper: &IDesktopWallpaper, path: &Path, mode: FillMode) -> Result<()> {
+pub(super) fn commit_all(wallpaper: &IDesktopWallpaper, path: &Path, mode: FillMode) -> Result<()> {
     ensure_position(wallpaper, mode)?;
     let image = HSTRING::from(path.as_os_str());
     unsafe {
@@ -225,7 +230,7 @@ unsafe extern "system" fn find_worker(hwnd: HWND, lparam: LPARAM) -> windows::co
     true.into()
 }
 
-fn wallpaper_worker() -> Option<HWND> {
+pub(super) fn wallpaper_worker() -> Option<HWND> {
     let progman = unsafe { FindWindowW(w!("Progman"), None) }.ok()?;
     unsafe {
         SendMessageTimeoutW(
@@ -524,11 +529,15 @@ fn apply(
     result
 }
 
-pub struct WindowsBackend;
+pub struct WindowsBackend {
+    live: Mutex<Option<super::windows_live::Handle>>,
+}
 
 impl WindowsBackend {
     pub fn new() -> Self {
-        Self
+        Self {
+            live: Mutex::new(None),
+        }
     }
 }
 
@@ -538,6 +547,7 @@ impl WallpaperBackend for WindowsBackend {
     }
 
     fn set(&self, path: &Path, mode: FillMode) -> Result<()> {
+        self.stop_live();
         let wallpaper = match interface() {
             Ok(wallpaper) => wallpaper,
             Err(err) => {
@@ -549,6 +559,7 @@ impl WallpaperBackend for WindowsBackend {
     }
 
     fn set_per_monitor(&self, paths: &[PathBuf], mode: FillMode) -> Result<()> {
+        self.stop_live();
         if paths.is_empty() {
             return Ok(());
         }
@@ -572,5 +583,36 @@ impl WallpaperBackend for WindowsBackend {
 
     fn supports_per_monitor(&self) -> bool {
         true
+    }
+
+    fn live_support(&self) -> LiveSupport {
+        LiveSupport::Full
+    }
+
+    fn play_live(&self, path: &Path, opts: LiveOpts) -> Result<()> {
+        self.stop_live();
+        let handle = super::windows_live::start(path, opts)?;
+        *self.live.lock().expect("live lock") = Some(handle);
+        Ok(())
+    }
+
+    fn stop_live(&self) {
+        drop(self.live.lock().expect("live lock").take());
+    }
+
+    fn pause_live(&self, paused: bool) {
+        if let Some(handle) = self.live.lock().expect("live lock").as_ref() {
+            handle.pause(paused);
+        }
+    }
+
+    fn update_live_opts(&self, opts: LiveOpts) {
+        if let Some(handle) = self.live.lock().expect("live lock").as_ref() {
+            handle.update_opts(opts);
+        }
+    }
+
+    fn extract_poster(&self, cache_dir: &Path, source: &Path) -> Result<PathBuf> {
+        super::windows_live::extract_poster(cache_dir, source)
     }
 }

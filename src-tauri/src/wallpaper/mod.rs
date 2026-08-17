@@ -3,12 +3,25 @@ use anyhow::Result;
 use std::path::{Path, PathBuf};
 
 #[cfg(target_os = "linux")]
+mod gnome;
+#[cfg(target_os = "linux")]
 pub mod linux;
+#[cfg(target_os = "linux")]
+mod linux_live;
+pub mod live;
 #[cfg(target_os = "macos")]
 pub mod macos;
+#[cfg(target_os = "macos")]
+mod macos_live;
 pub mod render;
+#[cfg(target_os = "linux")]
+mod wayland_live;
 #[cfg(windows)]
 pub mod windows;
+#[cfg(windows)]
+mod windows_live;
+
+use live::{GnomeExtensionStatus, LiveOpts, LiveSupport};
 
 pub trait WallpaperBackend: Send + Sync {
     /// Human readable name shown in the UI, e.g. "GNOME" or "Windows".
@@ -37,6 +50,37 @@ pub trait WallpaperBackend: Send + Sync {
     /// GNOME install (without webp-pixbuf-loader) will display.
     fn native_extensions(&self) -> &'static [&'static str] {
         &["jpg", "jpeg", "png", "bmp"]
+    }
+
+    fn live_support(&self) -> LiveSupport {
+        LiveSupport::None
+    }
+
+    fn gnome_extension_status(&self) -> GnomeExtensionStatus {
+        GnomeExtensionStatus::NotApplicable
+    }
+
+    fn enable_gnome_extension(&self) -> Result<GnomeExtensionStatus> {
+        anyhow::bail!("This desktop does not use GNOME Shell extensions.")
+    }
+
+    fn play_live(&self, _path: &Path, _opts: LiveOpts) -> Result<()> {
+        live::unsupported()
+    }
+
+    fn stop_live(&self) {}
+
+    fn pause_live(&self, _paused: bool) {}
+
+    fn update_live_opts(&self, _opts: LiveOpts) {}
+
+    fn extract_poster(&self, cache_dir: &Path, source: &Path) -> Result<PathBuf> {
+        let target = live::poster_path(cache_dir, source)?;
+        if target.is_file() {
+            return Ok(target);
+        }
+        live::write_placeholder_poster(&target)?;
+        Ok(target)
     }
 }
 

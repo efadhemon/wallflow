@@ -1,4 +1,4 @@
-use crate::config::{Config, Folder, Order};
+use crate::config::{Config, Folder, Order, WallpaperMode};
 use crate::scanner;
 use crate::wallpaper::WallpaperBackend;
 use notify::RecommendedWatcher;
@@ -23,6 +23,10 @@ pub enum Command {
     Rescan,
     /// Re-apply whatever is current, e.g. after picking an image in the UI.
     ApplyCurrent,
+    /// Start looping a video and freeze image rotation.
+    EnterLive,
+    /// Stop the video player and resume image rotation.
+    ExitLive,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -53,8 +57,10 @@ impl ImageInfo {
 #[serde(rename_all = "camelCase")]
 pub struct Status {
     pub current: Option<ImageInfo>,
+    pub current_live: Option<ImageInfo>,
+    pub mode: WallpaperMode,
     pub paused: bool,
-    /// Unix milliseconds, or null when paused or idle.
+    /// Unix milliseconds, or null when paused, idle, or in live mode.
     pub next_change_at: Option<u64>,
     pub interval_seconds: u64,
     pub total_images: usize,
@@ -189,16 +195,25 @@ impl Inner {
     }
 
     pub fn arm_timer(&mut self) {
-        self.next_change_at = if self.paused || self.playlist.is_empty() {
+        self.next_change_at = if self.config.wallpaper_mode == WallpaperMode::Live
+            || self.paused
+            || self.playlist.is_empty()
+        {
             None
         } else {
             Some(now_ms() + self.config.interval_seconds * 1000)
         };
     }
 
+    pub fn is_live(&self) -> bool {
+        self.config.wallpaper_mode == WallpaperMode::Live
+    }
+
     pub fn status(&self) -> Status {
         Status {
             current: self.current.as_deref().map(ImageInfo::new),
+            current_live: self.config.live_path.as_deref().map(ImageInfo::new),
+            mode: self.config.wallpaper_mode,
             paused: self.paused,
             next_change_at: self.next_change_at,
             interval_seconds: self.config.interval_seconds,
@@ -222,6 +237,8 @@ pub struct AppState {
     pub log_dir: PathBuf,
     /// Copies of images added one-by-one, scanned alongside `config.folders`.
     pub images_dir: PathBuf,
+    /// Copies of videos added on the Live route.
+    pub videos_dir: PathBuf,
     pub tx: UnboundedSender<Command>,
     pub watcher: Mutex<Option<RecommendedWatcher>>,
 }

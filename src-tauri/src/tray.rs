@@ -85,11 +85,20 @@ pub fn show_window(app: &AppHandle) {
 }
 
 pub fn update(app: &AppHandle, status: &Status) {
-    let label = status
-        .current
-        .as_ref()
-        .map(|image| image.name.clone())
-        .unwrap_or_else(|| "No wallpaper set".to_string());
+    let live = matches!(status.mode, crate::config::WallpaperMode::Live);
+    let label = if live {
+        status
+            .current_live
+            .as_ref()
+            .map(|video| format!("Live · {}", video.name))
+            .unwrap_or_else(|| "Live wallpaper".to_string())
+    } else {
+        status
+            .current
+            .as_ref()
+            .map(|image| image.name.clone())
+            .unwrap_or_else(|| "No wallpaper set".to_string())
+    };
 
     if let Some(tray) = app.tray_by_id(TRAY_ID) {
         let _ = tray.set_tooltip(Some(&format!("Wallflow - {label}")));

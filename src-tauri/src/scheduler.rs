@@ -1,4 +1,6 @@
+use crate::config::WallpaperMode;
 use crate::state::{now_ms, AppState, Command};
+use crate::wallpaper::live::LiveOpts;
 use crate::{thumbs, tray};
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -28,8 +30,20 @@ pub async fn run(app: AppHandle, mut rx: UnboundedReceiver<Command>) {
         inner.rebuild_playlist(&state.images_dir, true);
     }
 
-    let change_on_startup = state.config().change_on_startup;
-    if change_on_startup {
+    let (change_on_startup, start_live) = {
+        let inner = state.inner.lock().expect("state poisoned");
+        let live = inner.config.wallpaper_mode == WallpaperMode::Live
+            && inner
+                .config
+                .live_path
+                .as_ref()
+                .is_some_and(|path| path.is_file());
+        (inner.config.change_on_startup, live)
+    };
+
+    if start_live {
+        enter_live(&app, &state).await;
+    } else if change_on_startup {
         apply_with_retry(&app, &state).await;
     } else {
         let mut inner = state.inner.lock().expect("state poisoned");
@@ -52,7 +66,8 @@ pub async fn run(app: AppHandle, mut rx: UnboundedReceiver<Command>) {
             _ = tokio::time::sleep(wait) => {
                 let due = {
                     let inner = state.inner.lock().expect("state poisoned");
-                    !inner.paused
+                    !inner.is_live()
+                        && !inner.paused
                         && !inner.playlist.is_empty()
                         && inner.next_change_at.is_some_and(|at| at <= now_ms())
                 };
@@ -69,25 +84,36 @@ async fn handle(app: &AppHandle, state: &Arc<AppState>, command: Command, last_r
         Command::Next => step(app, state, true).await,
         Command::Prev => step(app, state, false).await,
         Command::TogglePause => {
-            {
+            let live = {
                 let mut inner = state.inner.lock().expect("state poisoned");
                 inner.paused = !inner.paused;
                 inner.arm_timer();
+                inner.is_live()
+            };
+            if live {
+                let paused = state.inner.lock().expect("state poisoned").paused;
+                state.backend.pause_live(paused);
             }
             publish(app, state);
         }
         Command::Reload => {
-            let images = {
+            let (images, live, opts) = {
                 let mut inner = state.inner.lock().expect("state poisoned");
                 inner.rebuild_playlist(&state.images_dir, true);
                 inner.arm_timer();
-                inner.images.clone()
+                let mut keep = inner.images.clone();
+                keep.extend(inner.config.live_videos.iter().cloned());
+                if let Some(path) = inner.config.live_path.clone() {
+                    keep.push(path);
+                }
+                (keep, inner.is_live(), LiveOpts::from_config(&inner.config))
             };
             *last_rescan = now_ms();
+            if live {
+                state.backend.update_live_opts(opts);
+            }
             publish(app, state);
 
-            // Settings changes are rare, so this is a good moment to drop cache
-            // entries for images that are no longer in the rotation.
             let cache_dir = state.cache_dir.clone();
             tokio::task::spawn_blocking(move || thumbs::prune(&cache_dir, &images));
         }
@@ -103,6 +129,12 @@ async fn handle(app: &AppHandle, state: &Arc<AppState>, command: Command, last_r
             publish(app, state);
         }
         Command::ApplyCurrent => {
+            exit_live_if_needed(state);
+            apply(app, state).await;
+        }
+        Command::EnterLive => enter_live(app, state).await,
+        Command::ExitLive => {
+            exit_live_if_needed(state);
             apply(app, state).await;
         }
     }
@@ -110,6 +142,7 @@ async fn handle(app: &AppHandle, state: &Arc<AppState>, command: Command, last_r
 
 /// Move one image in the given direction and put it on screen.
 async fn step(app: &AppHandle, state: &Arc<AppState>, forward: bool) {
+    exit_live_if_needed(state);
     {
         let mut inner = state.inner.lock().expect("state poisoned");
         if inner.playlist.is_empty() {
@@ -125,6 +158,87 @@ async fn step(app: &AppHandle, state: &Arc<AppState>, forward: bool) {
         inner.advance(forward);
     }
     apply(app, state).await;
+}
+
+fn exit_live_if_needed(state: &Arc<AppState>) {
+    let mut inner = state.inner.lock().expect("state poisoned");
+    if inner.config.wallpaper_mode != WallpaperMode::Live {
+        return;
+    }
+    inner.config.wallpaper_mode = WallpaperMode::Rotation;
+    inner.paused = false;
+    let config = inner.config.clone();
+    drop(inner);
+    state.backend.stop_live();
+    if let Err(err) = config.save(&state.config_dir) {
+        log::warn!("could not persist rotation mode: {err:#}");
+    }
+}
+
+async fn enter_live(app: &AppHandle, state: &Arc<AppState>) {
+    let (path, opts) = {
+        let inner = state.inner.lock().expect("state poisoned");
+        let Some(path) = inner.config.live_path.clone() else {
+            drop(inner);
+            let mut inner = state.inner.lock().expect("state poisoned");
+            inner.last_error = Some("No live wallpaper is selected.".to_string());
+            drop(inner);
+            publish(app, state);
+            return;
+        };
+        (path, LiveOpts::from_config(&inner.config))
+    };
+
+    if !path.is_file() {
+        let mut inner = state.inner.lock().expect("state poisoned");
+        inner.last_error = Some(format!("{} no longer exists", path.display()));
+        inner.config.wallpaper_mode = WallpaperMode::Rotation;
+        drop(inner);
+        publish(app, state);
+        return;
+    }
+
+    let cache_dir = state.cache_dir.clone();
+    let fill_mode = opts.fill_mode;
+    let backend_poster = state.clone();
+    let play_path = path.clone();
+    let result = tokio::task::spawn_blocking(move || {
+        let poster = backend_poster
+            .backend
+            .extract_poster(&cache_dir, &play_path)?;
+        let _ = backend_poster.backend.set(&poster, fill_mode);
+        backend_poster.backend.play_live(&play_path, opts)
+    })
+    .await;
+
+    match result {
+        Ok(Ok(())) => {
+            let mut inner = state.inner.lock().expect("state poisoned");
+            inner.last_error = None;
+            inner.paused = false;
+            inner.config.wallpaper_mode = WallpaperMode::Live;
+            inner.arm_timer();
+            let config = inner.config.clone();
+            drop(inner);
+            if let Err(err) = config.save(&state.config_dir) {
+                log::warn!("could not persist live mode: {err:#}");
+            }
+        }
+        Ok(Err(err)) => {
+            log::error!("could not start live wallpaper: {err:#}");
+            let mut inner = state.inner.lock().expect("state poisoned");
+            inner.last_error = Some(format!("{err:#}"));
+            inner.config.wallpaper_mode = WallpaperMode::Rotation;
+            inner.arm_timer();
+        }
+        Err(err) => {
+            let mut inner = state.inner.lock().expect("state poisoned");
+            inner.last_error = Some(format!("{err:#}"));
+            inner.config.wallpaper_mode = WallpaperMode::Rotation;
+            inner.arm_timer();
+        }
+    }
+    publish(app, state);
 }
 
 async fn apply(app: &AppHandle, state: &Arc<AppState>) {
@@ -179,6 +293,8 @@ async fn apply_with_retry(app: &AppHandle, state: &Arc<AppState>) {
 
 /// Does the actual work off the async runtime: decoding and subprocesses both block.
 async fn apply_once(state: &Arc<AppState>) -> anyhow::Result<()> {
+    state.backend.stop_live();
+
     let (targets, fill_mode, per_monitor) = {
         let inner = state.inner.lock().expect("state poisoned");
         let per_monitor = inner.config.per_monitor && state.backend.supports_per_monitor();
@@ -213,7 +329,7 @@ async fn apply_once(state: &Arc<AppState>) -> anyhow::Result<()> {
 
 fn wait_duration(state: &Arc<AppState>) -> Duration {
     let inner = state.inner.lock().expect("state poisoned");
-    if inner.paused || inner.playlist.is_empty() {
+    if inner.is_live() || inner.paused || inner.playlist.is_empty() {
         return IDLE_POLL;
     }
     match inner.next_change_at {

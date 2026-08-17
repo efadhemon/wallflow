@@ -9,6 +9,7 @@ import type {
   GalleryPage,
   ImageEntry,
   Status,
+  VideoEntry,
 } from "./types";
 
 export const STATUS_EVENT = "wallpaper://status";
@@ -30,6 +31,13 @@ export const api = {
   getThumbnail: (path: string) => invoke<string>("get_thumbnail", { path }),
   applyImage: (path: string) => invoke<void>("apply_image", { path }),
   toggleExclude: (path: string) => invoke<boolean>("toggle_exclude", { path }),
+
+  listVideos: () => invoke<VideoEntry[]>("list_videos"),
+  addVideos: (paths: string[]) => invoke<number>("add_videos", { paths }),
+  removeVideo: (path: string) => invoke<void>("remove_video", { path }),
+  applyLive: (path: string) => invoke<void>("apply_live", { path }),
+  stopLiveAndRotate: () => invoke<void>("stop_live_and_rotate"),
+  enableGnomeExtension: () => invoke<string>("enable_gnome_extension"),
 
   next: () => invoke<void>("next_wallpaper"),
   previous: () => invoke<void>("previous_wallpaper"),

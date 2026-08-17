@@ -9,6 +9,7 @@ import { About } from "./routes/About";
 import { Dashboard } from "./routes/Dashboard";
 import { Gallery } from "./routes/Gallery";
 import { Library } from "./routes/Library";
+import { Live } from "./routes/Live";
 import { Settings } from "./routes/Settings";
 import { useApp } from "./state/AppContext";
 
@@ -29,6 +30,7 @@ export function App() {
             <Dashboard onBrowse={() => setRoute("library")} onGallery={() => setRoute("gallery")} />
           )}
           {route === "library" && <Library />}
+          {route === "live" && <Live />}
           {route === "gallery" && <Gallery />}
           {route === "settings" && <Settings />}
           {route === "about" && <About />}

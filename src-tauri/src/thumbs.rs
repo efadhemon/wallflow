@@ -13,7 +13,7 @@ pub const CONVERTED_DIR: &str = "converted";
 
 /// Identifies a file by path, size and mtime so an edited image gets a new cache
 /// entry instead of a stale one.
-fn cache_key(path: &Path) -> Result<String> {
+pub(crate) fn cache_key(path: &Path) -> Result<String> {
     let metadata =
         fs::metadata(path).with_context(|| format!("reading metadata of {}", path.display()))?;
 
@@ -91,7 +91,11 @@ pub fn prune(cache_dir: &Path, keep: &[PathBuf]) {
         .filter_map(|path| cache_key(path).ok())
         .collect();
 
-    for sub in [THUMBS_DIR, CONVERTED_DIR] {
+    for sub in [
+        THUMBS_DIR,
+        CONVERTED_DIR,
+        crate::wallpaper::live::POSTERS_DIR,
+    ] {
         let dir = cache_dir.join(sub);
         let Ok(entries) = fs::read_dir(&dir) else {
             continue;

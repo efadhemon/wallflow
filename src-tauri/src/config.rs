@@ -53,6 +53,15 @@ pub enum Theme {
     System,
 }
 
+/// Image rotation and live video never run at the same time.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[serde(rename_all = "lowercase")]
+pub enum WallpaperMode {
+    #[default]
+    Rotation,
+    Live,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 pub struct Config {
@@ -67,6 +76,12 @@ pub struct Config {
     pub autostart: bool,
     pub start_minimized: bool,
     pub theme: Theme,
+    pub wallpaper_mode: WallpaperMode,
+    pub live_path: Option<PathBuf>,
+    pub live_videos: Vec<PathBuf>,
+    pub live_muted: bool,
+    pub pause_live_on_fullscreen: bool,
+    pub pause_live_on_battery: bool,
 }
 
 impl Default for Config {
@@ -83,6 +98,12 @@ impl Default for Config {
             autostart: true,
             start_minimized: true,
             theme: Theme::System,
+            wallpaper_mode: WallpaperMode::Rotation,
+            live_path: None,
+            live_videos: Vec::new(),
+            live_muted: true,
+            pause_live_on_fullscreen: true,
+            pause_live_on_battery: false,
         }
     }
 }
@@ -121,6 +142,10 @@ impl Config {
         self.version = CONFIG_VERSION;
         self.interval_seconds = self.interval_seconds.max(MIN_INTERVAL_SECONDS);
         self.folders.dedup_by(|a, b| a.path == b.path);
+        self.live_videos.dedup();
+        if self.wallpaper_mode == WallpaperMode::Live && self.live_path.is_none() {
+            self.wallpaper_mode = WallpaperMode::Rotation;
+        }
     }
 
     pub fn is_excluded(&self, path: &Path) -> bool {

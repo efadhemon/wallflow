@@ -1,3 +1,4 @@
+use super::live::{LiveOpts, LiveSupport};
 use super::render::{compose, ease_in_out_cubic, FADE_FRAME_MS, FADE_MS};
 use super::WallpaperBackend;
 use crate::config::FillMode;
@@ -22,7 +23,7 @@ use std::time::{Duration, Instant};
 /// AppKit desktop APIs must run on the main thread. The scheduler may call us
 /// from a tokio worker, so hop over when needed. `run_on_main` is a no-op if
 /// we are already there (e.g. a UI-thread IPC handler).
-fn on_main<F, R>(f: F) -> R
+pub(super) fn on_main<F, R>(f: F) -> R
 where
     F: Send + FnOnce(MainThreadMarker) -> R,
     R: Send,
@@ -69,7 +70,11 @@ fn file_url(path: &Path) -> Result<Retained<NSURL>> {
         .ok_or_else(|| anyhow!("could not convert {} to a file URL", path.display()))
 }
 
-fn apply_on_screens(paths: &[PathBuf], mode: FillMode, mtm: MainThreadMarker) -> Result<()> {
+pub(super) fn apply_on_screens(
+    paths: &[PathBuf],
+    mode: FillMode,
+    mtm: MainThreadMarker,
+) -> Result<()> {
     if paths.is_empty() {
         return Ok(());
     }
@@ -103,7 +108,7 @@ fn apply_on_screens(paths: &[PathBuf], mode: FillMode, mtm: MainThreadMarker) ->
     Ok(())
 }
 
-fn desktop_window_level() -> isize {
+pub(super) fn desktop_window_level() -> isize {
     #[link(name = "CoreGraphics", kind = "framework")]
     extern "C" {
         fn CGWindowLevelForKey(key: i32) -> i32;
@@ -114,7 +119,7 @@ fn desktop_window_level() -> isize {
 }
 
 #[derive(Clone, Copy)]
-struct ScreenInfo {
+pub(super) struct ScreenInfo {
     frame: NSRect,
     point_width: f64,
     point_height: f64,
@@ -122,7 +127,7 @@ struct ScreenInfo {
     pixel_height: u32,
 }
 
-fn collect_screens(mtm: MainThreadMarker) -> Result<Vec<ScreenInfo>> {
+pub(super) fn collect_screens(mtm: MainThreadMarker) -> Result<Vec<ScreenInfo>> {
     let screens = NSScreen::screens(mtm);
     if screens.is_empty() {
         return Err(anyhow!("no screens available"));
@@ -302,10 +307,12 @@ impl WallpaperBackend for MacosBackend {
     }
 
     fn set(&self, path: &Path, mode: FillMode) -> Result<()> {
+        self.stop_live();
         apply_with_fade(&[path.to_path_buf()], mode)
     }
 
     fn set_per_monitor(&self, paths: &[PathBuf], mode: FillMode) -> Result<()> {
+        self.stop_live();
         apply_with_fade(paths, mode)
     }
 
@@ -315,6 +322,30 @@ impl WallpaperBackend for MacosBackend {
 
     fn supports_per_monitor(&self) -> bool {
         true
+    }
+
+    fn live_support(&self) -> LiveSupport {
+        LiveSupport::Full
+    }
+
+    fn play_live(&self, path: &Path, opts: LiveOpts) -> Result<()> {
+        super::macos_live::start(path, opts)
+    }
+
+    fn stop_live(&self) {
+        super::macos_live::stop();
+    }
+
+    fn pause_live(&self, paused: bool) {
+        super::macos_live::pause(paused);
+    }
+
+    fn update_live_opts(&self, opts: LiveOpts) {
+        super::macos_live::update_opts(opts);
+    }
+
+    fn extract_poster(&self, cache_dir: &Path, source: &Path) -> Result<PathBuf> {
+        super::macos_live::extract_poster(cache_dir, source)
     }
 }
 

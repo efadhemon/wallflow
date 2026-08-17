@@ -1,4 +1,4 @@
-import { AlertTriangle, ImageIcon, Monitor, Pause, Play, SkipBack, SkipForward, Timer } from "lucide-react";
+import { AlertTriangle, Film, ImageIcon, Monitor, Pause, Play, SkipBack, SkipForward, Timer } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Thumbnail } from "../components/Thumbnail";
 import { Banner, Button, Card, EmptyState } from "../components/ui";
@@ -21,17 +21,19 @@ function useNow(active: boolean): number {
 
 export function Dashboard({ onBrowse, onGallery }: { onBrowse: () => void; onGallery: () => void }) {
   const { status, environment, notify } = useApp();
-  const now = useNow(Boolean(status?.nextChangeAt) && !status?.paused);
+  const live = status?.mode === "live";
+  const now = useNow(Boolean(status?.nextChangeAt) && !status?.paused && !live);
 
   if (!status) return null;
 
-  const { current, paused, nextChangeAt, playlistSize, position, lastError } = status;
+  const { current, currentLive, paused, nextChangeAt, playlistSize, position, lastError } = status;
+  const preview = live ? currentLive : current;
 
   const run = (action: () => Promise<unknown>) => () => {
     action().catch(error => notify(String(error), "error"));
   };
 
-  if (playlistSize === 0) {
+  if (playlistSize === 0 && !live) {
     return (
       <div className="mx-auto max-w-3xl px-8 py-10">
         <Card>
@@ -63,28 +65,30 @@ export function Dashboard({ onBrowse, onGallery }: { onBrowse: () => void; onGal
 
       <Card className="overflow-hidden">
         <div className="relative aspect-video w-full bg-surface-muted">
-          {current ? (
-            <Thumbnail eager path={current.path} alt={current.name} className="h-full w-full" />
+          {preview ? (
+            <Thumbnail eager path={preview.path} alt={preview.name} className="h-full w-full" />
           ) : (
             <div className="flex h-full items-center justify-center text-ink-muted">
-              <ImageIcon size={28} />
+              {live ? <Film size={28} /> : <ImageIcon size={28} />}
             </div>
           )}
 
           <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 to-transparent px-5 pt-14 pb-4">
-            <p className="truncate text-base font-semibold text-white">{current?.name ?? "No wallpaper set"}</p>
-            <p className="mt-0.5 truncate text-xs text-white/70">{current?.folder ?? ""}</p>
+            <p className="truncate text-base font-semibold text-white">{preview?.name ?? "No wallpaper set"}</p>
+            <p className="mt-0.5 truncate text-xs text-white/70">{live ? "Live wallpaper" : (preview?.folder ?? "")}</p>
           </div>
 
           <span className="absolute top-4 right-4 rounded-full bg-black/55 px-2.5 py-1 text-xs font-medium text-white tabular-nums">
-            {position} / {playlistSize}
+            {live ? "Live" : `${position} / ${playlistSize}`}
           </span>
         </div>
 
         <div className="flex items-center justify-between gap-4 px-5 py-4">
           <div className="flex items-center gap-2 text-sm text-ink-muted">
             <Timer size={16} />
-            {paused ? (
+            {live ? (
+              <span>{paused ? "Video paused" : "Looping"}</span>
+            ) : paused ? (
               <span>Paused</span>
             ) : nextChangeAt ? (
               <span>
@@ -94,7 +98,9 @@ export function Dashboard({ onBrowse, onGallery }: { onBrowse: () => void; onGal
             ) : (
               <span>Waiting</span>
             )}
-            <span className="text-ink-muted/60">&middot; every {formatDuration(status.intervalSeconds)}</span>
+            {!live && (
+              <span className="text-ink-muted/60">&middot; every {formatDuration(status.intervalSeconds)}</span>
+            )}
           </div>
 
           <div className="flex items-center gap-2">

@@ -1,9 +1,11 @@
+use super::live::{GnomeExtensionStatus, LiveOpts, LiveSupport};
 use super::WallpaperBackend;
 use crate::config::FillMode;
 use anyhow::{anyhow, bail, Context, Result};
 use percent_encoding::{utf8_percent_encode, AsciiSet, CONTROLS};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::sync::Mutex;
 
 /// Characters that must not appear raw in a `file://` URI. `%` is included so an
 /// image literally named `100%.jpg` round-trips instead of producing a broken URI.
@@ -82,15 +84,27 @@ pub fn detect_desktop() -> DesktopEnv {
     }
 }
 
+pub fn is_x11() -> bool {
+    std::env::var("XDG_SESSION_TYPE")
+        .map(|value| value.eq_ignore_ascii_case("x11"))
+        .unwrap_or_else(|_| {
+            std::env::var_os("DISPLAY").is_some() && std::env::var_os("WAYLAND_DISPLAY").is_none()
+        })
+}
+
 pub struct LinuxBackend {
     desktop: DesktopEnv,
+    live: Mutex<Option<super::linux_live::Handle>>,
 }
 
 impl LinuxBackend {
     pub fn new() -> Self {
         let desktop = detect_desktop();
         log::info!("detected desktop environment: {}", desktop.label());
-        Self { desktop }
+        Self {
+            desktop,
+            live: Mutex::new(None),
+        }
     }
 }
 
@@ -100,6 +114,7 @@ impl WallpaperBackend for LinuxBackend {
     }
 
     fn set(&self, path: &Path, mode: FillMode) -> Result<()> {
+        self.stop_live();
         match self.desktop {
             DesktopEnv::Gnome => set_gsettings("org.gnome.desktop.background", path, mode, true),
             DesktopEnv::Kde => set_kde(path, mode),
@@ -111,6 +126,51 @@ impl WallpaperBackend for LinuxBackend {
             DesktopEnv::Lxqt => set_lxqt(path, mode),
             DesktopEnv::Unknown => set_unknown(path, mode),
         }
+    }
+
+    fn live_support(&self) -> LiveSupport {
+        if super::gnome::is_gnome_shell() && super::gnome::is_wayland() && !super::gnome::ping() {
+            LiveSupport::NeedsGnomeExtension
+        } else if is_x11() || super::wayland_live::available() || super::gnome::ping() {
+            LiveSupport::Full
+        } else {
+            LiveSupport::None
+        }
+    }
+
+    fn gnome_extension_status(&self) -> GnomeExtensionStatus {
+        super::gnome::status()
+    }
+
+    fn enable_gnome_extension(&self) -> Result<GnomeExtensionStatus> {
+        super::gnome::install_and_enable()
+    }
+
+    fn play_live(&self, path: &Path, opts: LiveOpts) -> Result<()> {
+        self.stop_live();
+        let handle = super::linux_live::start(path, opts)?;
+        *self.live.lock().expect("live lock") = Some(handle);
+        Ok(())
+    }
+
+    fn stop_live(&self) {
+        drop(self.live.lock().expect("live lock").take());
+    }
+
+    fn pause_live(&self, paused: bool) {
+        if let Some(handle) = self.live.lock().expect("live lock").as_ref() {
+            handle.pause(paused);
+        }
+    }
+
+    fn update_live_opts(&self, opts: LiveOpts) {
+        if let Some(handle) = self.live.lock().expect("live lock").as_ref() {
+            handle.update_opts(opts);
+        }
+    }
+
+    fn extract_poster(&self, cache_dir: &Path, source: &Path) -> Result<PathBuf> {
+        super::linux_live::extract_poster(cache_dir, source)
     }
 }
 

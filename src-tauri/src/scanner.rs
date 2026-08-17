@@ -3,12 +3,33 @@ use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
 
 pub const SUPPORTED_EXTENSIONS: &[&str] = &["jpg", "jpeg", "png", "webp", "bmp"];
+pub const VIDEO_EXTENSIONS: &[&str] = &["mp4", "mov", "m4v"];
 
 pub fn is_supported(path: &Path) -> bool {
     path.extension()
         .and_then(|ext| ext.to_str())
         .map(|ext| ext.to_ascii_lowercase())
         .is_some_and(|ext| SUPPORTED_EXTENSIONS.contains(&ext.as_str()))
+}
+
+pub fn is_video(path: &Path) -> bool {
+    path.extension()
+        .and_then(|ext| ext.to_str())
+        .map(|ext| ext.to_ascii_lowercase())
+        .is_some_and(|ext| VIDEO_EXTENSIONS.contains(&ext.as_str()))
+}
+
+/// ISO-BMFF / QuickTime files start with a 4-byte size then `ftyp`.
+pub fn video_extension_for_bytes(bytes: &[u8]) -> Option<&'static str> {
+    if bytes.len() < 12 || &bytes[4..8] != b"ftyp" {
+        return None;
+    }
+    let brand = &bytes[8..12];
+    if brand == b"qt  " {
+        Some("mov")
+    } else {
+        Some("mp4")
+    }
 }
 
 /// File extension to use when copying a recognised image into the managed directory.
@@ -74,6 +95,9 @@ mod tests {
         assert!(is_supported(Path::new("/a/b.webp")));
         assert!(!is_supported(Path::new("/a/b.txt")));
         assert!(!is_supported(Path::new("/a/b")));
+        assert!(is_video(Path::new("/a/b.mp4")));
+        assert!(is_video(Path::new("/a/b.MOV")));
+        assert!(!is_video(Path::new("/a/b.jpg")));
     }
 
     #[test]

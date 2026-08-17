@@ -68,6 +68,12 @@ pub fn run() {
             commands::remove_image,
             commands::get_thumbnail,
             commands::apply_image,
+            commands::list_videos,
+            commands::add_videos,
+            commands::remove_video,
+            commands::apply_live,
+            commands::stop_live_and_rotate,
+            commands::enable_gnome_extension,
             commands::next_wallpaper,
             commands::previous_wallpaper,
             commands::toggle_pause,
@@ -88,6 +94,9 @@ pub fn run() {
                 }
             }
             RunEvent::Exit => {
+                if let Some(state) = handler.try_state::<Arc<AppState>>() {
+                    state.backend.stop_live();
+                }
                 if tracking_enabled() {
                     let _ = handler.track_event("app_exited", None);
                     handler.flush_events_blocking();
@@ -110,7 +119,8 @@ fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     let cache_dir = app.path().app_cache_dir()?;
     let log_dir = app.path().app_log_dir()?;
     let images_dir = app.path().app_data_dir()?.join("images");
-    for dir in [&config_dir, &cache_dir, &log_dir, &images_dir] {
+    let videos_dir = app.path().app_data_dir()?.join("videos");
+    for dir in [&config_dir, &cache_dir, &log_dir, &images_dir, &videos_dir] {
         std::fs::create_dir_all(dir)?;
     }
 
@@ -139,6 +149,7 @@ fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
         cache_dir: cache_dir.clone(),
         log_dir,
         images_dir,
+        videos_dir,
         tx,
         watcher: Mutex::new(None),
     });

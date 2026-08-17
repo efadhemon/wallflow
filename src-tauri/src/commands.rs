@@ -1,7 +1,8 @@
-use crate::config::{self, Config, Folder};
+use crate::config::{self, Config, Folder, WallpaperMode};
 use crate::gallery::{self, GalleryPage, SearchParams};
 use crate::scanner;
 use crate::state::{AppState, Command, Status};
+use crate::wallpaper::live::LiveSupport;
 use crate::{thumbs, watcher};
 use serde::Serialize;
 use std::path::{Path, PathBuf};
@@ -41,6 +42,9 @@ pub struct Environment {
     pub backend: String,
     pub monitor_count: usize,
     pub supports_per_monitor: bool,
+    pub supports_live: bool,
+    pub live_support: &'static str,
+    pub gnome_extension_status: &'static str,
     pub app_version: String,
     pub config_path: String,
     pub log_path: String,
@@ -229,12 +233,20 @@ pub fn remove_image(state: State<'_, Arc<AppState>>, path: PathBuf) -> Reply<()>
 #[tauri::command]
 pub async fn get_thumbnail(state: State<'_, Arc<AppState>>, path: PathBuf) -> Reply<String> {
     let cache_dir = state.cache_dir.clone();
+    let is_video = scanner::is_video(&path);
+    let app_state = Arc::clone(&state);
 
-    tokio::task::spawn_blocking(move || thumbs::thumbnail(&cache_dir, &path))
-        .await
-        .map_err(fail)?
-        .map(|path| path.to_string_lossy().into_owned())
-        .map_err(fail)
+    tokio::task::spawn_blocking(move || {
+        if is_video {
+            app_state.backend.extract_poster(&cache_dir, &path)
+        } else {
+            thumbs::thumbnail(&cache_dir, &path)
+        }
+    })
+    .await
+    .map_err(fail)?
+    .map(|path| path.to_string_lossy().into_owned())
+    .map_err(fail)
 }
 
 #[tauri::command]
@@ -253,6 +265,138 @@ pub fn apply_image(state: State<'_, Arc<AppState>>, path: PathBuf) -> Reply<()> 
 
     state.send(Command::ApplyCurrent);
     Ok(())
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct VideoEntry {
+    pub path: PathBuf,
+    pub name: String,
+    pub is_current: bool,
+}
+
+#[tauri::command]
+pub fn list_videos(state: State<'_, Arc<AppState>>) -> Vec<VideoEntry> {
+    let inner = state.inner.lock().expect("state poisoned");
+    let current = inner.config.live_path.as_deref();
+    inner
+        .config
+        .live_videos
+        .iter()
+        .filter(|path| path.is_file())
+        .map(|path| VideoEntry {
+            name: path
+                .file_name()
+                .map(|name| name.to_string_lossy().into_owned())
+                .unwrap_or_default(),
+            is_current: current == Some(path.as_path())
+                && inner.config.wallpaper_mode == WallpaperMode::Live,
+            path: path.clone(),
+        })
+        .collect()
+}
+
+#[tauri::command]
+pub async fn add_videos(state: State<'_, Arc<AppState>>, paths: Vec<PathBuf>) -> Reply<usize> {
+    let videos_dir = state.videos_dir.clone();
+    let copied = tokio::task::spawn_blocking(move || copy_videos(&videos_dir, &paths))
+        .await
+        .map_err(fail)??;
+
+    let mut inner = state.inner.lock().expect("state poisoned");
+    let mut added = 0;
+    for path in copied {
+        if !inner.config.live_videos.contains(&path) {
+            inner.config.live_videos.push(path);
+            added += 1;
+        }
+    }
+    let config = inner.config.clone();
+    drop(inner);
+    config.save(&state.config_dir).map_err(fail)?;
+    Ok(added)
+}
+
+#[tauri::command]
+pub fn remove_video(state: State<'_, Arc<AppState>>, path: PathBuf) -> Reply<()> {
+    let videos_dir = state.videos_dir.canonicalize().map_err(fail)?;
+    let canonical = path.canonicalize().map_err(fail)?;
+    if !canonical.starts_with(&videos_dir) {
+        return Err("That video is not one Wallflow added.".into());
+    }
+
+    std::fs::remove_file(&canonical).map_err(fail)?;
+
+    let mut inner = state.inner.lock().expect("state poisoned");
+    inner
+        .config
+        .live_videos
+        .retain(|entry| entry != &path && entry != &canonical);
+    if inner.config.live_path.as_deref() == Some(canonical.as_path())
+        || inner.config.live_path.as_deref() == Some(path.as_path())
+    {
+        inner.config.live_path = None;
+        if inner.config.wallpaper_mode == WallpaperMode::Live {
+            inner.config.wallpaper_mode = WallpaperMode::Rotation;
+            drop(inner);
+            state.backend.stop_live();
+            let inner = state.inner.lock().expect("state poisoned");
+            let config = inner.config.clone();
+            drop(inner);
+            config.save(&state.config_dir).map_err(fail)?;
+            state.send(Command::ApplyCurrent);
+            return Ok(());
+        }
+    }
+    let config = inner.config.clone();
+    drop(inner);
+    config.save(&state.config_dir).map_err(fail)?;
+    Ok(())
+}
+
+#[tauri::command]
+pub fn apply_live(state: State<'_, Arc<AppState>>, path: PathBuf) -> Reply<()> {
+    if !path.is_file() {
+        return Err(format!("{} no longer exists", path.display()));
+    }
+    if !scanner::is_video(&path) {
+        return Err("That file is not a supported video (MP4, MOV or M4V).".into());
+    }
+
+    {
+        let mut inner = state.inner.lock().expect("state poisoned");
+        inner.config.live_path = Some(path);
+        inner.config.wallpaper_mode = WallpaperMode::Live;
+        inner.paused = false;
+        let config = inner.config.clone();
+        drop(inner);
+        config.save(&state.config_dir).map_err(fail)?;
+    }
+    state.send(Command::EnterLive);
+    Ok(())
+}
+
+#[tauri::command]
+pub fn stop_live_and_rotate(state: State<'_, Arc<AppState>>) -> Reply<()> {
+    {
+        let mut inner = state.inner.lock().expect("state poisoned");
+        inner.config.wallpaper_mode = WallpaperMode::Rotation;
+        inner.paused = false;
+        let config = inner.config.clone();
+        drop(inner);
+        config.save(&state.config_dir).map_err(fail)?;
+    }
+    state.send(Command::ExitLive);
+    Ok(())
+}
+
+#[tauri::command]
+pub fn enable_gnome_extension(state: State<'_, Arc<AppState>>) -> Reply<&'static str> {
+    state
+        .backend
+        .enable_gnome_extension()
+        .map(|status| status.as_str())
+        .map_err(fail)
 }
 
 #[tauri::command]
@@ -301,6 +445,9 @@ pub fn get_environment(app: AppHandle, state: State<'_, Arc<AppState>>) -> Envir
         backend: state.backend.name(),
         monitor_count: state.backend.monitor_count(),
         supports_per_monitor: state.backend.supports_per_monitor(),
+        supports_live: state.backend.live_support() != LiveSupport::None,
+        live_support: state.backend.live_support().as_str(),
+        gnome_extension_status: state.backend.gnome_extension_status().as_str(),
         app_version: app.package_info().version.to_string(),
         config_path: state
             .config_dir
@@ -500,4 +647,91 @@ fn sha256_hex(bytes: &[u8]) -> String {
         let _ = write!(hex, "{byte:02x}");
     }
     hex
+}
+
+fn copy_videos(videos_dir: &Path, paths: &[PathBuf]) -> Reply<Vec<PathBuf>> {
+    std::fs::create_dir_all(videos_dir)
+        .map_err(|err| format!("could not create {}: {err}", videos_dir.display()))?;
+
+    let mut copied = Vec::new();
+    let mut recognised = 0;
+
+    for path in paths {
+        match copy_one_video(videos_dir, path) {
+            Ok(dest) => {
+                recognised += 1;
+                copied.push(dest);
+            }
+            Err(err) => log::warn!("{}: {err}", path.display()),
+        }
+    }
+
+    if !paths.is_empty() && recognised == 0 {
+        return Err("None of the selected files are supported videos (MP4, MOV or M4V).".into());
+    }
+
+    Ok(copied)
+}
+
+fn copy_one_video(videos_dir: &Path, source: &Path) -> Reply<PathBuf> {
+    use sha2::{Digest, Sha256};
+    use std::io::{Read, Seek, SeekFrom, Write};
+
+    let mut file = std::fs::File::open(source)
+        .map_err(|err| format!("could not read {}: {err}", source.display()))?;
+    let mut header = [0u8; 12];
+    let read = file
+        .read(&mut header)
+        .map_err(|err| format!("could not read {}: {err}", source.display()))?;
+    let ext = scanner::video_extension_for_bytes(&header[..read])
+        .or_else(|| {
+            source
+                .extension()
+                .and_then(|ext| ext.to_str())
+                .map(|ext| ext.to_ascii_lowercase())
+                .filter(|ext| scanner::VIDEO_EXTENSIONS.contains(&ext.as_str()))
+                .map(|ext| match ext.as_str() {
+                    "m4v" => "m4v",
+                    "mov" => "mov",
+                    _ => "mp4",
+                })
+        })
+        .ok_or_else(|| "That file is not a supported video (MP4, MOV or M4V).".to_string())?;
+
+    file.seek(SeekFrom::Start(0))
+        .map_err(|err| format!("could not read {}: {err}", source.display()))?;
+
+    let tmp = videos_dir.join(format!(".incoming-{}", std::process::id()));
+    let mut hasher = Sha256::new();
+    {
+        let mut writer = std::fs::File::create(&tmp)
+            .map_err(|err| format!("could not save the video: {err}"))?;
+        let mut buf = [0u8; 64 * 1024];
+        loop {
+            let n = file
+                .read(&mut buf)
+                .map_err(|err| format!("could not read {}: {err}", source.display()))?;
+            if n == 0 {
+                break;
+            }
+            hasher.update(&buf[..n]);
+            writer
+                .write_all(&buf[..n])
+                .map_err(|err| format!("could not save the video: {err}"))?;
+        }
+    }
+
+    let digest = hasher.finalize();
+    let mut hex = String::with_capacity(digest.len() * 2);
+    for byte in digest {
+        use std::fmt::Write;
+        let _ = write!(hex, "{byte:02x}");
+    }
+    let dest = videos_dir.join(format!("{hex}.{ext}"));
+    if dest.exists() {
+        let _ = std::fs::remove_file(&tmp);
+        return Ok(dest);
+    }
+    std::fs::rename(&tmp, &dest).map_err(|err| format!("could not save the video: {err}"))?;
+    Ok(dest)
 }

@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
-import { Card, Divider, Field, NumberInput, SectionTitle, Select, Switch } from "../components/ui";
+import { Button, Card, Divider, Field, NumberInput, SectionTitle, Select, Switch } from "../components/ui";
 import type { FillMode, Order, Theme } from "../lib/types";
+import { api } from "../lib/api";
 import { useApp } from "../state/AppContext";
 
 type Unit = "seconds" | "minutes" | "hours";
@@ -21,7 +22,7 @@ function splitInterval(totalSeconds: number): { value: number; unit: Unit } {
 }
 
 export function Settings() {
-  const { config, environment, updateConfig } = useApp();
+  const { config, environment, updateConfig, refresh, notify } = useApp();
   const derived = useMemo(() => (config ? splitInterval(config.intervalSeconds) : null), [config]);
   const [unit, setUnit] = useState<Unit | null>(null);
 
@@ -136,6 +137,71 @@ export function Settings() {
               />
             }
           />
+          <Divider />
+          <Field
+            label="Mute live wallpaper"
+            hint="Videos play without sound. Unmute only if you want desktop audio."
+            control={
+              <Switch
+                label="Mute live wallpaper"
+                checked={config.liveMuted}
+                onChange={liveMuted => void updateConfig({ liveMuted })}
+              />
+            }
+          />
+          <Divider />
+          <Field
+            label="Pause live wallpaper in games"
+            hint="Saves GPU time while a full-screen app is in front."
+            control={
+              <Switch
+                label="Pause live wallpaper in games"
+                checked={config.pauseLiveOnFullscreen}
+                onChange={pauseLiveOnFullscreen => void updateConfig({ pauseLiveOnFullscreen })}
+              />
+            }
+          />
+          <Divider />
+          <Field
+            label="Pause live wallpaper on battery"
+            hint="Stops the video while the machine is unplugged."
+            control={
+              <Switch
+                label="Pause live wallpaper on battery"
+                checked={config.pauseLiveOnBattery}
+                onChange={pauseLiveOnBattery => void updateConfig({ pauseLiveOnBattery })}
+              />
+            }
+          />
+          {environment?.liveSupport === "needsGnomeExtension" && (
+            <>
+              <Divider />
+              <Field
+                label="GNOME desktop extension"
+                hint={
+                  environment.gnomeExtensionStatus === "active"
+                    ? "The Wallflow extension is running."
+                    : environment.gnomeExtensionStatus === "needsLogout"
+                      ? "Installed. Log out and back in to activate it."
+                      : "Required so a video can play behind icons on Ubuntu Wayland."
+                }
+                control={
+                  <Button
+                    size="sm"
+                    disabled={environment.gnomeExtensionStatus === "active"}
+                    onClick={() => {
+                      void api
+                        .enableGnomeExtension()
+                        .then(() => refresh())
+                        .catch(error => notify(String(error), "error"));
+                    }}
+                  >
+                    {environment.gnomeExtensionStatus === "active" ? "Enabled" : "Enable"}
+                  </Button>
+                }
+              />
+            </>
+          )}
         </Card>
       </section>
 
