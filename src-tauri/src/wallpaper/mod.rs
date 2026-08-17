@@ -6,6 +6,7 @@ use std::path::{Path, PathBuf};
 pub mod linux;
 #[cfg(target_os = "macos")]
 pub mod macos;
+pub mod render;
 #[cfg(windows)]
 pub mod windows;
 
