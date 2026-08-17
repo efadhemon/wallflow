@@ -2,16 +2,30 @@ import { openUrl } from "@tauri-apps/plugin-opener";
 import { Download, ExternalLink, ImageIcon, LoaderCircle, Search } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button, Card, EmptyState, Select } from "../components/ui";
-import { api } from "../lib/api";
+import { api, onDownloadProgress } from "../lib/api";
 import { composeQuery, CUSTOM_ID, MIN_RESOLUTIONS, ORIENTATIONS, PARENTS, parentById, SORTING } from "../lib/gallery";
-import type { GalleryAtLeast, GalleryOrientation, GalleryPhoto, GallerySorting } from "../lib/types";
+import type { DownloadProgress, GalleryAtLeast, GalleryOrientation, GalleryPhoto, GallerySorting } from "../lib/types";
 import { cn, formatBytes } from "../lib/utils";
 import { useApp } from "../state/AppContext";
 
 const SEARCH_DEBOUNCE_MS = 400;
+const DOWNLOAD_TOAST = "gallery-download";
+const MAX_PARALLEL = 3;
+
+interface ActiveJob {
+  id: string;
+  url: string;
+  received: number;
+  total: number | null;
+}
+
+interface QueuedJob {
+  photo: GalleryPhoto;
+  apply: boolean;
+}
 
 export function Gallery() {
-  const { notify } = useApp();
+  const { notify, upsertToast } = useApp();
   const [parentId, setParentId] = useState(PARENTS[0].id);
   const [queryInput, setQueryInput] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
@@ -25,9 +39,14 @@ export function Gallery() {
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [busyId, setBusyId] = useState<string | null>(null);
+  const [active, setActive] = useState<Map<string, ActiveJob>>(() => new Map());
+  const [queued, setQueued] = useState<QueuedJob[]>([]);
   const requestId = useRef(0);
   const sentinel = useRef<HTMLDivElement>(null);
+  const activeRef = useRef(active);
+  const queuedRef = useRef(queued);
+  const batchRef = useRef({ added: 0, already: 0 });
+  const startDownloadRef = useRef<(photo: GalleryPhoto, apply: boolean) => void>(() => {});
 
   const parent = parentById(parentId);
   const composedQuery = useMemo(() => composeQuery(parent.keyword, debouncedQuery), [parent.keyword, debouncedQuery]);
@@ -80,6 +99,109 @@ export function Gallery() {
     void fetchPage(1, false);
   }, [fetchPage]);
 
+  const showBatchToast = useCallback(
+    (jobs: Map<string, ActiveJob>) => {
+      const summary = batchProgressMessage([...jobs.values()]);
+      upsertToast(DOWNLOAD_TOAST, { ...summary, sticky: true, tone: "info" });
+    },
+    [upsertToast],
+  );
+
+  const finishJob = useCallback(
+    (id: string, error?: string) => {
+      const next = new Map(activeRef.current);
+      next.delete(id);
+      activeRef.current = next;
+      setActive(next);
+
+      const waiting = queuedRef.current;
+      if (waiting.length > 0 && next.size < MAX_PARALLEL) {
+        const [item, ...rest] = waiting;
+        queuedRef.current = rest;
+        setQueued(rest);
+        if (next.size > 0) showBatchToast(next);
+        if (error) notify(error, "error");
+        startDownloadRef.current(item.photo, item.apply);
+        return;
+      }
+
+      if (next.size > 0) {
+        showBatchToast(next);
+        if (error) notify(error, "error");
+        return;
+      }
+
+      const { added, already } = batchRef.current;
+      if (added > 0 || already > 0) {
+        upsertToast(DOWNLOAD_TOAST, {
+          message: finishMessage(added, already),
+          progress: 100,
+          sticky: false,
+          tone: "info",
+        });
+        if (error) notify(error, "error");
+      } else if (error) {
+        upsertToast(DOWNLOAD_TOAST, { message: error, tone: "error", sticky: false });
+      }
+    },
+    [notify, showBatchToast, upsertToast],
+  );
+
+  const startDownload = useCallback(
+    (photo: GalleryPhoto, apply: boolean) => {
+      const job: ActiveJob = {
+        id: photo.id,
+        url: photo.path,
+        received: 0,
+        total: photo.fileSize || null,
+      };
+      const next = new Map(activeRef.current);
+      next.set(photo.id, job);
+      activeRef.current = next;
+      setActive(next);
+      showBatchToast(next);
+
+      void (async () => {
+        try {
+          const result = await api.addRemoteImage(photo.path, photo.fileSize || undefined);
+          if (result.added) batchRef.current.added += 1;
+          else batchRef.current.already += 1;
+          if (apply) await api.applyImage(result.path);
+          finishJob(photo.id);
+        } catch (err) {
+          finishJob(photo.id, String(err));
+        }
+      })();
+    },
+    [finishJob, showBatchToast],
+  );
+
+  useEffect(() => {
+    startDownloadRef.current = startDownload;
+  }, [startDownload]);
+
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+    void onDownloadProgress(progress => {
+      const current = activeRef.current;
+      let found = false;
+      const next = new Map(current);
+      for (const [id, job] of next) {
+        if (job.url !== progress.url) continue;
+        next.set(id, { ...job, received: progress.received, total: progress.total ?? job.total });
+        found = true;
+        break;
+      }
+      if (!found) return;
+      activeRef.current = next;
+      setActive(next);
+      showBatchToast(next);
+    }).then(fn => {
+      unlisten = fn;
+    });
+    return () => unlisten?.();
+  }, [showBatchToast]);
+
   useEffect(() => {
     const node = sentinel.current;
     if (!node || loading || loadingMore || page >= lastPage) return;
@@ -104,23 +226,21 @@ export function Gallery() {
     setQueryInput(current => (current.trim() === sub ? "" : sub));
   };
 
-  const addPhoto = async (photo: GalleryPhoto, apply: boolean) => {
-    setBusyId(photo.id);
-    try {
-      const result = await api.addRemoteImage(photo.path);
-      if (result.added) {
-        notify("Added to the library.");
-      } else {
-        notify("That image is already in the library.");
-      }
-      if (apply) {
-        await api.applyImage(result.path);
-      }
-    } catch (err) {
-      notify(String(err), "error");
-    } finally {
-      setBusyId(null);
+  const addPhoto = (photo: GalleryPhoto, apply: boolean) => {
+    if (activeRef.current.has(photo.id) || queuedRef.current.some(job => job.photo.id === photo.id)) return;
+
+    if (activeRef.current.size === 0 && queuedRef.current.length === 0) {
+      batchRef.current = { added: 0, already: 0 };
     }
+
+    if (activeRef.current.size >= MAX_PARALLEL) {
+      const nextQueue = [...queuedRef.current, { photo, apply }];
+      queuedRef.current = nextQueue;
+      setQueued(nextQueue);
+      return;
+    }
+
+    startDownload(photo, apply);
   };
 
   const activeSub = queryInput.trim();
@@ -242,10 +362,11 @@ export function Gallery() {
               <GalleryTile
                 key={photo.id}
                 photo={photo}
-                busy={busyId === photo.id}
-                disabled={busyId !== null}
-                onAdd={() => void addPhoto(photo, false)}
-                onUse={() => void addPhoto(photo, true)}
+                busy={active.has(photo.id)}
+                waiting={queued.some(job => job.photo.id === photo.id)}
+                progress={active.get(photo.id) ?? null}
+                onAdd={() => addPhoto(photo, false)}
+                onUse={() => addPhoto(photo, true)}
                 onOpen={() => void openUrl(photo.url)}
               />
             ))}
@@ -257,6 +378,43 @@ export function Gallery() {
       )}
     </div>
   );
+}
+
+function batchProgressMessage(jobs: ActiveJob[]): { message: string; progress: number | null } {
+  if (jobs.length === 0) return { message: "Downloading…", progress: 0 };
+
+  const received = jobs.reduce((sum, job) => sum + job.received, 0);
+  const allHaveTotal = jobs.every(job => job.total && job.total > 0);
+  const total = allHaveTotal ? jobs.reduce((sum, job) => sum + (job.total ?? 0), 0) : 0;
+  const percent = allHaveTotal && total > 0 ? Math.min(100, Math.round((received / total) * 100)) : null;
+
+  if (jobs.length === 1) {
+    const job = jobs[0];
+    if (percent != null && job.total) {
+      return {
+        message: `Downloading ${formatBytes(job.received)} / ${formatBytes(job.total)} (${percent}%)`,
+        progress: percent,
+      };
+    }
+    return { message: `Downloading ${formatBytes(job.received)}`, progress: percent };
+  }
+
+  return {
+    message: percent != null ? `Downloading ${jobs.length} wallpapers (${percent}%)` : `Downloading ${jobs.length} wallpapers`,
+    progress: percent,
+  };
+}
+
+function finishMessage(added: number, already: number): string {
+  if (added > 0 && already > 0) {
+    const addedLabel = added === 1 ? "Added 1 to the library" : `Added ${added} to the library`;
+    const alreadyLabel = already === 1 ? "1 was already there" : `${already} were already there`;
+    return `${addedLabel}. ${alreadyLabel}.`;
+  }
+  if (added === 1) return "Added to the library.";
+  if (added > 1) return `Added ${added} to the library.`;
+  if (already === 1) return "That image is already in the library.";
+  return `${already} images are already in the library.`;
 }
 
 function Chip({
@@ -289,18 +447,27 @@ function Chip({
 function GalleryTile({
   photo,
   busy,
-  disabled,
+  waiting,
+  progress,
   onAdd,
   onUse,
   onOpen,
 }: {
   photo: GalleryPhoto;
   busy: boolean;
-  disabled: boolean;
+  waiting: boolean;
+  progress: Pick<DownloadProgress, "received" | "total"> | null;
   onAdd: () => void;
   onUse: () => void;
   onOpen: () => void;
 }) {
+  const percent =
+    progress?.total && progress.total > 0
+      ? Math.min(100, Math.round((progress.received / progress.total) * 100))
+      : null;
+  const progressLabel =
+    percent != null ? `${percent}%` : progress ? formatBytes(progress.received) : "Downloading…";
+
   return (
     <div className="group relative overflow-hidden rounded-lg border border-line">
       <div className="aspect-16/10 w-full" style={{ backgroundColor: photo.color ?? undefined }}>
@@ -312,6 +479,34 @@ function GalleryTile({
           {photo.resolution} · {formatBytes(photo.fileSize)}
         </p>
       </div>
+
+      {(busy || waiting) && (
+        <div
+          className="absolute inset-0 flex flex-col items-center justify-center bg-black/55 px-4"
+          role={busy ? "progressbar" : "status"}
+          aria-valuemin={busy ? 0 : undefined}
+          aria-valuemax={busy ? 100 : undefined}
+          aria-valuenow={busy ? (percent ?? undefined) : undefined}
+          aria-label={waiting ? "Waiting to download" : "Download progress"}
+        >
+          {waiting ? (
+            <p className="text-[11px] text-white">Waiting…</p>
+          ) : (
+            <>
+              <div className="h-1 w-full overflow-hidden rounded-full bg-white/25">
+                <div
+                  className={cn(
+                    "h-full rounded-full bg-white transition-[width] duration-150",
+                    percent == null && "animate-pulse",
+                  )}
+                  style={{ width: `${percent ?? 40}%` }}
+                />
+              </div>
+              <p className="mt-1.5 text-[11px] text-white">{progressLabel}</p>
+            </>
+          )}
+        </div>
+      )}
 
       <div className="absolute top-2 right-2 flex gap-1 opacity-0 transition group-hover:opacity-100">
         <button
@@ -325,15 +520,17 @@ function GalleryTile({
         </button>
       </div>
 
-      <div className="absolute inset-x-2 bottom-7 flex gap-1 opacity-0 transition group-hover:opacity-100">
-        <Button size="sm" className="h-7 flex-1 px-2 text-[11px]" disabled={disabled} onClick={onAdd}>
-          {busy ? <LoaderCircle size={12} className="animate-spin" /> : <Download size={12} />}
-          Add
-        </Button>
-        <Button size="sm" variant="primary" className="h-7 flex-1 px-2 text-[11px]" disabled={disabled} onClick={onUse}>
-          Use now
-        </Button>
-      </div>
+      {!busy && !waiting && (
+        <div className="absolute inset-x-2 bottom-7 flex gap-1 opacity-0 transition group-hover:opacity-100">
+          <Button size="sm" className="h-7 flex-1 px-2 text-[11px]" onClick={onAdd}>
+            <Download size={12} />
+            Add
+          </Button>
+          <Button size="sm" variant="primary" className="h-7 flex-1 px-2 text-[11px]" onClick={onUse}>
+            Use now
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

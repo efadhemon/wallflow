@@ -52,11 +52,24 @@ function Toasts() {
           key={toast.id}
           role={toast.tone === "error" ? "alert" : "status"}
           className={cn(
-            "pointer-events-auto flex max-w-lg items-start gap-3 rounded-lg border px-4 py-2.5 text-xs shadow-lg",
+            "pointer-events-auto flex min-w-64 max-w-lg items-start gap-3 rounded-lg border px-4 py-2.5 text-xs shadow-lg",
             toast.tone === "error" ? "border-danger/30 bg-danger-soft text-danger" : "border-line bg-surface text-ink",
           )}
         >
-          <span className="min-w-0 flex-1 break-words">{toast.message}</span>
+          <div className="min-w-0 flex-1">
+            <span className="break-words">{toast.message}</span>
+            {toast.progress != null || toast.sticky ? (
+              <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-line">
+                <div
+                  className={cn(
+                    "h-full rounded-full bg-brand transition-[width] duration-150",
+                    toast.progress == null && "animate-pulse",
+                  )}
+                  style={{ width: `${toast.progress == null ? 40 : Math.min(100, Math.max(0, toast.progress))}%` }}
+                />
+              </div>
+            ) : null}
+          </div>
           <button
             type="button"
             onClick={() => dismissToast(toast.id)}

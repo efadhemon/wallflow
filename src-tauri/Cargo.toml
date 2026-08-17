@@ -25,9 +25,10 @@ tauri-plugin-dialog = "2.7.2"
 tauri-plugin-log = "2.9.0"
 tauri-plugin-opener = "2.5.4"
 tauri-plugin-single-instance = "2.4.3"
-tokio = { version = "1.53.1", features = ["rt-multi-thread", "sync", "time", "macros"] }
+tokio = { version = "1.53.1", features = ["rt-multi-thread", "sync", "time", "macros", "fs", "io-util"] }
 walkdir = "2.5.0"
-reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "stream"] }
+futures-util = { version = "0.3", default-features = false, features = ["std"] }
 sha2 = "0.10"
 
 [build-dependencies]

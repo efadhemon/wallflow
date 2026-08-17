@@ -6,7 +6,7 @@ use crate::{thumbs, watcher};
 use serde::Serialize;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use tauri::{AppHandle, State};
+use tauri::{AppHandle, Emitter, State};
 use tauri_plugin_autostart::ManagerExt;
 
 type Reply<T> = Result<T, String>;
@@ -382,14 +382,18 @@ pub async fn search_gallery(
 
 #[tauri::command]
 pub async fn add_remote_image(
+    app: AppHandle,
     state: State<'_, Arc<AppState>>,
     url: String,
+    expected_size: Option<u64>,
 ) -> Reply<AddRemoteResult> {
-    let bytes = gallery::download_image(&url).await.map_err(fail)?;
-    let images_dir = state.images_dir.clone();
-    let saved = tokio::task::spawn_blocking(move || save_image_bytes(&images_dir, &bytes))
-        .await
-        .map_err(fail)??;
+    let saved = gallery::download_and_save(&url, &state.images_dir, expected_size, |progress| {
+        if let Err(err) = app.emit(gallery::DOWNLOAD_PROGRESS_EVENT, &progress) {
+            log::debug!("no window to receive download progress: {err}");
+        }
+    })
+    .await
+    .map_err(fail)?;
     state.send(Command::Reload);
     Ok(AddRemoteResult {
         added: saved.added,
@@ -430,6 +434,7 @@ pub fn apply_autostart(app: &AppHandle, enabled: bool) {
 }
 
 struct SavedImage {
+    #[allow(dead_code)]
     path: PathBuf,
     added: bool,
 }
