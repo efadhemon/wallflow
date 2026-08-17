@@ -72,6 +72,8 @@ fn kill_child(child: &Mutex<Option<Child>>) {
 }
 
 pub fn start(path: &Path, opts: LiveOpts) -> Result<Handle> {
+    require_h264_decoder()?;
+
     if gnome::is_gnome_shell() && (gnome::is_wayland() || gnome::ping()) {
         gnome::set_video(path, opts)?;
         return Ok(Handle {
@@ -158,6 +160,11 @@ pub fn extract_poster(cache_dir: &Path, source: &Path) -> Result<PathBuf> {
     }
 
     if grab_poster_with_gst(source, &target).is_err() {
+        if !has_h264_decoder() {
+            bail!(
+                "This video needs an H.264 decoder. Install it with: sudo apt install gstreamer1.0-libav"
+            );
+        }
         super::live::write_placeholder_poster(&target)?;
     }
     Ok(target)
@@ -171,8 +178,6 @@ fn grab_poster_with_gst(source: &Path, target: &Path) -> Result<()> {
             "-q",
             "uridecodebin",
             &format!("uri={uri}"),
-            "n-video=1",
-            "n-audio=0",
             "!",
             "queue",
             "max-size-buffers=1",
@@ -387,4 +392,29 @@ fn command_exists(name: &str) -> bool {
         .output()
         .map(|out| out.status.success())
         .unwrap_or(false)
+}
+
+fn require_h264_decoder() -> Result<()> {
+    if has_h264_decoder() {
+        return Ok(());
+    }
+    bail!("This video needs an H.264 decoder. Install it with: sudo apt install gstreamer1.0-libav")
+}
+
+fn has_h264_decoder() -> bool {
+    const FACTORIES: &[&str] = &[
+        "avdec_h264",
+        "openh264dec",
+        "vaapih264dec",
+        "vah264dec",
+        "nvh264dec",
+        "v4l2h264dec",
+    ];
+    FACTORIES.iter().any(|factory| {
+        Command::new("gst-inspect-1.0")
+            .args(["--exists", factory])
+            .status()
+            .map(|status| status.success())
+            .unwrap_or(false)
+    })
 }

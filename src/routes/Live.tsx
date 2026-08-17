@@ -85,6 +85,12 @@ export function Live() {
 
   return (
     <div className="mx-auto flex max-w-4xl flex-col gap-6 px-8 py-8">
+      {status?.lastError && (
+        <Banner tone="error" title="Could not start live wallpaper">
+          {status.lastError}
+        </Banner>
+      )}
+
       {support === "none" && (
         <Banner tone="error" title="Live wallpaper is not available here">
           This Wayland session has no public API to draw behind the desktop. Use GNOME with the Wallflow extension, an

@@ -137,6 +137,13 @@ export default class WallflowLive extends Extension {
     });
 
     pipe.set_state(Gst.State.PLAYING);
+    const [change] = pipe.get_state(5 * Gst.SECOND);
+    if (change === Gst.StateChangeReturn.FAILURE) {
+      pipe.set_state(Gst.State.NULL);
+      for (const actor of actors) actor.destroy();
+      throw new Error("GStreamer could not decode this video. Install gstreamer1.0-libav.");
+    }
+
     this._pipeline = pipe;
     this._actors = actors;
   }
