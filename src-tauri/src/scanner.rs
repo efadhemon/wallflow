@@ -11,6 +11,17 @@ pub fn is_supported(path: &Path) -> bool {
         .is_some_and(|ext| SUPPORTED_EXTENSIONS.contains(&ext.as_str()))
 }
 
+/// File extension to use when copying a recognised image into the managed directory.
+pub fn extension_for_bytes(bytes: &[u8]) -> Option<&'static str> {
+    match image::guess_format(bytes).ok()? {
+        image::ImageFormat::Jpeg => Some("jpg"),
+        image::ImageFormat::Png => Some("png"),
+        image::ImageFormat::WebP => Some("webp"),
+        image::ImageFormat::Bmp => Some("bmp"),
+        _ => None,
+    }
+}
+
 fn is_hidden(entry: &walkdir::DirEntry) -> bool {
     entry.depth() > 0
         && entry
@@ -63,5 +74,16 @@ mod tests {
         assert!(is_supported(Path::new("/a/b.webp")));
         assert!(!is_supported(Path::new("/a/b.txt")));
         assert!(!is_supported(Path::new("/a/b")));
+    }
+
+    #[test]
+    fn extension_follows_magic_bytes_not_the_filename() {
+        assert_eq!(extension_for_bytes(&[0xFF, 0xD8, 0xFF, 0xE0]), Some("jpg"));
+        assert_eq!(
+            extension_for_bytes(&[0x89, b'P', b'N', b'G', 0x0D, 0x0A, 0x1A, 0x0A]),
+            Some("png")
+        );
+        assert_eq!(extension_for_bytes(b"BM"), Some("bmp"));
+        assert_eq!(extension_for_bytes(b"not an image"), None);
     }
 }

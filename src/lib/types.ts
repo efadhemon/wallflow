@@ -44,6 +44,7 @@ export interface ImageEntry {
   name: string;
   excluded: boolean;
   isCurrent: boolean;
+  managed: boolean;
 }
 
 export interface FolderEntry {
@@ -63,3 +64,29 @@ export interface Environment {
   logPath: string;
   cachePath: string;
 }
+
+export interface GalleryPhoto {
+  id: string;
+  url: string;
+  resolution: string;
+  fileSize: number;
+  thumb: string;
+  color: string | null;
+  path: string;
+}
+
+export interface GalleryPage {
+  photos: GalleryPhoto[];
+  page: number;
+  lastPage: number;
+  total: number;
+}
+
+export interface AddRemoteResult {
+  added: boolean;
+  path: string;
+}
+
+export type GalleryOrientation = "landscape" | "portrait" | "square" | "any";
+export type GallerySorting = "relevance" | "toplist" | "date_added" | "views" | "favorites" | "random";
+export type GalleryAtLeast = "any" | "1920x1080" | "2560x1440";

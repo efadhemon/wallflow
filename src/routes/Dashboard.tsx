@@ -19,7 +19,7 @@ function useNow(active: boolean): number {
   return now;
 }
 
-export function Dashboard({ onBrowse }: { onBrowse: () => void }) {
+export function Dashboard({ onBrowse, onGallery }: { onBrowse: () => void; onGallery: () => void }) {
   const { status, environment, notify } = useApp();
   const now = useNow(Boolean(status?.nextChangeAt) && !status?.paused);
 
@@ -38,11 +38,14 @@ export function Dashboard({ onBrowse }: { onBrowse: () => void }) {
           <EmptyState
             icon={<ImageIcon size={24} />}
             title="No wallpapers yet"
-            description="Add a folder of images and Wallflow will start rotating your desktop background."
+            description="Add a folder, pick files, or browse the Gallery and Wallflow will start rotating your desktop background."
             action={
-              <Button variant="primary" onClick={onBrowse}>
-                Choose a folder
-              </Button>
+              <div className="flex flex-wrap justify-center gap-2">
+                <Button onClick={onBrowse}>Open Library</Button>
+                <Button variant="primary" onClick={onGallery}>
+                  Open Gallery
+                </Button>
+              </div>
             }
           />
         </Card>

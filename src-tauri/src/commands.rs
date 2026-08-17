@@ -1,9 +1,10 @@
 use crate::config::{self, Config, Folder};
+use crate::gallery::{self, GalleryPage, SearchParams};
 use crate::scanner;
 use crate::state::{AppState, Command, Status};
 use crate::{thumbs, watcher};
 use serde::Serialize;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tauri::{AppHandle, State};
 use tauri_plugin_autostart::ManagerExt;
@@ -21,6 +22,7 @@ pub struct ImageEntry {
     pub name: String,
     pub excluded: bool,
     pub is_current: bool,
+    pub managed: bool,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -43,6 +45,13 @@ pub struct Environment {
     pub config_path: String,
     pub log_path: String,
     pub cache_path: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AddRemoteResult {
+    pub added: bool,
+    pub path: PathBuf,
 }
 
 #[tauri::command]
@@ -163,6 +172,7 @@ pub async fn list_folders(state: State<'_, Arc<AppState>>) -> Reply<Vec<FolderEn
 
 #[tauri::command]
 pub fn list_images(state: State<'_, Arc<AppState>>) -> Vec<ImageEntry> {
+    let images_dir = state.images_dir.as_path();
     let inner = state.inner.lock().expect("state poisoned");
     inner
         .images
@@ -174,9 +184,45 @@ pub fn list_images(state: State<'_, Arc<AppState>>) -> Vec<ImageEntry> {
                 .unwrap_or_default(),
             excluded: inner.config.is_excluded(path),
             is_current: inner.current.as_deref() == Some(path.as_path()),
+            managed: path.parent() == Some(images_dir),
             path: path.clone(),
         })
         .collect()
+}
+
+/// Copies picked files into the managed images directory as `{sha256}.{ext}`.
+#[tauri::command]
+pub async fn add_images(state: State<'_, Arc<AppState>>, paths: Vec<PathBuf>) -> Reply<usize> {
+    let images_dir = state.images_dir.clone();
+    let added = tokio::task::spawn_blocking(move || copy_images(&images_dir, &paths))
+        .await
+        .map_err(fail)??;
+    state.send(Command::Reload);
+    Ok(added)
+}
+
+/// Deletes a copy from the managed directory. Folder-sourced images are refused.
+#[tauri::command]
+pub fn remove_image(state: State<'_, Arc<AppState>>, path: PathBuf) -> Reply<()> {
+    let images_dir = state.images_dir.canonicalize().map_err(fail)?;
+    let canonical = path.canonicalize().map_err(fail)?;
+    if !canonical.starts_with(&images_dir) {
+        return Err("That image is not one Wallflow added.".into());
+    }
+
+    std::fs::remove_file(&canonical).map_err(fail)?;
+
+    let config = {
+        let mut inner = state.inner.lock().expect("state poisoned");
+        inner
+            .config
+            .excluded
+            .retain(|entry| entry != &path && entry != &canonical);
+        inner.config.clone()
+    };
+    config.save(&state.config_dir).map_err(fail)?;
+    state.send(Command::Reload);
+    Ok(())
 }
 
 /// Decoding happens off the async runtime; the UI asks for these one tile at a time.
@@ -313,6 +359,44 @@ pub async fn fetch_latest_version(url: String) -> Reply<Option<String>> {
     Ok(raw)
 }
 
+#[tauri::command]
+pub async fn search_gallery(
+    query: Option<String>,
+    ratios: Option<String>,
+    categories: Option<String>,
+    sorting: Option<String>,
+    page: Option<u32>,
+    atleast: Option<String>,
+) -> Reply<GalleryPage> {
+    gallery::search(SearchParams {
+        query,
+        ratios,
+        categories,
+        sorting,
+        page: page.unwrap_or(1),
+        atleast,
+    })
+    .await
+    .map_err(fail)
+}
+
+#[tauri::command]
+pub async fn add_remote_image(
+    state: State<'_, Arc<AppState>>,
+    url: String,
+) -> Reply<AddRemoteResult> {
+    let bytes = gallery::download_image(&url).await.map_err(fail)?;
+    let images_dir = state.images_dir.clone();
+    let saved = tokio::task::spawn_blocking(move || save_image_bytes(&images_dir, &bytes))
+        .await
+        .map_err(fail)??;
+    state.send(Command::Reload);
+    Ok(AddRemoteResult {
+        added: saved.added,
+        path: saved.path,
+    })
+}
+
 fn persist_and_reload(
     app: &AppHandle,
     state: &State<'_, Arc<AppState>>,
@@ -343,4 +427,72 @@ pub fn apply_autostart(app: &AppHandle, enabled: bool) {
     if let Err(err) = result {
         log::warn!("could not update the login item: {err}");
     }
+}
+
+struct SavedImage {
+    path: PathBuf,
+    added: bool,
+}
+
+fn copy_images(images_dir: &Path, paths: &[PathBuf]) -> Reply<usize> {
+    let mut added = 0;
+    let mut recognised = 0;
+
+    for path in paths {
+        let bytes = match std::fs::read(path) {
+            Ok(bytes) => bytes,
+            Err(err) => {
+                log::warn!("could not read {}: {err}", path.display());
+                continue;
+            }
+        };
+        match save_image_bytes(images_dir, &bytes) {
+            Ok(saved) => {
+                recognised += 1;
+                if saved.added {
+                    added += 1;
+                }
+            }
+            Err(err) => log::warn!("{}: {err}", path.display()),
+        }
+    }
+
+    if !paths.is_empty() && recognised == 0 {
+        return Err(
+            "None of the selected files are supported images (JPG, PNG, WebP or BMP).".into(),
+        );
+    }
+
+    Ok(added)
+}
+
+fn save_image_bytes(images_dir: &Path, bytes: &[u8]) -> Reply<SavedImage> {
+    let Some(ext) = scanner::extension_for_bytes(bytes) else {
+        return Err("That file is not a supported image (JPG, PNG, WebP or BMP).".into());
+    };
+
+    let dest = images_dir.join(format!("{}.{ext}", sha256_hex(bytes)));
+    if dest.exists() {
+        return Ok(SavedImage {
+            path: dest,
+            added: false,
+        });
+    }
+    std::fs::write(&dest, bytes).map_err(|err| format!("could not save the image: {err}"))?;
+    Ok(SavedImage {
+        path: dest,
+        added: true,
+    })
+}
+
+fn sha256_hex(bytes: &[u8]) -> String {
+    use sha2::{Digest, Sha256};
+    use std::fmt::Write;
+
+    let digest = Sha256::digest(bytes);
+    let mut hex = String::with_capacity(digest.len() * 2);
+    for byte in digest {
+        let _ = write!(hex, "{byte:02x}");
+    }
+    hex
 }

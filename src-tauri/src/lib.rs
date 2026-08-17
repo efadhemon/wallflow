@@ -1,5 +1,6 @@
 mod commands;
 mod config;
+mod gallery;
 mod scanner;
 mod scheduler;
 mod state;
@@ -12,6 +13,7 @@ use config::Config;
 use state::{AppState, Inner};
 use std::sync::{Arc, Mutex};
 use tauri::{Manager, RunEvent, WindowEvent};
+use tauri_plugin_aptabase::EventTracker;
 use tauri_plugin_autostart::MacosLauncher;
 use tauri_plugin_log::{Target, TargetKind};
 
@@ -20,6 +22,16 @@ const MINIMIZED_FLAG: &str = "--minimized";
 
 /// Base name of the log file; the log plugin appends the extension.
 pub(crate) const LOG_FILE_STEM: &str = "wallflow";
+
+/// Compiled in from the environment so the key is never committed.
+const APTABASE_APP_KEY: &str = match option_env!("APTABASE_APP_KEY") {
+    Some(key) => key,
+    None => "",
+};
+
+fn tracking_enabled() -> bool {
+    !cfg!(debug_assertions) && !APTABASE_APP_KEY.is_empty()
+}
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -42,6 +54,7 @@ pub fn run() {
             MacosLauncher::LaunchAgent,
             Some(vec![MINIMIZED_FLAG]),
         ))
+        .plugin(tauri_plugin_aptabase::Builder::new(APTABASE_APP_KEY).build())
         .invoke_handler(tauri::generate_handler![
             commands::get_status,
             commands::get_config,
@@ -51,6 +64,8 @@ pub fn run() {
             commands::set_folder_recursive,
             commands::list_folders,
             commands::list_images,
+            commands::add_images,
+            commands::remove_image,
             commands::get_thumbnail,
             commands::apply_image,
             commands::next_wallpaper,
@@ -60,18 +75,31 @@ pub fn run() {
             commands::get_environment,
             commands::read_logs,
             commands::fetch_latest_version,
+            commands::search_gallery,
+            commands::add_remote_image,
         ])
         .setup(setup)
         .build(tauri::generate_context!())
         .expect("failed to start Wallflow")
-        .run(|_app, event| {
+        .run(|handler, event| match event {
+            RunEvent::Ready => {
+                if tracking_enabled() {
+                    let _ = handler.track_event("app_started", None);
+                }
+            }
+            RunEvent::Exit => {
+                if tracking_enabled() {
+                    let _ = handler.track_event("app_exited", None);
+                    handler.flush_events_blocking();
+                }
+            }
             // Closing the window only hides it, so an explicit exit is the one way out.
-            if let RunEvent::ExitRequested {
+            RunEvent::ExitRequested {
                 code: None, api, ..
-            } = event
-            {
+            } => {
                 api.prevent_exit();
             }
+            _ => {}
         });
 }
 
@@ -81,7 +109,8 @@ fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     let config_dir = app.path().app_config_dir()?;
     let cache_dir = app.path().app_cache_dir()?;
     let log_dir = app.path().app_log_dir()?;
-    for dir in [&config_dir, &cache_dir, &log_dir] {
+    let images_dir = app.path().app_data_dir()?.join("images");
+    for dir in [&config_dir, &cache_dir, &log_dir, &images_dir] {
         std::fs::create_dir_all(dir)?;
     }
 
@@ -91,6 +120,7 @@ fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     }
     let start_minimized = config.start_minimized;
     let autostart = config.autostart;
+    let theme = config.theme;
 
     let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
     let state = Arc::new(AppState {
@@ -108,6 +138,7 @@ fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
         config_dir,
         cache_dir: cache_dir.clone(),
         log_dir,
+        images_dir,
         tx,
         watcher: Mutex::new(None),
     });
@@ -123,10 +154,18 @@ fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     watcher::rewatch(&state);
 
     if let Some(window) = app.get_webview_window(tray::MAIN_WINDOW) {
-        // GNOME draws CSD controls over the webview, so they ignore clicks until
-        // a resize. Linux uses an in-page titlebar instead.
-        #[cfg(target_os = "linux")]
+        // GNOME draws CSD controls over the webview, so they ignore clicks until a resize.
+        // Linux and Windows use an in-page titlebar instead;
+        // macOS keeps the native chrome.
+        #[cfg(any(target_os = "linux", windows))]
         window.set_decorations(false)?;
+
+        let window_theme = match theme {
+            config::Theme::Light => Some(tauri::Theme::Light),
+            config::Theme::Dark => Some(tauri::Theme::Dark),
+            config::Theme::System => None,
+        };
+        window.set_theme(window_theme)?;
 
         let launched_at_login = std::env::args().any(|arg| arg == MINIMIZED_FLAG);
         if !(start_minimized && launched_at_login) {

@@ -1,10 +1,5 @@
 # Publishes website/ to Vercel, re-attaching the latest private GitHub Release
 # installers so a site-only push does not wipe /downloads.
-#
-# Requires repo secrets:
-#   VERCEL_TOKEN       — https://vercel.com/account/tokens
-#   VERCEL_ORG_ID      — team_JGwTVKG5B5y6xw4UYJ0LpOQy
-#   VERCEL_PROJECT_ID  — prj_SqrD2Qd9x9X77ZL7x5uwnycpGWwP
 
 name: Deploy website
 

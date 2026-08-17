@@ -1,8 +1,8 @@
 # Wallflow
 
-A small desktop app that rotates your wallpaper through folders of your own images,
-on a schedule you choose. It lives in the system tray, starts with your session, and
-runs on Linux, Windows and macOS.
+A small desktop app that rotates your wallpaper through your own images — folders
+you watch, or files you add one by one — on a schedule you choose. It lives in the
+system tray, starts with your session, and runs on Linux, Windows and macOS.
 
 Built with [Tauri 2](https://v2.tauri.app) — the installers are a few megabytes and
 there is no bundled browser runtime.
@@ -10,11 +10,16 @@ there is no bundled browser runtime.
 ## Features
 
 - Point it at one or more folders; JPG, JPEG, PNG, WebP and BMP files are picked up.
+- Add individual images; Wallflow copies them into its data directory so they stay in
+  the rotation even if you move the originals. The same file is not copied twice.
+  Delete a copy from Library when you no longer want it.
 - Choose the interval in seconds, minutes or hours.
 - Shuffle (every image once before repeating), sequential, or plain random order.
 - Fill, fit, stretch, center or tile, mapped to whatever your desktop calls it.
 - Browse the whole library as thumbnails; click one to apply it immediately, or
-  exclude images you would rather not see.
+  exclude images you would rather not see. Filter the gallery to added copies only.
+- Search the Gallery for landscape wallpapers from [Wallhaven](https://wallhaven.cc)
+  (SFW only, no API key). Add one to the library, or set it as the wallpaper now.
 - Skip forwards and backwards, or pause, from the window or the tray menu.
 - New images dropped into a watched folder join the rotation without a restart.
 - A different image per monitor on Windows and macOS.
@@ -80,13 +85,15 @@ confirm _Open_ again.
 
 ## Where things are stored
 
-|            | Linux                                                     | Windows                                              | macOS                                                              |
-| ---------- | --------------------------------------------------------- | ---------------------------------------------------- | ------------------------------------------------------------------ |
-| Settings   | `~/.config/com.efadhemon.wallflow/config.json`            | `%APPDATA%\com.efadhemon.wallflow\config.json`       | `~/Library/Application Support/com.efadhemon.wallflow/config.json` |
-| Log        | `~/.local/share/com.efadhemon.wallflow/logs/wallflow.log` | `%APPDATA%\com.efadhemon.wallflow\logs\wallflow.log` | `~/Library/Logs/com.efadhemon.wallflow/wallflow.log`               |
-| Thumbnails | `~/.cache/com.efadhemon.wallflow/`                        | `%LOCALAPPDATA%\com.efadhemon.wallflow\`             | `~/Library/Caches/com.efadhemon.wallflow/`                         |
+|              | Linux                                                     | Windows                                              | macOS                                                              |
+| ------------ | --------------------------------------------------------- | ---------------------------------------------------- | ------------------------------------------------------------------ |
+| Settings     | `~/.config/com.efadhemon.wallflow/config.json`            | `%APPDATA%\com.efadhemon.wallflow\config.json`       | `~/Library/Application Support/com.efadhemon.wallflow/config.json` |
+| Added images | `~/.local/share/com.efadhemon.wallflow/images/`           | `%APPDATA%\com.efadhemon.wallflow\images\`           | `~/Library/Application Support/com.efadhemon.wallflow/images/`     |
+| Log          | `~/.local/share/com.efadhemon.wallflow/logs/wallflow.log` | `%APPDATA%\com.efadhemon.wallflow\logs\wallflow.log` | `~/Library/Logs/com.efadhemon.wallflow/wallflow.log`               |
+| Thumbnails   | `~/.cache/com.efadhemon.wallflow/`                        | `%LOCALAPPDATA%\com.efadhemon.wallflow\`             | `~/Library/Caches/com.efadhemon.wallflow/`                         |
 
-The About screen links to all three and shows the tail of the log.
+The About screen links to settings, logs and the thumbnail cache. Added images are
+copies; deleting one in Library removes Wallflow’s file, not the original.
 
 ## Building from source
 
@@ -121,6 +128,8 @@ Apple Silicon (`aarch64-apple-darwin`) and Intel (`x86_64-apple-darwin`).
   because Windows cannot render WebP wallpapers and GNOME only can with
   `webp-pixbuf-loader` installed.
 - Closing the window hides it. Use _Quit_ in the tray menu to stop the app.
+- Release builds send anonymous start and exit events to Aptabase. No account and no
+  personal data. Debug builds and builds without `APTABASE_APP_KEY` send nothing.
 - Per-monitor wallpapers are available on Windows and macOS; the Linux backends
   set every monitor to the same image.
 - macOS has no wallpaper tile mode, so _Tile_ is applied as _Center_.

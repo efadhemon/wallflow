@@ -1,4 +1,4 @@
-use crate::config::{Config, Order};
+use crate::config::{Config, Folder, Order};
 use crate::scanner;
 use crate::wallpaper::WallpaperBackend;
 use notify::RecommendedWatcher;
@@ -77,11 +77,19 @@ pub struct Inner {
 }
 
 impl Inner {
-    /// Rescans the folders and rebuilds the play order. `force` is for settings
-    /// changes; without it an unchanged folder keeps its existing order, so a
-    /// filesystem event cannot restart a shuffle pass halfway through.
-    pub fn rebuild_playlist(&mut self, force: bool) {
-        self.images = scanner::scan(&self.config.folders);
+    /// Rescans the folders plus the managed images directory and rebuilds the
+    /// play order. `force` is for settings changes; without it an unchanged set
+    /// of paths keeps its existing order, so a filesystem event cannot restart
+    /// a shuffle pass halfway through.
+    pub fn rebuild_playlist(&mut self, images_dir: &Path, force: bool) {
+        let mut images = scanner::scan(&self.config.folders);
+        images.extend(scanner::scan(&[Folder {
+            path: images_dir.to_path_buf(),
+            recursive: false,
+        }]));
+        images.sort();
+        images.dedup();
+        self.images = images;
 
         // `scan` returns sorted paths, so this stays sorted after filtering.
         let mut candidates: Vec<PathBuf> = self
@@ -114,6 +122,12 @@ impl Inner {
 
         if self.playlist.is_empty() {
             self.current = None;
+        } else if !self
+            .current
+            .as_ref()
+            .is_some_and(|current| self.playlist.contains(current))
+        {
+            self.current = self.playlist.get(self.index).cloned();
         }
     }
 
@@ -206,6 +220,8 @@ pub struct AppState {
     pub config_dir: PathBuf,
     pub cache_dir: PathBuf,
     pub log_dir: PathBuf,
+    /// Copies of images added one-by-one, scanned alongside `config.folders`.
+    pub images_dir: PathBuf,
     pub tx: UnboundedSender<Command>,
     pub watcher: Mutex<Option<RecommendedWatcher>>,
 }

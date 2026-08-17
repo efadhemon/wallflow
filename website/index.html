@@ -6,14 +6,80 @@
     <title>Wallflow — rotate your desktop wallpaper on a schedule</title>
     <meta
       name="description"
-      content="Wallflow picks images from folders you choose and rotates your desktop background on a schedule. A small tray app for Linux, Windows and macOS."
+      content="Wallflow picks images from folders you choose, files you add, or Wallhaven’s Gallery, and rotates your desktop background on a schedule. A small tray app for Linux, Windows and macOS."
     />
+    <meta
+      name="keywords"
+      content="Wallflow, wallpaper rotator, desktop wallpaper, wallpaper changer, wallpaper scheduler, Wallhaven gallery, Linux wallpaper, Windows wallpaper, macOS wallpaper, system tray, Tauri"
+    />
+    <meta name="author" content="Emon Hossain" />
+    <meta name="robots" content="index, follow" />
+    <meta name="theme-color" content="#12101c" />
+    <meta name="color-scheme" content="dark" />
+    <link rel="canonical" href="https://wallflow.efadhemon.dev/" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:locale" content="en_US" />
+    <meta property="og:site_name" content="Wallflow" />
+    <meta property="og:url" content="https://wallflow.efadhemon.dev/" />
+    <meta property="og:title" content="Wallflow — rotate your desktop wallpaper on a schedule" />
+    <meta
+      property="og:description"
+      content="Watch folders, add files, or search Wallhaven from the Gallery. A small tray app for Linux, Windows and macOS."
+    />
+    <meta property="og:image" content="https://wallflow.efadhemon.dev/assets/screenshots/dashboard.png" />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:width" content="1183" />
+    <meta property="og:image:height" content="827" />
+    <meta
+      property="og:image:alt"
+      content="Wallflow Dashboard showing the current wallpaper, countdown, and pause controls"
+    />
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Wallflow — rotate your desktop wallpaper on a schedule" />
+    <meta
+      name="twitter:description"
+      content="Watch folders, add files, or search Wallhaven from the Gallery. A small tray app for Linux, Windows and macOS."
+    />
+    <meta name="twitter:image" content="https://wallflow.efadhemon.dev/assets/screenshots/dashboard.png" />
+    <meta
+      name="twitter:image:alt"
+      content="Wallflow Dashboard showing the current wallpaper, countdown, and pause controls"
+    />
+
     <link rel="apple-touch-icon" sizes="180x180" href="assets/favicons/apple-touch-icon.png" />
     <link rel="icon" type="image/png" sizes="32x32" href="assets/favicons/favicon-32x32.png" />
     <link rel="icon" type="image/png" sizes="16x16" href="assets/favicons/favicon-16x16.png" />
+    <link rel="shortcut icon" href="assets/favicons/favicon.ico" />
     <link rel="manifest" href="assets/favicons/site.webmanifest" />
 
     <link rel="stylesheet" href="styles.css" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": "Wallflow",
+        "url": "https://wallflow.efadhemon.dev/",
+        "description": "Wallflow picks images from folders you choose, files you add, or Wallhaven’s Gallery, and rotates your desktop background on a schedule.",
+        "applicationCategory": "UtilitiesApplication",
+        "operatingSystem": "Linux, Windows, macOS",
+        "softwareVersion": "1.0.2",
+        "downloadUrl": "https://wallflow.efadhemon.dev/#download",
+        "image": "https://wallflow.efadhemon.dev/assets/screenshots/dashboard.png",
+        "license": "https://github.com/efadhemon/wallflow/blob/main/LICENSE",
+        "author": {
+          "@type": "Person",
+          "name": "Emon Hossain",
+          "url": "https://github.com/efadhemon"
+        },
+        "offers": {
+          "@type": "Offer",
+          "price": "0",
+          "priceCurrency": "USD"
+        }
+      }
+    </script>
   </head>
   <body>
     <a class="skip-link" href="#main">Skip to content</a>
@@ -53,10 +119,10 @@
         <div class="wrap hero-inner">
           <div class="hero-copy">
             <p class="eyebrow">Desktop app for Linux, Windows and macOS</p>
-            <h1>Rotate your wallpaper through folders of your own images, on a schedule you choose.</h1>
+            <h1>Rotate your wallpaper through your own images, on a schedule you choose.</h1>
             <p class="lede">
-              Wallflow lives in the system tray, starts with your session, and stays out of the way. Built with Tauri 2
-              — the installers are a few megabytes and there is no bundled browser runtime.
+              Watch folders, add files, or search Wallhaven from the Gallery. Wallflow lives in the tray, starts with
+              your session, and stays out of the way.
             </p>
             <div class="hero-actions">
               <a class="btn btn-primary" href="#download">Download</a>
@@ -69,76 +135,167 @@
               >
             </div>
           </div>
-          <figure class="hero-shot">
-            <img
-              src="assets/screenshots/dashboard.png"
-              alt="Wallflow Dashboard showing the current wallpaper, countdown to the next change, and Previous, Pause, Next controls"
-              width="1280"
-              height="800"
-            />
-          </figure>
+          <div class="hero-stage" data-hero-stage>
+            <div class="hero-stack" aria-hidden="false">
+              <figure class="hero-card is-front" data-scene="0">
+                <img
+                  src="assets/screenshots/gallery.png"
+                  alt="Wallflow Gallery: Nature selected, landscape results from Wallhaven"
+                  width="997"
+                  height="699"
+                />
+              </figure>
+              <figure class="hero-card is-mid" data-scene="1">
+                <img
+                  src="assets/screenshots/library.png"
+                  alt="Wallflow Library: watched folders and a thumbnail grid of wallpapers"
+                  width="996"
+                  height="696"
+                />
+              </figure>
+              <figure class="hero-card is-back" data-scene="2">
+                <img
+                  src="assets/screenshots/dashboard.png"
+                  alt="Wallflow Dashboard: current wallpaper, countdown, and pause controls"
+                  width="1183"
+                  height="827"
+                />
+              </figure>
+            </div>
+            <div class="hero-scene-bar">
+              <div class="hero-tabs" role="tablist" aria-label="App screens">
+                <button type="button" role="tab" aria-selected="true" data-hero-tab="0">Gallery</button>
+                <button type="button" role="tab" aria-selected="false" data-hero-tab="1">Library</button>
+                <button type="button" role="tab" aria-selected="false" data-hero-tab="2">Dashboard</button>
+              </div>
+              <p class="hero-scene-caption" data-hero-caption>Search Wallhaven and add a wallpaper</p>
+            </div>
+          </div>
         </div>
       </section>
 
       <section id="features" class="section">
         <div class="wrap">
-          <header class="section-head">
-            <p class="eyebrow">What it does</p>
-            <h2>Your folders. Your schedule. Your desktop.</h2>
-            <p>
-              Point Wallflow at the pictures you already have. It picks them up, rotates them, and lets you skip, pause,
-              or apply one immediately.
-            </p>
+          <header class="section-head features-head">
+            <div>
+              <p class="eyebrow">What it does</p>
+              <h2>Your images. Your schedule. Your desktop.</h2>
+              <p>
+                Point Wallflow at folders you already have, add individual files, or browse the Gallery. Folders are
+                watched in place; added files and Gallery downloads are copied in so they stay in rotation. Skip, pause,
+                or apply one immediately.
+              </p>
+            </div>
+            <div class="carousel-controls">
+              <button type="button" class="carousel-btn" data-carousel="prev" aria-label="Previous features">
+                <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
+                  <path
+                    d="M10.5 3.5 6 8l4.5 4.5"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.6"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+              </button>
+              <button type="button" class="carousel-btn" data-carousel="next" aria-label="Next features">
+                <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
+                  <path
+                    d="M5.5 3.5 10 8 5.5 12.5"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.6"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+              </button>
+            </div>
           </header>
 
-          <ul class="feature-grid">
-            <li>
-              <h3>Watch any folders</h3>
-              <p>
-                Point it at one or more folders. JPG, JPEG, PNG, WebP and BMP files are picked up. New images join the
-                rotation without a restart.
-              </p>
-            </li>
-            <li>
-              <h3>Your interval</h3>
-              <p>Choose how often the wallpaper changes — in seconds, minutes, or hours.</p>
-            </li>
-            <li>
-              <h3>Shuffle, sequential, or random</h3>
-              <p>
-                Shuffle plays every image once before repeating. Sequential walks the library in order. Random picks
-                without a playlist.
-              </p>
-            </li>
-            <li>
-              <h3>Fill, fit, stretch, center, or tile</h3>
-              <p>Fit modes map to whatever your desktop calls them, so the image lands the way you expect.</p>
-            </li>
-            <li>
-              <h3>Thumbnail library</h3>
-              <p>
-                Browse the whole library as thumbnails. Click one to apply it immediately, or exclude images you would
-                rather not see.
-              </p>
-            </li>
-            <li>
-              <h3>Skip, pause, tray</h3>
-              <p>
-                Skip forwards and backwards, or pause, from the window or the tray menu. Closing the window hides it;
-                Quit in the tray stops the app.
-              </p>
-            </li>
-            <li>
-              <h3>Per-monitor on Windows and macOS</h3>
-              <p>
-                A different image per monitor on Windows and macOS. Linux backends set every monitor to the same image.
-              </p>
-            </li>
-            <li>
-              <h3>Starts at login</h3>
-              <p>It starts with your session and stays in the tray so the rotation keeps going in the background.</p>
-            </li>
-          </ul>
+          <div class="feature-carousel">
+            <ul class="feature-track" tabindex="0" aria-label="Features">
+              <li>
+                <span class="feature-index">01</span>
+                <h3>Watch any folders</h3>
+                <p>
+                  Point it at one or more folders. JPG, JPEG, PNG, WebP and BMP files are picked up. New images join the
+                  rotation without a restart.
+                </p>
+              </li>
+              <li>
+                <span class="feature-index">02</span>
+                <h3>Add individual images</h3>
+                <p>
+                  Pick files one by one. Wallflow copies them into its data directory so they stay in rotation even if
+                  you move the originals. Delete a copy from Library when you no longer want it.
+                </p>
+              </li>
+              <li class="is-featured">
+                <span class="feature-index">03</span>
+                <p class="feature-tag">New</p>
+                <h3>Wallhaven Gallery</h3>
+                <p>
+                  Search landscape wallpapers from Wallhaven without leaving the app. Nature, anime, fantasy, space, or
+                  cities — or type your own query. Add one to the library, or set it as the wallpaper now. Listings are
+                  SFW only; no API key required.
+                </p>
+              </li>
+              <li>
+                <span class="feature-index">04</span>
+                <h3>Your interval</h3>
+                <p>Choose how often the wallpaper changes — in seconds, minutes, or hours.</p>
+              </li>
+              <li>
+                <span class="feature-index">05</span>
+                <h3>Shuffle, sequential, or random</h3>
+                <p>
+                  Shuffle plays every image once before repeating. Sequential walks the library in order. Random picks
+                  without a playlist.
+                </p>
+              </li>
+              <li>
+                <span class="feature-index">06</span>
+                <h3>Fill, fit, stretch, center, or tile</h3>
+                <p>Fit modes map to whatever your desktop calls them, so the image lands the way you expect.</p>
+              </li>
+              <li>
+                <span class="feature-index">07</span>
+                <h3>Thumbnail library</h3>
+                <p>
+                  Browse the whole library as thumbnails. Click one to apply it immediately, or exclude images you would
+                  rather not see. Filter the gallery to the copies you added.
+                </p>
+              </li>
+              <li>
+                <span class="feature-index">08</span>
+                <h3>Skip, pause, tray</h3>
+                <p>
+                  Skip forwards and backwards, or pause, from the window or the tray menu. Closing the window hides it;
+                  Quit in the tray stops the app.
+                </p>
+              </li>
+              <li>
+                <span class="feature-index">09</span>
+                <h3>Per-monitor on Windows and macOS</h3>
+                <p>
+                  A different image per monitor on Windows and macOS. Linux backends set every monitor to the same
+                  image.
+                </p>
+              </li>
+              <li>
+                <span class="feature-index">10</span>
+                <h3>Starts at login</h3>
+                <p>
+                  It starts with your session and stays in the tray so the rotation keeps going in the background.
+                </p>
+              </li>
+            </ul>
+            <div class="carousel-progress" aria-hidden="true">
+              <span class="carousel-progress-bar"></span>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -154,19 +311,21 @@
             <li class="demo-step">
               <div class="demo-copy">
                 <span class="step-num">1</span>
-                <h3>Add folders in Library</h3>
+                <h3>Add folders or images in Library</h3>
                 <p>
-                  Open Library and click <strong>Add folder</strong>. Wallflow scans for JPG, JPEG, PNG, WebP and BMP
-                  files. Turn on <strong>Subfolders</strong> to include nested directories, or hit
+                  Open Library and click <strong>Add folder</strong> to watch a directory, or
+                  <strong>Add images</strong> to copy individual files into Wallflow. It scans for JPG, JPEG, PNG, WebP
+                  and BMP. Turn on <strong>Subfolders</strong> to include nested directories, or hit
                   <strong>Rescan</strong>
-                  after you drop in new pictures. Click a thumbnail to apply it now — the current wallpaper gets a
-                  checkmark.
+                  after you drop in new pictures. The <strong>Added images</strong> row shows how many copies you have;
+                  the icon beside it filters the gallery to those copies. Click a thumbnail to apply it now — the
+                  current wallpaper gets a checkmark.
                 </p>
               </div>
               <figure>
                 <img
                   src="assets/screenshots/library.png"
-                  alt="Wallflow Library: a watched folder with six image thumbnails, the current wallpaper marked with a check"
+                  alt="Wallflow Library: watched folders, added images, and a gallery of thumbnails with the current wallpaper marked"
                   width="1280"
                   height="800"
                 />
@@ -175,6 +334,27 @@
             <li class="demo-step demo-step-reverse">
               <div class="demo-copy">
                 <span class="step-num">2</span>
+                <h3>Browse the Gallery and add a wallpaper</h3>
+                <p>
+                  Open <strong>Gallery</strong> to search Wallhaven. It starts on <strong>Nature</strong> with landscape
+                  photos already on screen. Switch parent chips (Anime, Fantasy, Space, Cities), tap a sub-topic, or use
+                  <strong>Custom</strong> for a free search. Hover a tile to <strong>Add</strong> it to the library, or
+                  <strong>Use now</strong> to set it as the wallpaper immediately. Photos are provided by
+                  <a href="https://wallhaven.cc" target="_blank" rel="noopener noreferrer">Wallhaven</a>.
+                </p>
+              </div>
+              <figure>
+                <img
+                  src="assets/screenshots/gallery.png"
+                  alt="Wallflow Gallery: Nature selected, landscape search results from Wallhaven, with resolution and file size on each thumbnail"
+                  width="997"
+                  height="699"
+                />
+              </figure>
+            </li>
+            <li class="demo-step">
+              <div class="demo-copy">
+                <span class="step-num">3</span>
                 <h3>Set the schedule and fill in Settings</h3>
                 <p>
                   Under Rotation, set <strong>Change every</strong> and pick <strong>Order</strong> — Shuffle plays
@@ -192,9 +372,9 @@
                 />
               </figure>
             </li>
-            <li class="demo-step">
+            <li class="demo-step demo-step-reverse">
               <div class="demo-copy">
-                <span class="step-num">3</span>
+                <span class="step-num">4</span>
                 <h3>Watch it on the Dashboard</h3>
                 <p>
                   The Dashboard shows the current wallpaper, its filename, and how long until the next change. Use
@@ -212,9 +392,9 @@
                 />
               </figure>
             </li>
-            <li class="demo-step demo-step-reverse">
+            <li class="demo-step">
               <div class="demo-copy">
-                <span class="step-num">4</span>
+                <span class="step-num">5</span>
                 <h3>Control it from the tray</h3>
                 <p>
                   Closing the window leaves Wallflow running. The tray (or menu bar) menu shows the current file, then
@@ -239,7 +419,7 @@
         <div class="wrap">
           <header class="section-head">
             <p class="eyebrow">Install</p>
-            <h2>Download Wallflow 1.0.2</h2>
+            <h2>Download Wallflow 1.0.3</h2>
             <p>Grab the file for your system below.</p>
           </header>
 
@@ -248,17 +428,17 @@
               <p class="os-label">Ubuntu / Debian</p>
               <h3>.deb package</h3>
               <p>24.04 LTS or newer. Needs <code>libwebkit2gtk-4.1-0</code>.</p>
-              <a class="btn btn-primary" href="/downloads/Wallflow_1.0.2_amd64.deb">Download .deb</a>
-              <pre><code>sudo apt install ./Wallflow_1.0.2_amd64.deb</code></pre>
+              <a class="btn btn-primary" href="/downloads/Wallflow_1.0.3_amd64.deb">Download .deb</a>
+              <pre><code>sudo apt install ./Wallflow_1.0.3_amd64.deb</code></pre>
             </article>
 
             <article class="download-card" data-os="linux">
               <p class="os-label">Other Linux</p>
               <h3>AppImage</h3>
               <p>Any distribution. Make it executable, then run it.</p>
-              <a class="btn btn-primary" href="/downloads/Wallflow_1.0.2_amd64.AppImage">Download AppImage</a>
-              <pre><code>chmod +x Wallflow_1.0.2_amd64.AppImage
-./Wallflow_1.0.2_amd64.AppImage</code></pre>
+              <a class="btn btn-primary" href="/downloads/Wallflow_1.0.3_amd64.AppImage">Download AppImage</a>
+              <pre><code>chmod +x Wallflow_1.0.3_amd64.AppImage
+./Wallflow_1.0.3_amd64.AppImage</code></pre>
             </article>
 
             <article class="download-card" data-os="macos">
@@ -269,11 +449,11 @@
                 then <em>Open</em>.
               </p>
               <div class="download-actions">
-                <a class="btn btn-primary" href="/downloads/Wallflow_1.0.2_aarch64.dmg">Apple Silicon</a>
-                <a class="btn btn-primary" href="/downloads/Wallflow_1.0.2_x64.dmg">Intel</a>
+                <a class="btn btn-primary" href="/downloads/Wallflow_1.0.3_aarch64.dmg">Apple Silicon</a>
+                <a class="btn btn-primary" href="/downloads/Wallflow_1.0.3_x64.dmg">Intel</a>
               </div>
-              <pre><code>Wallflow_1.0.2_aarch64.dmg
-Wallflow_1.0.2_x64.dmg</code></pre>
+              <pre><code>Wallflow_1.0.3_aarch64.dmg
+Wallflow_1.0.3_x64.dmg</code></pre>
             </article>
 
             <article class="download-card" data-os="windows">
@@ -284,8 +464,8 @@ Wallflow_1.0.2_x64.dmg</code></pre>
                 ask you to confirm via
                 <em>More info</em> then <em>Run anyway</em>.
               </p>
-              <a class="btn btn-primary" href="/downloads/Wallflow_1.0.2_x64-setup.exe">Download .exe</a>
-              <pre><code>Wallflow_1.0.2_x64-setup.exe</code></pre>
+              <a class="btn btn-primary" href="/downloads/Wallflow_1.0.3_x64-setup.exe">Download .exe</a>
+              <pre><code>Wallflow_1.0.3_x64-setup.exe</code></pre>
             </article>
           </div>
         </div>
@@ -426,7 +606,7 @@ Wallflow_1.0.2_x64.dmg</code></pre>
           <aside class="about-card">
             <img src="assets/app-icon.png" alt="" width="64" height="64" />
             <p class="about-name">Wallflow</p>
-            <p>Version 1.0.2</p>
+            <p>Version 1.0.3</p>
             <p>Identifier <code>com.efadhemon.wallflow</code></p>
             <p>© 2026 Emon Hossain</p>
           </aside>

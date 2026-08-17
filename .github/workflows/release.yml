@@ -10,7 +10,44 @@ permissions:
   contents: write
 
 jobs:
+  # Fail fast if the tag (or package.json on a manual run) does not match
+  # website/api/version.json. The live API is updated only after this release
+  # deploys the site, so we read the file in the repo.
+  check-version:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Match version.json to this release
+        env:
+          REF_TYPE: ${{ github.ref_type }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          pkg="$(python3 -c 'import json; print(json.load(open("package.json"))["version"])')"
+          file="$(python3 -c 'import json; print(json.load(open("website/api/version.json"))["version"])')"
+
+          if [ "$REF_TYPE" = "tag" ]; then
+            tag="${REF_NAME#v}"
+            if [ "$tag" != "$pkg" ]; then
+              echo "Tag $REF_NAME does not match package.json ($pkg)." >&2
+              exit 1
+            fi
+            expected="$tag"
+          else
+            expected="$pkg"
+          fi
+
+          echo "Release version: $expected"
+          echo "website/api/version.json: $file"
+
+          if [ "$file" != "$expected" ]; then
+            echo "website/api/version.json ($file) does not match this release ($expected)." >&2
+            echo "Bump package.json and run yarn version:sync before tagging." >&2
+            exit 1
+          fi
+
   publish:
+    needs: check-version
     strategy:
       fail-fast: false
       matrix:
@@ -71,24 +108,39 @@ jobs:
       - run: yarn install --frozen-lockfile
 
       # Vite inlines this at build time into the update banner (useUpdateCheck).
-      # Set it as a repository variable (or secret) to the public version.json URL,
+      # Set repository secret VITE_VERSION_API_URL to the public version.json URL,
       # e.g. https://wallflow.efadhemon.dev/api/version.json
       - name: Require version API URL
         shell: bash
         env:
-          VITE_VERSION_API_URL: ${{ vars.VITE_VERSION_API_URL || secrets.VITE_VERSION_API_URL }}
+          VITE_VERSION_API_URL: ${{ secrets.VITE_VERSION_API_URL }}
         run: |
           if [ -z "$VITE_VERSION_API_URL" ]; then
-            echo "Set repository variable VITE_VERSION_API_URL to the public version.json URL." >&2
+            echo "Set repository secret VITE_VERSION_API_URL to the public version.json URL." >&2
             echo "Example: https://wallflow.efadhemon.dev/api/version.json" >&2
             exit 1
           fi
           echo "Update check URL: $VITE_VERSION_API_URL"
 
+      # Compiled into the binary by option_env!("APTABASE_APP_KEY").
+      # Set repository secret APTABASE_APP_KEY to the Aptabase app key.
+      - name: Require Aptabase app key
+        shell: bash
+        env:
+          APTABASE_APP_KEY: ${{ secrets.APTABASE_APP_KEY }}
+        run: |
+          if [ -z "$APTABASE_APP_KEY" ]; then
+            echo "Set repository secret APTABASE_APP_KEY to the Aptabase app key." >&2
+            echo "Example: A-EU-0000000000" >&2
+            exit 1
+          fi
+          echo "Aptabase app key is set."
+
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          VITE_VERSION_API_URL: ${{ vars.VITE_VERSION_API_URL || secrets.VITE_VERSION_API_URL }}
+          VITE_VERSION_API_URL: ${{ secrets.VITE_VERSION_API_URL }}
+          APTABASE_APP_KEY: ${{ secrets.APTABASE_APP_KEY }}
           # linuxdeploy is itself an AppImage; GitHub runners cannot mount FUSE.
           APPIMAGE_EXTRACT_AND_RUN: "1"
         with:
@@ -104,6 +156,7 @@ jobs:
             - **Windows:** `Wallflow_*_x64-setup.exe`
             - **macOS (Apple Silicon):** `Wallflow_*_aarch64.dmg`
             - **macOS (Intel):** `Wallflow_*_x64.dmg`
+          generateReleaseNotes: true
           releaseDraft: false
           prerelease: false
           includeUpdaterJson: false
@@ -129,11 +182,6 @@ jobs:
   # Copies the just-built installers into website/downloads and publishes the
   # public site. Skips if any platform job failed so we never advertise a
   # partial set of downloads.
-  #
-  # Requires repo secrets:
-  #   VERCEL_TOKEN       — https://vercel.com/account/tokens
-  #   VERCEL_ORG_ID      — team_JGwTVKG5B5y6xw4UYJ0LpOQy
-  #   VERCEL_PROJECT_ID  — prj_SqrD2Qd9x9X77ZL7x5uwnycpGWwP
   deploy-website:
     needs: publish
     runs-on: ubuntu-latest

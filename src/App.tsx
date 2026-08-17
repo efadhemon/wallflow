@@ -3,29 +3,33 @@ import { useState } from "react";
 import { Sidebar, type Route } from "./components/Sidebar";
 import { Titlebar } from "./components/Titlebar";
 import { UpdateBanner } from "./components/UpdateBanner";
+import { usesCustomTitlebar } from "./lib/platform";
+import { cn } from "./lib/utils";
 import { About } from "./routes/About";
 import { Dashboard } from "./routes/Dashboard";
+import { Gallery } from "./routes/Gallery";
 import { Library } from "./routes/Library";
 import { Settings } from "./routes/Settings";
-import { isLinuxDesktop } from "./lib/platform";
-import { cn } from "./lib/utils";
 import { useApp } from "./state/AppContext";
 
 export function App() {
   const [route, setRoute] = useState<Route>("dashboard");
-  const linux = isLinuxDesktop();
+  const customTitlebar = usesCustomTitlebar();
 
   return (
     <div className="flex h-full flex-col">
-      {linux && <Titlebar />}
+      {customTitlebar && <Titlebar />}
       <UpdateBanner />
 
       <div className="flex min-h-0 flex-1">
         <Sidebar active={route} onNavigate={setRoute} />
 
         <main className="flex-1 overflow-y-auto">
-          {route === "dashboard" && <Dashboard onBrowse={() => setRoute("library")} />}
+          {route === "dashboard" && (
+            <Dashboard onBrowse={() => setRoute("library")} onGallery={() => setRoute("gallery")} />
+          )}
           {route === "library" && <Library />}
+          {route === "gallery" && <Gallery />}
           {route === "settings" && <Settings />}
           {route === "about" && <About />}
         </main>

@@ -1,25 +1,8 @@
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useCallback, useEffect, useState } from "react";
 import semver from "semver";
 import { api } from "./api";
 import { useApp } from "../state/AppContext";
-
-const DISMISSED_KEY = "wallflow:dismissed-update";
-
-function readDismissed(): string | null {
-  try {
-    return localStorage.getItem(DISMISSED_KEY);
-  } catch {
-    return null;
-  }
-}
-
-export function dismissUpdate(version: string) {
-  try {
-    localStorage.setItem(DISMISSED_KEY, version);
-  } catch {
-    // ignore quota / private-mode failures
-  }
-}
 
 /** Returns the newer available version string, or null when up to date / offline / dismissed. */
 export function useUpdateCheck(): { version: string; dismiss: () => void } | null {
@@ -43,11 +26,6 @@ export function useUpdateCheck(): { version: string; dismiss: () => void } | nul
         const latest = raw.startsWith("v") ? raw.slice(1) : raw;
         if (!semver.gt(latest, current)) return;
 
-        if (readDismissed() === latest) {
-          if (!cancelled) setDismissed(true);
-          return;
-        }
-
         if (!cancelled) {
           setDismissed(false);
           setAvailable(latest);
@@ -62,11 +40,31 @@ export function useUpdateCheck(): { version: string; dismiss: () => void } | nul
     };
   }, [environment?.appVersion, versionApiUrl]);
 
+  // Closing the window only hides it, so React state survives. Bring the banner
+  // back the next time the window is shown from the tray.
+  useEffect(() => {
+    const window = getCurrentWindow();
+    let hidden = false;
+
+    const unlisten = window.onFocusChanged(async ({ payload: focused }) => {
+      if (!focused) {
+        hidden = !(await window.isVisible());
+        return;
+      }
+      if (hidden) {
+        hidden = false;
+        setDismissed(false);
+      }
+    });
+
+    return () => {
+      void unlisten.then(stop => stop());
+    };
+  }, []);
+
   const dismiss = useCallback(() => {
-    if (!available) return;
-    dismissUpdate(available);
     setDismissed(true);
-  }, [available]);
+  }, []);
 
   if (!available || dismissed) return null;
   return { version: available, dismiss };
