@@ -11,6 +11,8 @@ const UNIT_SECONDS: Record<Unit, number> = {
   hours: 3600,
 };
 
+const MIN_INTERVAL_SECONDS = 10;
+
 /** Shows the interval in the largest unit that divides it exactly. */
 function splitInterval(totalSeconds: number): { value: number; unit: Unit } {
   if (totalSeconds % UNIT_SECONDS.hours === 0) return { value: totalSeconds / UNIT_SECONDS.hours, unit: "hours" };
@@ -34,7 +36,7 @@ export function Settings() {
   const setInterval = (value: number, nextUnit: Unit) => {
     setUnit(nextUnit);
     void updateConfig({
-      intervalSeconds: Math.max(5, value * UNIT_SECONDS[nextUnit]),
+      intervalSeconds: Math.max(MIN_INTERVAL_SECONDS, value * UNIT_SECONDS[nextUnit]),
     });
   };
 
@@ -51,7 +53,7 @@ export function Settings() {
                 <NumberInput
                   label="Interval"
                   value={intervalValue}
-                  min={activeUnit === "seconds" ? 10 : 1}
+                  min={activeUnit === "seconds" ? MIN_INTERVAL_SECONDS : 1}
                   onChange={value => setInterval(value, activeUnit)}
                 />
                 <Select
