@@ -144,7 +144,7 @@ fn collect_screens(mtm: MainThreadMarker) -> Result<Vec<ScreenInfo>> {
 }
 
 thread_local! {
-    static OVERLAYS: RefCell<Vec<Retained<NSWindow>>> = RefCell::new(Vec::new());
+    static OVERLAYS: RefCell<Vec<Retained<NSWindow>>> = const { RefCell::new(Vec::new()) };
 }
 
 fn without_animation<F: FnOnce()>(f: F) {
