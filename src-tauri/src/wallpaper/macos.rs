@@ -1,4 +1,4 @@
-use super::render::{compose, ease_in_out_cubic, FADE_FRAME_MS, FADE_MS};
+use super::render::{compose, ease_in_out_cubic, FADE_FRAME_MS, FADE_MS, SETTLE_MS};
 use super::WallpaperBackend;
 use crate::config::FillMode;
 use anyhow::{anyhow, Context, Result};
@@ -7,10 +7,10 @@ use objc2::rc::Retained;
 use objc2::runtime::AnyObject;
 use objc2::{AnyThread, ClassType, MainThreadMarker, MainThreadOnly};
 use objc2_app_kit::{
-    NSBackingStoreType, NSColor, NSImage, NSImageScaling, NSImageView, NSScreen, NSView, NSWindow,
-    NSWindowCollectionBehavior, NSWindowStyleMask, NSWorkspace,
-    NSWorkspaceDesktopImageAllowClippingKey, NSWorkspaceDesktopImageOptionKey,
-    NSWorkspaceDesktopImageScalingKey,
+    NSAnimationContext, NSBackingStoreType, NSColor, NSImage, NSImageScaling, NSImageView,
+    NSScreen, NSView, NSWindow, NSWindowAnimationBehavior, NSWindowCollectionBehavior,
+    NSWindowStyleMask, NSWorkspace, NSWorkspaceDesktopImageAllowClippingKey,
+    NSWorkspaceDesktopImageOptionKey, NSWorkspaceDesktopImageScalingKey,
 };
 use objc2_foundation::{NSData, NSMutableDictionary, NSNumber, NSPoint, NSRect, NSSize, NSURL};
 use std::cell::RefCell;
@@ -147,20 +147,38 @@ thread_local! {
     static OVERLAYS: RefCell<Vec<Retained<NSWindow>>> = RefCell::new(Vec::new());
 }
 
-fn close_overlays() {
-    OVERLAYS.with(|slot| {
-        for window in slot.borrow_mut().drain(..) {
+fn without_animation<F: FnOnce()>(f: F) {
+    NSAnimationContext::beginGrouping();
+    let ctx = NSAnimationContext::currentContext();
+    ctx.setDuration(0.0);
+    ctx.setAllowsImplicitAnimation(false);
+    f();
+    NSAnimationContext::endGrouping();
+}
+
+fn hide_windows(windows: impl IntoIterator<Item = Retained<NSWindow>>) {
+    without_animation(|| {
+        for window in windows {
             window.orderOut(None);
             window.close();
         }
     });
 }
 
-fn set_overlay_alpha(alpha: f64) {
+fn close_overlays() {
     OVERLAYS.with(|slot| {
-        for window in slot.borrow().iter() {
-            window.setAlphaValue(alpha);
-        }
+        let windows: Vec<_> = slot.borrow_mut().drain(..).collect();
+        hide_windows(windows);
+    });
+}
+
+fn set_overlay_alpha(alpha: f64) {
+    without_animation(|| {
+        OVERLAYS.with(|slot| {
+            for window in slot.borrow().iter() {
+                window.setAlphaValue(alpha);
+            }
+        });
     });
 }
 
@@ -174,10 +192,7 @@ fn create_overlays(mtm: MainThreadMarker, frames: Vec<(Vec<u8>, ScreenInfo)>) ->
         let image = match NSImage::initWithData(NSImage::alloc(), &data) {
             Some(image) => image,
             None => {
-                for window in windows {
-                    window.orderOut(None);
-                    window.close();
-                }
+                hide_windows(windows);
                 return Err(anyhow!("could not create the fade overlay image"));
             }
         };
@@ -205,7 +220,8 @@ fn create_overlays(mtm: MainThreadMarker, frames: Vec<(Vec<u8>, ScreenInfo)>) ->
                 | NSWindowCollectionBehavior::Stationary
                 | NSWindowCollectionBehavior::IgnoresCycle,
         );
-        window.setAlphaValue(0.0);
+        window.setAnimationBehavior(NSWindowAnimationBehavior::None);
+        without_animation(|| window.setAlphaValue(0.0));
 
         let content = NSRect::new(
             NSPoint::new(0.0, 0.0),
@@ -216,7 +232,7 @@ fn create_overlays(mtm: MainThreadMarker, frames: Vec<(Vec<u8>, ScreenInfo)>) ->
         view.setImageScaling(NSImageScaling::ScaleAxesIndependently);
         let view: Retained<NSView> = Retained::into_super(Retained::into_super(view));
         window.setContentView(Some(&view));
-        window.orderFrontRegardless();
+        without_animation(|| window.orderFrontRegardless());
         windows.push(window);
     }
 
@@ -284,6 +300,9 @@ fn apply_with_fade(paths: &[PathBuf], mode: FillMode) -> Result<()> {
     }
 
     let result = on_main(|mtm| apply_on_screens(paths, mode, mtm));
+    // The desktop URL is committed asynchronously; closing the overlay here
+    // would reveal AppKit's zoom/crossfade (ghosting / doubled silhouette).
+    thread::sleep(Duration::from_millis(SETTLE_MS as u64));
     on_main(|_| close_overlays());
     result
 }
