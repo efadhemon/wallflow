@@ -10,14 +10,17 @@ use std::time::{Duration, Instant};
 use windows::core::{w, HSTRING, PCWSTR};
 use windows::Win32::Foundation::{COLORREF, HWND, LPARAM, LRESULT, RECT, WPARAM};
 use windows::Win32::Graphics::Gdi::{
-    FillRect, GetDC, MapWindowPoints, ReleaseDC, StretchDIBits, BITMAPINFO, BITMAPINFOHEADER,
-    BI_RGB, DIB_RGB_COLORS, SRCCOPY,
+    CreateSolidBrush, FillRect, GetDC, MapWindowPoints, ReleaseDC, StretchDIBits, BITMAPINFO,
+    BITMAPINFOHEADER, BI_RGB, DIB_RGB_COLORS, SRCCOPY,
 };
 use windows::Win32::Media::MediaFoundation::{
-    IMFMediaType, IMFSample, IMFSourceReader, MFCreateMediaType, MFCreateSourceReaderFromURL,
-    MFGetAttributeSize, MFMediaType_Video, MFStartup, MFVideoFormat_RGB32, MFSTARTUP_FULL,
+    IMFAttributes, IMFMediaType, IMFSample, IMFSourceReader, MFCreateAttributes, MFCreateMediaType,
+    MFCreateSourceReaderFromURL, MFMediaType_Video, MFStartup, MFVideoFormat_ARGB32,
+    MFVideoFormat_RGB24, MFVideoFormat_RGB32, MFSTARTUP_FULL, MF_MT_DEFAULT_STRIDE,
     MF_MT_FRAME_RATE, MF_MT_FRAME_SIZE, MF_MT_MAJOR_TYPE, MF_MT_SUBTYPE,
-    MF_SOURCE_READER_ALL_STREAMS, MF_SOURCE_READER_FIRST_VIDEO_STREAM, MF_VERSION,
+    MF_READWRITE_ENABLE_HARDWARE_TRANSFORMS, MF_SOURCE_READER_ALL_STREAMS,
+    MF_SOURCE_READER_CONSTANTS, MF_SOURCE_READER_ENABLE_VIDEO_PROCESSING,
+    MF_SOURCE_READER_FIRST_VIDEO_STREAM, MF_VERSION,
 };
 use windows::Win32::System::LibraryLoader::GetModuleHandleW;
 use windows::Win32::System::Power::{GetSystemPowerStatus, SYSTEM_POWER_STATUS};
@@ -25,12 +28,20 @@ use windows::Win32::UI::Shell::{
     SHQueryUserNotificationState, QUNS_BUSY, QUNS_PRESENTATION_MODE, QUNS_RUNNING_D3D_FULL_SCREEN,
 };
 use windows::Win32::UI::WindowsAndMessaging::{
-    CreateSolidBrush, CreateWindowExW, DefWindowProcW, DestroyWindow, DispatchMessageW,
-    GetClientRect, IsWindow, PeekMessageW, RegisterClassExW, SetParent, SetWindowPos,
-    TranslateMessage, HWND_BOTTOM, MSG, PM_REMOVE, SWP_NOACTIVATE, SWP_SHOWWINDOW, WM_DESTROY,
-    WM_ERASEBKGND, WNDCLASSEXW, WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW, WS_EX_TRANSPARENT, WS_POPUP,
-    WS_VISIBLE,
+    CreateWindowExW, DefWindowProcW, DestroyWindow, DispatchMessageW, GetClientRect, IsWindow,
+    PeekMessageW, RegisterClassExW, SetParent, SetWindowPos, TranslateMessage, HWND_BOTTOM, MSG,
+    PM_REMOVE, SWP_NOACTIVATE, SWP_SHOWWINDOW, WM_DESTROY, WM_ERASEBKGND, WNDCLASSEXW,
+    WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW, WS_EX_TRANSPARENT, WS_POPUP, WS_VISIBLE,
 };
+
+fn reader_stream(id: MF_SOURCE_READER_CONSTANTS) -> u32 {
+    id.0 as u32
+}
+
+fn packed_size(media_type: &IMFMediaType, key: &windows::core::GUID) -> Result<(u32, u32)> {
+    let packed = unsafe { media_type.GetUINT64(key) }.context("reading a media attribute")?;
+    Ok(((packed >> 32) as u32, packed as u32))
+}
 
 const LIVE_CLASS: PCWSTR = w!("WallflowLiveWallpaper");
 
@@ -143,42 +154,84 @@ fn ensure_mf() -> Result<()> {
 fn open_reader(path: &Path) -> Result<IMFSourceReader> {
     ensure_com();
     let url = HSTRING::from(path.as_os_str());
-    let reader: IMFSourceReader = unsafe { MFCreateSourceReaderFromURL(&url, None) }
+    let attrs = reader_attributes()?;
+    let reader: IMFSourceReader = unsafe { MFCreateSourceReaderFromURL(&url, &attrs) }
         .with_context(|| format!("opening {}", path.display()))?;
 
+    let stream = reader_stream(MF_SOURCE_READER_FIRST_VIDEO_STREAM);
     unsafe {
         reader
-            .SetStreamSelection(MF_SOURCE_READER_ALL_STREAMS, false)
+            .SetStreamSelection(reader_stream(MF_SOURCE_READER_ALL_STREAMS), false)
             .context("disabling unused media streams")?;
         reader
-            .SetStreamSelection(MF_SOURCE_READER_FIRST_VIDEO_STREAM, true)
+            .SetStreamSelection(stream, true)
             .context("selecting the video stream")?;
     }
 
-    let media_type: IMFMediaType =
-        unsafe { MFCreateMediaType() }.context("creating an RGB media type")?;
+    let native = unsafe { reader.GetNativeMediaType(stream, 0) }.ok();
+    for subtype in [MFVideoFormat_RGB32, MFVideoFormat_ARGB32, MFVideoFormat_RGB24] {
+        if let Some(native) = native.as_ref() {
+            if let Ok(media_type) = output_type_from_native(native, &subtype) {
+                if unsafe { reader.SetCurrentMediaType(stream, None, &media_type) }.is_ok() {
+                    return Ok(reader);
+                }
+            }
+        }
+        if let Ok(media_type) = output_type_partial(&subtype) {
+            if unsafe { reader.SetCurrentMediaType(stream, None, &media_type) }.is_ok() {
+                return Ok(reader);
+            }
+        }
+    }
+
+    bail!(
+        "Windows could not convert this video to RGB. Use an H.264 MP4, or install HEVC Video Extensions for HEVC files."
+    );
+}
+
+fn reader_attributes() -> Result<IMFAttributes> {
+    let mut attrs = None;
+    unsafe { MFCreateAttributes(&mut attrs, 2) }.context("creating Media Foundation attributes")?;
+    let attrs = attrs.context("creating Media Foundation attributes")?;
+    unsafe {
+        let _ = attrs.SetUINT32(&MF_SOURCE_READER_ENABLE_VIDEO_PROCESSING, 1);
+        let _ = attrs.SetUINT32(&MF_READWRITE_ENABLE_HARDWARE_TRANSFORMS, 1);
+    }
+    Ok(attrs)
+}
+
+fn output_type_from_native(
+    native: &IMFMediaType,
+    subtype: &windows::core::GUID,
+) -> Result<IMFMediaType> {
+    let media_type = output_type_partial(subtype)?;
+    if let Ok(size) = unsafe { native.GetUINT64(&MF_MT_FRAME_SIZE) } {
+        let _ = unsafe { media_type.SetUINT64(&MF_MT_FRAME_SIZE, size) };
+    }
+    if let Ok(rate) = unsafe { native.GetUINT64(&MF_MT_FRAME_RATE) } {
+        let _ = unsafe { media_type.SetUINT64(&MF_MT_FRAME_RATE, rate) };
+    }
+    Ok(media_type)
+}
+
+fn output_type_partial(subtype: &windows::core::GUID) -> Result<IMFMediaType> {
+    let media_type = unsafe { MFCreateMediaType() }.context("creating an RGB media type")?;
     unsafe {
         media_type
             .SetGUID(&MF_MT_MAJOR_TYPE, &MFMediaType_Video)
             .context("setting MF_MT_MAJOR_TYPE")?;
         media_type
-            .SetGUID(&MF_MT_SUBTYPE, &MFVideoFormat_RGB32)
-            .context("setting MFVideoFormat_RGB32")?;
-        reader
-            .SetCurrentMediaType(MF_SOURCE_READER_FIRST_VIDEO_STREAM, None, &media_type)
-            .context("the video could not be decoded as RGB (is H.264/HEVC available?)")?;
+            .SetGUID(&MF_MT_SUBTYPE, subtype)
+            .context("setting the RGB subtype")?;
     }
-
-    Ok(reader)
+    Ok(media_type)
 }
 
 fn video_size(reader: &IMFSourceReader) -> Result<(u32, u32)> {
-    let media_type = unsafe { reader.GetCurrentMediaType(MF_SOURCE_READER_FIRST_VIDEO_STREAM) }
-        .context("reading the decoded video size")?;
-    let mut width = 0u32;
-    let mut height = 0u32;
-    unsafe { MFGetAttributeSize(&media_type, &MF_MT_FRAME_SIZE, &mut width, &mut height) }
-        .context("MF_MT_FRAME_SIZE")?;
+    let media_type =
+        unsafe { reader.GetCurrentMediaType(reader_stream(MF_SOURCE_READER_FIRST_VIDEO_STREAM)) }
+            .context("reading the decoded video size")?;
+    let (width, height) = packed_size(&media_type, &MF_MT_FRAME_SIZE)?;
     if width == 0 || height == 0 {
         bail!("video frame size is empty");
     }
@@ -186,20 +239,17 @@ fn video_size(reader: &IMFSourceReader) -> Result<(u32, u32)> {
 }
 
 fn frame_duration(reader: &IMFSourceReader) -> Duration {
-    let Ok(media_type) =
-        (unsafe { reader.GetCurrentMediaType(MF_SOURCE_READER_FIRST_VIDEO_STREAM) })
-    else {
+    let Ok(media_type) = (unsafe {
+        reader.GetCurrentMediaType(reader_stream(MF_SOURCE_READER_FIRST_VIDEO_STREAM))
+    }) else {
         return Duration::from_millis(33);
     };
-    let mut num = 0u32;
-    let mut den = 0u32;
-    if unsafe { MFGetAttributeSize(&media_type, &MF_MT_FRAME_RATE, &mut num, &mut den) }.is_ok()
-        && num > 0
-        && den > 0
-    {
-        let fps = num as f64 / den as f64;
-        if fps > 1.0 {
-            return Duration::from_secs_f64(1.0 / fps);
+    if let Ok((num, den)) = packed_size(&media_type, &MF_MT_FRAME_RATE) {
+        if num > 0 && den > 0 {
+            let fps = num as f64 / den as f64;
+            if fps > 1.0 {
+                return Duration::from_secs_f64(1.0 / fps);
+            }
         }
     }
     Duration::from_millis(33)
@@ -211,7 +261,7 @@ fn read_rgb_frame(reader: &IMFSourceReader) -> Result<Option<Vec<u8>>> {
     unsafe {
         reader
             .ReadSample(
-                MF_SOURCE_READER_FIRST_VIDEO_STREAM,
+                reader_stream(MF_SOURCE_READER_FIRST_VIDEO_STREAM),
                 0,
                 None,
                 Some(&mut flags),
@@ -244,11 +294,45 @@ fn read_rgb_frame(reader: &IMFSourceReader) -> Result<Option<Vec<u8>>> {
             .Lock(&mut data, Some(&mut max_len), Some(&mut len))
             .context("locking the video buffer")?;
     }
-    let bytes = unsafe { std::slice::from_raw_parts(data, len as usize) }.to_vec();
+    let bytes = unsafe { std::slice::from_raw_parts(data, len as usize) };
+    let frame = flatten_bgra(&reader, bytes);
     unsafe {
         let _ = buffer.Unlock();
     }
-    Ok(Some(bytes))
+    Ok(Some(frame))
+}
+
+fn flatten_bgra(reader: &IMFSourceReader, src: &[u8]) -> Vec<u8> {
+    let Ok(media_type) = (unsafe {
+        reader.GetCurrentMediaType(reader_stream(MF_SOURCE_READER_FIRST_VIDEO_STREAM))
+    }) else {
+        return src.to_vec();
+    };
+    let Ok((width, height)) = packed_size(&media_type, &MF_MT_FRAME_SIZE) else {
+        return src.to_vec();
+    };
+    let subtype = unsafe { media_type.GetGUID(&MF_MT_SUBTYPE) }.unwrap_or(MFVideoFormat_RGB32);
+    let bpp = if subtype == MFVideoFormat_RGB24 { 3 } else { 4 };
+    let stride = match unsafe { media_type.GetUINT32(&MF_MT_DEFAULT_STRIDE) } {
+        Ok(raw) => (raw as i32).unsigned_abs().max(width * bpp),
+        Err(_) => width * bpp,
+    };
+    let mut out = vec![0u8; (width * height * 4) as usize];
+    for y in 0..height {
+        let row = (y * stride) as usize;
+        for x in 0..width {
+            let i = row + (x * bpp) as usize;
+            let o = ((y * width + x) * 4) as usize;
+            if i + 2 >= src.len() || o + 3 >= out.len() {
+                return out;
+            }
+            out[o] = src[i];
+            out[o + 1] = src[i + 1];
+            out[o + 2] = src[i + 2];
+            out[o + 3] = 255;
+        }
+    }
+    out
 }
 
 unsafe extern "system" fn live_wnd_proc(
@@ -312,10 +396,10 @@ fn surfaces_need_rebuild(surfaces: &[Surface]) -> bool {
         return true;
     }
     surfaces.iter().any(|surface| unsafe {
-        !IsWindow(surface.hwnd).as_bool()
+        !IsWindow(Some(surface.hwnd)).as_bool()
             || surface
                 .parent
-                .is_some_and(|parent| !IsWindow(parent).as_bool())
+                .is_some_and(|parent| !IsWindow(Some(parent)).as_bool())
     })
 }
 
@@ -456,13 +540,13 @@ fn pump() {
 
 fn system_should_pause(opts: LiveOpts) -> bool {
     if opts.pause_on_fullscreen {
-        let mut state = windows::Win32::UI::Shell::QUERY_USER_NOTIFICATION_STATE::default();
-        if unsafe { SHQueryUserNotificationState(&mut state) }.is_ok()
-            && (state == QUNS_RUNNING_D3D_FULL_SCREEN
+        if let Ok(state) = unsafe { SHQueryUserNotificationState() } {
+            if state == QUNS_RUNNING_D3D_FULL_SCREEN
                 || state == QUNS_BUSY
-                || state == QUNS_PRESENTATION_MODE)
-        {
-            return true;
+                || state == QUNS_PRESENTATION_MODE
+            {
+                return true;
+            }
         }
     }
     if opts.pause_on_battery {

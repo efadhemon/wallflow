@@ -40,10 +40,6 @@ thread_local! {
     static COM_READY: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
 }
 
-thread_local! {
-    static COM_READY: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
-}
-
 /// COM must be initialised on every thread that touches it, and the scheduler
 /// runs on whichever tokio worker picks up the task.
 pub(super) fn ensure_com() {
