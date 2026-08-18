@@ -2,7 +2,7 @@
   "uuid": "live-wallpaper@com.efadhemon.wallflow",
   "name": "Wallflow Live Wallpaper",
   "description": "Plays a looping video behind the desktop icons for Wallflow. Enable this once, then log out if you are on Wayland.",
-  "version": 7,
+  "version": 9,
   "shell-version": ["46", "47", "48", "49", "50"],
   "session-modes": ["user"]
 }
