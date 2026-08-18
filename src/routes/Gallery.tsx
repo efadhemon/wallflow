@@ -244,6 +244,8 @@ export function Gallery() {
   };
 
   const activeSub = queryInput.trim();
+  const queryPending = activeSub !== debouncedQuery;
+  const searching = queryPending || loading;
 
   return (
     <div className="mx-auto flex max-w-5xl flex-col gap-5 px-8 py-8">
@@ -286,8 +288,18 @@ export function Gallery() {
               value={queryInput}
               onChange={event => setQueryInput(event.target.value)}
               placeholder={parentId === CUSTOM_ID ? "Search Wallhaven" : `Search in ${parent.label.toLowerCase()}`}
-              className="focus-ring h-9.5 w-full rounded-lg border border-line bg-surface pr-3 pl-9 text-sm text-ink outline-none placeholder:text-ink-muted"
+              aria-busy={searching}
+              className={cn(
+                "focus-ring h-9.5 w-full rounded-lg border border-line bg-surface pl-9 text-sm text-ink outline-none placeholder:text-ink-muted",
+                searching ? "pr-9" : "pr-3",
+              )}
             />
+            {searching && (
+              <LoaderCircle
+                size={14}
+                className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 animate-spin text-ink-muted"
+              />
+            )}
           </label>
           <Select
             aria-label="Orientation"
@@ -338,8 +350,12 @@ export function Gallery() {
             }
           />
         </Card>
-      ) : loading && photos.length === 0 ? (
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-3">
+      ) : loading ? (
+        <div
+          className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-3"
+          aria-busy="true"
+          aria-label="Loading gallery"
+        >
           {Array.from({ length: 8 }, (_, index) => (
             <div key={index} className="aspect-16/10 animate-pulse rounded-lg bg-surface-muted" />
           ))}
