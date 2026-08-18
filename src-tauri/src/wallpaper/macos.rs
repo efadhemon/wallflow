@@ -166,7 +166,7 @@ fn set_overlay_alpha(alpha: f64) {
 
 fn create_overlays(mtm: MainThreadMarker, frames: Vec<(Vec<u8>, ScreenInfo)>) -> Result<()> {
     close_overlays();
-    let mut windows = Vec::with_capacity(frames.len());
+    let mut windows: Vec<Retained<NSWindow>> = Vec::with_capacity(frames.len());
     let level = desktop_window_level() + 1;
 
     for (png, info) in frames {
