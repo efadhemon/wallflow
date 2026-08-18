@@ -1,8 +1,18 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
-import type { AddRemoteResult, Config, Environment, FolderEntry, GalleryPage, ImageEntry, Status } from "./types";
+import type {
+  AddRemoteResult,
+  Config,
+  DownloadProgress,
+  Environment,
+  FolderEntry,
+  GalleryPage,
+  ImageEntry,
+  Status,
+} from "./types";
 
 export const STATUS_EVENT = "wallpaper://status";
+export const DOWNLOAD_PROGRESS_EVENT = "wallpaper://download-progress";
 
 export const api = {
   getStatus: () => invoke<Status>("get_status"),
@@ -37,9 +47,14 @@ export const api = {
     page: number;
     atleast?: string | null;
   }) => invoke<GalleryPage>("search_gallery", args),
-  addRemoteImage: (url: string) => invoke<AddRemoteResult>("add_remote_image", { url }),
+  addRemoteImage: (url: string, expectedSize?: number) =>
+    invoke<AddRemoteResult>("add_remote_image", { url, expected_size: expectedSize ?? null }),
 };
 
 export function onStatus(handler: (status: Status) => void): Promise<UnlistenFn> {
   return listen<Status>(STATUS_EVENT, event => handler(event.payload));
+}
+
+export function onDownloadProgress(handler: (progress: DownloadProgress) => void): Promise<UnlistenFn> {
+  return listen<DownloadProgress>(DOWNLOAD_PROGRESS_EVENT, event => handler(event.payload));
 }

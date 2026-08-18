@@ -1,6 +1,6 @@
 [package]
 name = "wallflow"
-version = "1.0.3"
+version = "1.0.4"
 edition = "2021"
 authors = ["Emon Hossain"]
 repository = "https://github.com/efadhemon/wallflow"
@@ -25,26 +25,31 @@ tauri-plugin-dialog = "2.7.2"
 tauri-plugin-log = "2.9.0"
 tauri-plugin-opener = "2.5.4"
 tauri-plugin-single-instance = "2.4.3"
-tokio = { version = "1.53.1", features = ["rt-multi-thread", "sync", "time", "macros"] }
+tokio = { version = "1.53.1", features = ["rt-multi-thread", "sync", "time", "macros", "fs", "io-util"] }
 walkdir = "2.5.0"
-reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "stream"] }
+futures-util = { version = "0.3", default-features = false, features = ["std"] }
 sha2 = "0.10"
 
 [build-dependencies]
 tauri-build = { version = "2.6.3", features = [] }
 
+
+[profile.dev]
+incremental = true # Compile your binary in smaller steps.
+
 [profile.release]
-codegen-units = 1
-lto = true
-opt-level = "s"
-panic = "abort"
-strip = true
+codegen-units = 1 # Allows LLVM to perform better optimization.
+lto = true # Enables link-time-optimizations.
+opt-level = "s" # Prioritizes small binary size. Use `3` if you prefer speed.
+panic = "abort" # Higher performance by disabling panic handlers.
+strip = true # Ensures debug symbols are removed.
 
 [target."cfg(windows)".dependencies]
-windows = { version = "0.62.2", features = ["Win32_UI_Shell", "Win32_System_Com", "Win32_UI_WindowsAndMessaging", "Win32_Foundation"] }
+windows = { version = "0.62.2", features = ["Win32_UI_Shell", "Win32_System_Com", "Win32_UI_WindowsAndMessaging", "Win32_Foundation", "Win32_Graphics_Gdi", "Win32_System_LibraryLoader"] }
 
 [target.'cfg(target_os = "macos")'.dependencies]
 dispatch2 = { version = "0.3", features = ["objc2"] }
 objc2 = "0.6"
-objc2-app-kit = { version = "0.3", features = ["NSWorkspace", "NSScreen", "NSCell"] }
-objc2-foundation = { version = "0.3", features = ["NSURL", "NSDictionary", "NSString", "NSValue", "NSArray", "NSError", "NSObject", "NSEnumerator"] }
+objc2-app-kit = { version = "0.3", features = ["NSWorkspace", "NSScreen", "NSCell", "NSWindow", "NSGraphics", "NSImage", "NSImageView", "NSColor", "NSView", "NSControl", "NSResponder", "NSAnimationContext"] }
+objc2-foundation = { version = "0.3", features = ["NSURL", "NSDictionary", "NSString", "NSValue", "NSArray", "NSError", "NSObject", "NSEnumerator", "NSData", "NSGeometry"] }

@@ -1,7 +1,15 @@
+use crate::scanner;
 use anyhow::{bail, Context, Result};
+use futures_util::StreamExt;
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
-use std::time::Duration;
+use sha2::{Digest, Sha256};
+use std::io::ErrorKind;
+use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::OnceLock;
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
+use tokio::io::AsyncWriteExt;
 
 const SEARCH_URL: &str = "https://wallhaven.cc/api/v1/search";
 const DOWNLOAD_HOST: &str = "w.wallhaven.cc";
@@ -13,6 +21,15 @@ const USER_AGENT: &str = concat!(
     env!("CARGO_PKG_VERSION"),
     " (+https://github.com/efadhemon/wallflow)"
 );
+
+pub const DOWNLOAD_PROGRESS_EVENT: &str = "wallpaper://download-progress";
+
+const CONNECT_TIMEOUT: Duration = Duration::from_secs(15);
+const SEARCH_TIMEOUT: Duration = Duration::from_secs(20);
+const DOWNLOAD_TIMEOUT: Duration = Duration::from_secs(120);
+const PROGRESS_INTERVAL: Duration = Duration::from_millis(100);
+const PROGRESS_BYTES: u64 = 128 * 1024;
+const MAGIC_LEN: usize = 16;
 
 const ALLOWED_RATIOS: &[&str] = &["landscape", "portrait", "square"];
 const ALLOWED_SORTING: &[&str] = &[
@@ -53,6 +70,20 @@ pub struct GalleryPage {
     pub page: u32,
     pub last_page: u32,
     pub total: u64,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DownloadProgress {
+    pub url: String,
+    pub received: u64,
+    pub total: Option<u64>,
+}
+
+#[derive(Debug, Clone)]
+pub struct DownloadedImage {
+    pub path: PathBuf,
+    pub added: bool,
 }
 
 #[derive(Debug, Deserialize)]
@@ -191,8 +222,9 @@ pub fn validate_download_url(url: &str) -> Result<Url> {
 
 pub async fn search(params: SearchParams) -> Result<GalleryPage> {
     let url = build_search_url(&params)?;
-    let response = http_client(Duration::from_secs(20))?
+    let response = http_client()?
         .get(url)
+        .timeout(SEARCH_TIMEOUT)
         .header(reqwest::header::ACCEPT, "application/json")
         .send()
         .await
@@ -219,10 +251,41 @@ pub async fn search(params: SearchParams) -> Result<GalleryPage> {
     })
 }
 
-pub async fn download_image(url: &str) -> Result<Vec<u8>> {
+pub async fn download_and_save(
+    url: &str,
+    images_dir: &Path,
+    expected_size: Option<u64>,
+    mut on_progress: impl FnMut(DownloadProgress),
+) -> Result<DownloadedImage> {
     let parsed = validate_download_url(url)?;
-    let response = http_client(Duration::from_secs(120))?
+    match download_once(
+        url,
+        parsed.clone(),
+        images_dir,
+        expected_size,
+        &mut on_progress,
+    )
+    .await
+    {
+        Ok(saved) => Ok(saved),
+        Err(err) if is_retryable(&err) => {
+            log::warn!("download interrupted, retrying once: {err:#}");
+            download_once(url, parsed, images_dir, expected_size, &mut on_progress).await
+        }
+        Err(err) => Err(err),
+    }
+}
+
+async fn download_once(
+    url: &str,
+    parsed: Url,
+    images_dir: &Path,
+    expected_size: Option<u64>,
+    on_progress: &mut impl FnMut(DownloadProgress),
+) -> Result<DownloadedImage> {
+    let response = http_client()?
         .get(parsed)
+        .timeout(DOWNLOAD_TIMEOUT)
         .header(reqwest::header::ACCEPT, "image/*")
         .header(reqwest::header::REFERER, "https://wallhaven.cc/")
         .send()
@@ -237,19 +300,181 @@ pub async fn download_image(url: &str) -> Result<Vec<u8>> {
         bail!("Wallhaven returned {status}");
     }
 
-    let bytes = response
-        .bytes()
+    let total = response
+        .content_length()
+        .filter(|len| *len > 0)
+        .or_else(|| expected_size.filter(|len| *len > 0));
+
+    emit_progress(on_progress, url, 0, total);
+
+    tokio::fs::create_dir_all(images_dir)
         .await
-        .context("the download was interrupted")?;
-    Ok(bytes.to_vec())
+        .with_context(|| format!("could not create {}", images_dir.display()))?;
+
+    let temp_path = temp_download_path(images_dir);
+    let mut temp = TempFile::new(temp_path);
+    let mut file = tokio::fs::File::create(&temp.path)
+        .await
+        .with_context(|| format!("could not create {}", temp.path.display()))?;
+
+    let mut hasher = Sha256::new();
+    let mut header = Vec::with_capacity(MAGIC_LEN);
+    let mut received = 0u64;
+    let mut last_emit = Instant::now();
+    let mut last_emit_bytes = 0u64;
+    let mut stream = response.bytes_stream();
+
+    while let Some(chunk) = stream.next().await {
+        let chunk = chunk.context("the download was interrupted")?;
+        if header.len() < MAGIC_LEN {
+            let take = (MAGIC_LEN - header.len()).min(chunk.len());
+            header.extend_from_slice(&chunk[..take]);
+            if header.len() >= MAGIC_LEN && scanner::extension_for_bytes(&header).is_none() {
+                bail!("That file is not a supported image (JPG, PNG, WebP or BMP).");
+            }
+        }
+        hasher.update(&chunk);
+        file.write_all(&chunk)
+            .await
+            .context("could not save the image")?;
+        received += chunk.len() as u64;
+
+        if last_emit.elapsed() >= PROGRESS_INTERVAL || received - last_emit_bytes >= PROGRESS_BYTES
+        {
+            emit_progress(on_progress, url, received, total);
+            last_emit = Instant::now();
+            last_emit_bytes = received;
+        }
+    }
+
+    file.flush().await.context("could not save the image")?;
+    drop(file);
+
+    if received == 0 {
+        bail!("the download was interrupted");
+    }
+
+    let Some(ext) = scanner::extension_for_bytes(&header) else {
+        bail!("That file is not a supported image (JPG, PNG, WebP or BMP).");
+    };
+
+    let dest = images_dir.join(format!("{}.{ext}", hex_lower(&hasher.finalize())));
+    emit_progress(on_progress, url, received, total.or(Some(received)));
+
+    if dest.exists() {
+        return Ok(DownloadedImage {
+            path: dest,
+            added: false,
+        });
+    }
+
+    match tokio::fs::rename(&temp.path, &dest).await {
+        Ok(()) => {
+            temp.persist();
+            Ok(DownloadedImage {
+                path: dest,
+                added: true,
+            })
+        }
+        Err(err) if err.kind() == ErrorKind::AlreadyExists || dest.exists() => {
+            Ok(DownloadedImage {
+                path: dest,
+                added: false,
+            })
+        }
+        Err(err) => {
+            Err(err).with_context(|| format!("could not save the image to {}", dest.display()))
+        }
+    }
 }
 
-fn http_client(timeout: Duration) -> Result<reqwest::Client> {
-    reqwest::Client::builder()
+fn emit_progress(
+    on_progress: &mut impl FnMut(DownloadProgress),
+    url: &str,
+    received: u64,
+    total: Option<u64>,
+) {
+    on_progress(DownloadProgress {
+        url: url.to_string(),
+        received,
+        total,
+    });
+}
+
+fn is_retryable(err: &anyhow::Error) -> bool {
+    let message = format!("{err:#}");
+    if message.contains("rate-limiting") || message.contains("Wallhaven returned") {
+        return false;
+    }
+    if message.contains("not a supported image") {
+        return false;
+    }
+    err.chain().any(|cause| {
+        cause.downcast_ref::<reqwest::Error>().is_some_and(|error| {
+            error.is_timeout() || error.is_connect() || error.is_body() || error.is_request()
+        }) || cause.downcast_ref::<std::io::Error>().is_some()
+    }) || message.contains("interrupted")
+}
+
+fn temp_download_path(images_dir: &Path) -> PathBuf {
+    static SEQ: AtomicU64 = AtomicU64::new(0);
+    let nanos = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|duration| duration.as_nanos())
+        .unwrap_or(0);
+    let n = SEQ.fetch_add(1, Ordering::Relaxed);
+    images_dir.join(format!(".download-{nanos}-{n}.part"))
+}
+
+fn hex_lower(bytes: &[u8]) -> String {
+    const HEX: &[u8; 16] = b"0123456789abcdef";
+    let mut out = String::with_capacity(bytes.len() * 2);
+    for &byte in bytes {
+        out.push(HEX[(byte >> 4) as usize] as char);
+        out.push(HEX[(byte & 0x0f) as usize] as char);
+    }
+    out
+}
+
+fn http_client() -> Result<&'static reqwest::Client> {
+    static CLIENT: OnceLock<reqwest::Client> = OnceLock::new();
+    if let Some(client) = CLIENT.get() {
+        return Ok(client);
+    }
+    let client = reqwest::Client::builder()
         .user_agent(USER_AGENT)
-        .timeout(timeout)
+        .connect_timeout(CONNECT_TIMEOUT)
+        .timeout(DOWNLOAD_TIMEOUT)
+        .pool_idle_timeout(Duration::from_secs(90))
         .build()
-        .context("could not create HTTP client")
+        .context("could not create HTTP client")?;
+    Ok(CLIENT.get_or_init(|| client))
+}
+
+struct TempFile {
+    path: PathBuf,
+    persist: bool,
+}
+
+impl TempFile {
+    fn new(path: PathBuf) -> Self {
+        Self {
+            path,
+            persist: false,
+        }
+    }
+
+    fn persist(&mut self) {
+        self.persist = true;
+    }
+}
+
+impl Drop for TempFile {
+    fn drop(&mut self) {
+        if !self.persist {
+            let _ = std::fs::remove_file(&self.path);
+        }
+    }
 }
 
 fn is_category_bits(value: &str) -> bool {

@@ -87,6 +87,12 @@ export interface AddRemoteResult {
   path: string;
 }
 
+export interface DownloadProgress {
+  url: string;
+  received: number;
+  total: number | null;
+}
+
 export type GalleryOrientation = "landscape" | "portrait" | "square" | "any";
 export type GallerySorting = "relevance" | "toplist" | "date_added" | "views" | "favorites" | "random";
 export type GalleryAtLeast = "any" | "1920x1080" | "2560x1440";
