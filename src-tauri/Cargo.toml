@@ -1,6 +1,6 @@
 [package]
 name = "wallflow"
-version = "1.0.3"
+version = "1.0.5"
 edition = "2021"
 authors = ["Emon Hossain"]
 repository = "https://github.com/efadhemon/wallflow"
@@ -34,12 +34,16 @@ sha2 = "0.10"
 [build-dependencies]
 tauri-build = { version = "2.6.3", features = [] }
 
+
+[profile.dev]
+incremental = true # Compile your binary in smaller steps.
+
 [profile.release]
-codegen-units = 1
-lto = true
-opt-level = "s"
-panic = "abort"
-strip = true
+codegen-units = 1 # Allows LLVM to perform better optimization.
+lto = true # Enables link-time-optimizations.
+opt-level = "s" # Prioritizes small binary size. Use `3` if you prefer speed.
+panic = "abort" # Higher performance by disabling panic handlers.
+strip = true # Ensures debug symbols are removed.
 
 [target."cfg(windows)".dependencies]
 windows = { version = "0.62.2", features = [
@@ -60,7 +64,7 @@ windows = { version = "0.62.2", features = [
 [target.'cfg(target_os = "macos")'.dependencies]
 dispatch2 = { version = "0.3", features = ["objc2"] }
 objc2 = "0.6"
-objc2-app-kit = { version = "0.3", features = ["NSWorkspace", "NSScreen", "NSCell", "NSWindow", "NSGraphics", "NSImage", "NSImageView", "NSColor", "NSView", "NSControl", "NSResponder", "NSBitmapImageRep"] }
+objc2-app-kit = { version = "0.3", features = ["NSWorkspace", "NSScreen", "NSCell", "NSWindow", "NSGraphics", "NSImage", "NSImageView", "NSColor", "NSView", "NSControl", "NSResponder", "NSAnimationContext", "NSBitmapImageRep"] }
 objc2-foundation = { version = "0.3", features = ["NSURL", "NSDictionary", "NSString", "NSValue", "NSArray", "NSError", "NSObject", "NSEnumerator", "NSData", "NSGeometry"] }
 objc2-av-foundation = { version = "0.3", features = [
     "AVPlayer",

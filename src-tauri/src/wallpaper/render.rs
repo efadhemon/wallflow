@@ -9,6 +9,11 @@ use std::path::Path;
 pub const FADE_MS: u32 = 700;
 #[cfg_attr(not(any(windows, target_os = "macos")), allow(dead_code))]
 pub const FADE_FRAME_MS: u32 = 16;
+/// `setDesktopImageURL` returns immediately, then AppKit plays its own
+/// zoom/crossfade. Keep the overlay opaque this long so that animation
+/// stays hidden. Windows does not need this — `SetWallpaper` is synchronous.
+#[cfg_attr(not(target_os = "macos"), allow(dead_code))]
+pub const SETTLE_MS: u32 = 1000;
 
 #[cfg_attr(not(any(windows, target_os = "macos")), allow(dead_code))]
 pub fn ease_in_out_cubic(t: f32) -> f32 {
