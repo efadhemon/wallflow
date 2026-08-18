@@ -325,32 +325,32 @@ pub fn remove_video(state: State<'_, Arc<AppState>>, path: PathBuf) -> Reply<()>
         return Err("That video is not one Wallflow added.".into());
     }
 
-    std::fs::remove_file(&canonical).map_err(fail)?;
-
     let mut inner = state.inner.lock().expect("state poisoned");
     inner
         .config
         .live_videos
         .retain(|entry| entry != &path && entry != &canonical);
-    if inner.config.live_path.as_deref() == Some(canonical.as_path())
-        || inner.config.live_path.as_deref() == Some(path.as_path())
-    {
+    let was_current = inner.config.live_path.as_deref() == Some(canonical.as_path())
+        || inner.config.live_path.as_deref() == Some(path.as_path());
+    if was_current {
         inner.config.live_path = None;
         if inner.config.wallpaper_mode == WallpaperMode::Live {
             inner.config.wallpaper_mode = WallpaperMode::Rotation;
-            drop(inner);
-            state.backend.stop_live();
-            let inner = state.inner.lock().expect("state poisoned");
-            let config = inner.config.clone();
-            drop(inner);
-            config.save(&state.config_dir).map_err(fail)?;
-            state.send(Command::ApplyCurrent);
-            return Ok(());
         }
     }
     let config = inner.config.clone();
     drop(inner);
+
+    if was_current {
+        state.backend.stop_live();
+        std::thread::sleep(std::time::Duration::from_millis(80));
+    }
+
+    std::fs::remove_file(&canonical).map_err(fail)?;
     config.save(&state.config_dir).map_err(fail)?;
+    if was_current {
+        state.send(Command::ApplyCurrent);
+    }
     Ok(())
 }
 

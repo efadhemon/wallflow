@@ -75,7 +75,10 @@ pub fn start(path: &Path, opts: LiveOpts) -> Result<Handle> {
     require_h264_decoder()?;
 
     if gnome::is_gnome_shell() && (gnome::is_wayland() || gnome::ping()) {
-        gnome::set_video(path, opts)?;
+        if let Err(err) = gnome::set_video(path, opts) {
+            thread::sleep(Duration::from_millis(200));
+            gnome::set_video(path, opts).with_context(|| format!("{err:#}"))?;
+        }
         return Ok(Handle {
             stop: Arc::new(AtomicBool::new(false)),
             pause: Arc::new(AtomicBool::new(false)),

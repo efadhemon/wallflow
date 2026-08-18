@@ -3,7 +3,7 @@ use anyhow::Result;
 use std::path::{Path, PathBuf};
 
 #[cfg(target_os = "linux")]
-mod gnome;
+pub(crate) mod gnome;
 #[cfg(target_os = "linux")]
 pub mod linux;
 #[cfg(target_os = "linux")]

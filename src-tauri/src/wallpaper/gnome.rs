@@ -42,6 +42,9 @@ pub fn status() -> GnomeExtensionStatus {
     if ping() {
         return GnomeExtensionStatus::Active;
     }
+    if extension_js_error().is_some() {
+        return GnomeExtensionStatus::Failed;
+    }
     if extension_dir().is_dir() {
         GnomeExtensionStatus::NeedsLogout
     } else {
@@ -76,10 +79,41 @@ pub fn install_and_enable() -> Result<GnomeExtensionStatus> {
 
     enable_extension();
     if ping() {
-        Ok(GnomeExtensionStatus::Active)
-    } else {
-        Ok(GnomeExtensionStatus::NeedsLogout)
+        return Ok(GnomeExtensionStatus::Active);
     }
+
+    if let Some(error) = extension_js_error() {
+        bail!("The GNOME live wallpaper extension failed to start: {error}");
+    }
+
+    ensure_enabled_in_gsettings();
+    Ok(GnomeExtensionStatus::NeedsLogout)
+}
+
+fn extension_js_error() -> Option<String> {
+    let output = Command::new("gdbus")
+        .args([
+            "call",
+            "--session",
+            "--dest",
+            "org.gnome.Shell.Extensions",
+            "--object-path",
+            "/org/gnome/Shell/Extensions",
+            "--method",
+            "org.gnome.Shell.Extensions.GetExtensionErrors",
+            UUID,
+        ])
+        .output()
+        .ok()?;
+    if !output.status.success() {
+        return None;
+    }
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let trimmed = stdout.trim();
+    if trimmed.contains("@as []") || trimmed == "(@as [],)" {
+        return None;
+    }
+    Some(trimmed.to_string())
 }
 
 fn pack_and_install() {
@@ -114,7 +148,32 @@ fn shell_knows_extension() -> bool {
         .is_ok_and(|out| out.status.success())
 }
 
+fn ensure_enabled_in_gsettings() {
+    let output = Command::new("gsettings")
+        .args(["get", "org.gnome.shell", "enabled-extensions"])
+        .output();
+    let Ok(output) = output else {
+        return;
+    };
+    let current = String::from_utf8_lossy(&output.stdout);
+    if current.contains(UUID) {
+        return;
+    }
+    let next = if current.contains(']') {
+        current.replace(']', &format!(", '{UUID}']"))
+    } else {
+        format!("['{UUID}']")
+    };
+    let _ = Command::new("gsettings")
+        .args(["set", "org.gnome.shell", "enabled-extensions", next.trim()])
+        .status();
+}
+
 fn enable_extension() {
+    ensure_enabled_in_gsettings();
+    let _ = Command::new("gnome-extensions")
+        .args(["disable", UUID])
+        .status();
     let enable = Command::new("gnome-extensions")
         .args(["enable", UUID])
         .output();
@@ -138,6 +197,9 @@ pub fn set_video(path: &Path, opts: LiveOpts) -> Result<()> {
     if !ping() {
         let status = install_and_enable()?;
         if status != GnomeExtensionStatus::Active {
+            if let Some(error) = extension_js_error() {
+                bail!("The GNOME live wallpaper extension failed to start: {error}");
+            }
             bail!(
                 "The GNOME live wallpaper extension is installed but not running yet. Log out and back in, then try again."
             );

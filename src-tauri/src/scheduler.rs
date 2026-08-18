@@ -207,6 +207,12 @@ async fn enter_live(app: &AppHandle, state: &Arc<AppState>) {
             .backend
             .extract_poster(&cache_dir, &play_path)?;
         let _ = backend_poster.backend.set(&poster, fill_mode);
+        // GNOME rebuilds the wallpaper actor after picture-uri changes. Give it a
+        // moment so the live surface is not created and then immediately destroyed.
+        #[cfg(target_os = "linux")]
+        if crate::wallpaper::gnome::is_gnome_shell() {
+            std::thread::sleep(std::time::Duration::from_millis(220));
+        }
         backend_poster.backend.play_live(&play_path, opts)
     })
     .await;
