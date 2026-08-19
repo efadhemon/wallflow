@@ -18,7 +18,7 @@ export function App() {
   const customTitlebar = usesCustomTitlebar();
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex h-full flex-col border border-line">
       {customTitlebar && <Titlebar />}
       <UpdateBanner />
 
