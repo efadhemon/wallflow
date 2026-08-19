@@ -752,6 +752,18 @@
     "@tailwindcss/oxide" "4.3.3"
     tailwindcss "4.3.3"
 
+"@tanstack/react-virtual@3.14.10":
+  version "3.14.10"
+  resolved "https://registry.yarnpkg.com/@tanstack/react-virtual/-/react-virtual-3.14.10.tgz#371cb86ea221302768331981b6a0c11875262354"
+  integrity sha512-SRyoUbdFMRHuYXMijV5H4ZarQWpXkj3iANq8OFre+pybeVap8ZJjZ3Nz9bVjx4d8PfobVUQUdKyyyHYk3E+djw==
+  dependencies:
+    "@tanstack/virtual-core" "3.17.8"
+
+"@tanstack/virtual-core@3.17.8":
+  version "3.17.8"
+  resolved "https://registry.yarnpkg.com/@tanstack/virtual-core/-/virtual-core-3.17.8.tgz#3a801d8b0569a67b7490d3fe64c83758d18a230c"
+  integrity sha512-BfEvehNpOT75r5Ksc5xW6NZuXujTfb7nlSEyVu4XHG3gdxNg1KqXruWbDewXOUaUYIo4oRbSfkjIajz4MAT8tA==
+
 "@tauri-apps/api@^2.11.0", "@tauri-apps/api@^2.11.1", "@tauri-apps/api@^2.8.0":
   version "2.11.1"
   resolved "https://registry.yarnpkg.com/@tauri-apps/api/-/api-2.11.1.tgz#cd6b13fc26403ca095a02e39ecdbec8048d2872d"
