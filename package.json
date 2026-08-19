@@ -23,6 +23,7 @@
     "version:major": "node scripts/bump-version.js major && yarn version:sync"
   },
   "dependencies": {
+    "@tanstack/react-virtual": "3.14.10",
     "@tauri-apps/api": "^2.11.1",
     "@tauri-apps/plugin-autostart": "^2.5.1",
     "@tauri-apps/plugin-dialog": "^2.7.2",
