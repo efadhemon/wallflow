@@ -21,6 +21,11 @@ for _ in $(seq 1 60); do probe Report >/dev/null 2>&1 && break; sleep 0.5; done
 failures=0
 check() { if [ "$2" = "$3" ]; then echo "ok   $1"; else echo "FAIL $1: got '$2', want '$3'"; failures=$((failures+1)); fi; }
 
+# The overview layout without the video, for comparison below.
+probe Overview true >/dev/null; sleep 2
+card_before=$(probe Report | grep -o '"activeCard":\[[0-9,]*\]')
+probe Overview false >/dev/null; sleep 2
+
 shim Start "['$ENGINE', '$VIDEO', '--background']" >/dev/null
 sleep 5
 check "plays on an uncovered desktop" "$(paused)" false
@@ -35,6 +40,9 @@ probe Shot "'$ROOT/desktop.png'" >/dev/null
 
 probe Overview true >/dev/null; sleep 2
 check "overview pauses" "$(paused)" true
+# The video must not change the overview's layout: same card size, so the
+# neighbouring workspace still peeks in and can take a dragged window.
+check "overview layout unchanged by the video" "$(probe Report | grep -o '"activeCard":\[[0-9,]*\]')" "$card_before"
 # One per workspace background: at least one per monitor (more with several workspaces).
 clones=$(probe Report | grep -o '"overviewClones":[0-9]*' | grep -o '[0-9]*$')
 check "overview shows the video, not the static image" "$([ "$clones" -ge "$monitor_count" ] && echo yes || echo "no ($clones)")" yes
@@ -46,8 +54,13 @@ check "a wallpaper change keeps the video on top" "$(probe Report | grep -o '"ov
 probe Shot "'$ROOT/overview-after-change.png'" >/dev/null
 # Drag and drop must still find the workspace under the video (near the card's
 # corner, away from window previews and the search entry).
-echo "     drop target: $(probe DropTargetAt 120.0 600.0)"
-check "workspace under the video accepts drops" "$(probe DropTargetAt 120.0 600.0 | grep -o '"target":"[A-Za-z]*"' | grep -o '[A-Za-z]*"$' | tr -d '"')" Workspace
+card_w=$(probe Report | grep -o '"activeCard":\[[0-9]*' | grep -o '[0-9]*$')
+inside=$(( 960 - card_w / 2 + 40 ))
+echo "     drop target in card (x=$inside): $(probe DropTargetAt $inside.0 600.0)"
+check "workspace under the video accepts drops" "$(probe DropTargetAt $inside.0 600.0 | grep -o '"target":"[A-Za-z]*"' | cut -d'"' -f4)" Workspace
+# The next workspace peeks in at the right edge; dragging a window there moves it.
+echo "     drop target at right edge: $(probe DropTargetAt 1905.0 540.0)"
+check "next workspace still reachable at the right edge" "$(probe DropTargetAt 1905.0 540.0 | grep -o '"workspace":[0-9]*' | grep -o '[0-9]*$')" 1
 [ -n "${DEBUG_GEOMETRY:-}" ] && probe Report | grep -oE '"(workArea|overviewGeometry)":.*"overviewClones"' | head -c 1500 && echo && probe Report | grep -oE '"cls":"wallflow-live"[^}]*' 
 probe Overview false >/dev/null; sleep 2
 check "leaving the overview resumes" "$(paused)" false

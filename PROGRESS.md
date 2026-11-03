@@ -29,6 +29,18 @@ every platform without slowing the desktop.
 
 ## Sessions
 
+### 2026-11-04 — overview: windows could not be moved to another workspace (live-engine)
+
+- Your screenshots (video off vs on) showed it: with the video running the
+  current workspace card stretched to full width and the next workspace no
+  longer peeked in at the right edge, so there was nowhere to drop a window.
+- Cause: GNOME sizes the workspace card from its children's preferred size; the
+  video `Clutter.Clone` asked for its source's size (the whole monitor). Fix:
+  `CoverClone` requests no size and only fills the box it is given.
+- New checks (both fail on the old shim, pass now): the overview card has the
+  same size with and without the video (old: 1866 vs 1510 px), and the right
+  edge is the next workspace's drop target (old: workspace 0, now 1).
+
 ### 2026-11-04 — overview: video covered after a wallpaper change (live-engine)
 
 - Your report + screen recording: in the overview a window could not be moved
@@ -41,12 +53,7 @@ every platform without slowing the desktop.
   covering the video clone. Fixed: the shim watches `child-added`, keeps new
   background actors hidden and the clone on top. Regression check added (fails
   without the fix, passes with it).
-- Drag and drop itself: the drop target under the video (current card and the
-  side card) is GNOME's `Workspace`, identical with and without the engine, and
-  moving a window to another workspace during the overview works in the test.
-  The drag failure itself is **not reproduced**; a real mouse drag cannot be
-  simulated in the headless shell (virtual pointer events do not arrive).
-  Re-test in the real session after the next login.
+- The drag failure itself was found in the next session (card layout).
 - When integrating: the app must stop rotating static wallpapers while a live
   wallpaper plays (and set the poster as the static one).
 

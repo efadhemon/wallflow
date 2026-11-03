@@ -119,6 +119,18 @@ class RoundedLikeBackground extends Shell.GLSLEffect {
 // is scaled evenly to cover the box and centred; the box crops the overflow.
 const CoverClone = GObject.registerClass(
 class CoverClone extends Clutter.Clone {
+    // The overview sizes each workspace card from its children's preferred
+    // size. A plain Clone asks for its source's size (the whole monitor), which
+    // widened the card and pushed the neighbouring workspace — the drop target
+    // for moving a window there — off screen. Ask for nothing; fill the box.
+    vfunc_get_preferred_width(_forHeight) {
+        return [0, 0];
+    }
+
+    vfunc_get_preferred_height(_forWidth) {
+        return [0, 0];
+    }
+
     vfunc_allocate(box) {
         const source = this.source;
         const [width, height] = [box.get_width(), box.get_height()];

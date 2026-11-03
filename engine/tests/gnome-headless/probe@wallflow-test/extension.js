@@ -56,6 +56,17 @@ export default class Probe extends Extension {
             out.push(top instanceof Clutter.Clone && !staticShown);
           } else todo.push(...a.get_children()); }
         return out.length > 0 && out.every(Boolean); })(),
+      // Size of the active workspace's card in the overview (its clip box).
+      activeCard: (() => {
+        const ws = global.workspace_manager.get_active_workspace();
+        const todo = [Main.layoutManager.overviewGroup];
+        while (todo.length) { const a = todo.pop();
+          if (a.metaWorkspace === ws && a._background?._bin) {
+            const [w, h] = a._background._bin.get_transformed_size();
+            return [Math.round(w), Math.round(h)];
+          }
+          todo.push(...a.get_children()); }
+        return null; })(),
       overviewClones: (() => {
         let n = 0; const todo = [Main.layoutManager.overviewGroup];
         while (todo.length) { const a = todo.pop();
@@ -85,8 +96,9 @@ export default class Probe extends Extension {
     const picked = global.stage.get_actor_at_pos(Clutter.PickMode.ALL, x, y);
     let target = null;
     for (let a = picked; a; a = a.get_parent())
-      if (a._delegate?.acceptDrop) { target = a._delegate.constructor.name; break; }
-    return JSON.stringify({picked: picked?.constructor.name ?? null, target});
+      if (a._delegate?.acceptDrop) { target = a._delegate; break; }
+    return JSON.stringify({picked: picked?.constructor.name ?? null,
+      target: target?.constructor.name ?? null, workspace: target?.metaWorkspace?.index() ?? null});
   }
   // Things that happen in the overview while the video clone is shown.
   Scenario(name) {
