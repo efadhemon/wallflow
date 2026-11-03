@@ -67,6 +67,7 @@ pub fn run() {
             commands::add_images,
             commands::remove_image,
             commands::get_thumbnail,
+            commands::get_preview,
             commands::apply_image,
             commands::next_wallpaper,
             commands::previous_wallpaper,

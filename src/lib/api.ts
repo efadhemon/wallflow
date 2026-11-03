@@ -28,6 +28,7 @@ export const api = {
   addImages: (paths: string[]) => invoke<number>("add_images", { paths }),
   removeImage: (path: string) => invoke<void>("remove_image", { path }),
   getThumbnail: (path: string) => invoke<string>("get_thumbnail", { path }),
+  getPreview: (path: string) => invoke<string>("get_preview", { path }),
   applyImage: (path: string) => invoke<void>("apply_image", { path }),
   toggleExclude: (path: string) => invoke<boolean>("toggle_exclude", { path }),
 
@@ -46,6 +47,8 @@ export const api = {
     sorting?: string | null;
     page: number;
     atleast?: string | null;
+    topRange?: string | null;
+    colors?: string | null;
   }) => invoke<GalleryPage>("search_gallery", args),
   addRemoteImage: (url: string, expectedSize?: number) =>
     // Tauri maps camelCase keys onto the command's snake_case arguments.

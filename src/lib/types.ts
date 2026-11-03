@@ -71,8 +71,14 @@ export interface GalleryPhoto {
   resolution: string;
   fileSize: number;
   thumb: string;
+  thumbLarge: string;
   color: string | null;
+  colors: string[];
   path: string;
+  views: number;
+  favorites: number;
+  category: string;
+  fileType: string;
 }
 
 export interface GalleryPage {
@@ -93,6 +99,7 @@ export interface DownloadProgress {
   total: number | null;
 }
 
-export type GalleryOrientation = "landscape" | "portrait" | "square" | "any";
-export type GallerySorting = "relevance" | "toplist" | "date_added" | "views" | "favorites" | "random";
-export type GalleryAtLeast = "any" | "1920x1080" | "2560x1440";
+export type GalleryOrientation = "landscape" | "ultrawide" | "portrait" | "square" | "any";
+export type GallerySorting = "relevance" | "toplist" | "hot" | "date_added" | "views" | "favorites" | "random";
+export type GalleryTopRange = "1d" | "3d" | "1w" | "1M" | "3M" | "6M" | "1y";
+export type GalleryAtLeast = "any" | "1920x1080" | "2560x1440" | "3840x2160";

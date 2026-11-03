@@ -236,6 +236,19 @@ pub async fn get_thumbnail(state: State<'_, Arc<AppState>>, path: PathBuf) -> Re
         .map_err(fail)
 }
 
+/// Screen-sized copy for the full-screen preview. Library images can live anywhere
+/// on disk, so they are re-encoded into the cache rather than exposed directly.
+#[tauri::command]
+pub async fn get_preview(state: State<'_, Arc<AppState>>, path: PathBuf) -> Reply<String> {
+    let cache_dir = state.cache_dir.clone();
+
+    tokio::task::spawn_blocking(move || thumbs::preview(&cache_dir, &path))
+        .await
+        .map_err(fail)?
+        .map(|path| path.to_string_lossy().into_owned())
+        .map_err(fail)
+}
+
 #[tauri::command]
 pub fn apply_image(state: State<'_, Arc<AppState>>, path: PathBuf) -> Reply<()> {
     if !path.is_file() {
@@ -359,7 +372,9 @@ pub async fn fetch_latest_version(url: String) -> Reply<Option<String>> {
     Ok(raw)
 }
 
+// Tauri maps each argument to a key of the IPC payload, so they stay flat.
 #[tauri::command]
+#[allow(clippy::too_many_arguments)]
 pub async fn search_gallery(
     query: Option<String>,
     ratios: Option<String>,
@@ -367,6 +382,8 @@ pub async fn search_gallery(
     sorting: Option<String>,
     page: Option<u32>,
     atleast: Option<String>,
+    top_range: Option<String>,
+    colors: Option<String>,
 ) -> Reply<GalleryPage> {
     gallery::search(SearchParams {
         query,
@@ -375,6 +392,8 @@ pub async fn search_gallery(
         sorting,
         page: page.unwrap_or(1),
         atleast,
+        top_range,
+        colors,
     })
     .await
     .map_err(fail)
