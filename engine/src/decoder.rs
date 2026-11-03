@@ -62,6 +62,7 @@ impl Decoder {
             .spawn()
             .with_context(|| format!("running `{ffmpeg}` (is FFmpeg installed?)"))?;
         let mut stdout = child.stdout.take().context("ffmpeg has no stdout")?;
+        widen_pipe(&stdout);
 
         let frame_len = nv12_len(info.width, info.height);
         let (frame_tx, frames): (SyncSender<Frame>, _) = mpsc::sync_channel(QUEUE_DEPTH);
@@ -114,6 +115,26 @@ impl Decoder {
 
 #[derive(Debug)]
 pub struct Ended;
+
+/// Linux pipes default to 64 KiB, so a 1080p frame takes ~48 reads and as many
+/// wake-ups. At 1 MiB it takes three, which lets the CPU stay in deep idle states
+/// between frames. Failure just keeps the default.
+#[cfg(target_os = "linux")]
+fn widen_pipe(pipe: &std::process::ChildStdout) {
+    use std::os::fd::AsRawFd;
+    const SIZE: libc::c_int = 1 << 20;
+    // SAFETY: F_SETPIPE_SZ only resizes the kernel buffer of a pipe we own.
+    let result = unsafe { libc::fcntl(pipe.as_raw_fd(), libc::F_SETPIPE_SZ, SIZE) };
+    if result < 0 {
+        log::debug!(
+            "could not enlarge the decoder pipe: {}",
+            std::io::Error::last_os_error()
+        );
+    }
+}
+
+#[cfg(not(target_os = "linux"))]
+fn widen_pipe(_pipe: &std::process::ChildStdout) {}
 
 impl Drop for Decoder {
     fn drop(&mut self) {

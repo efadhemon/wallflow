@@ -102,6 +102,27 @@ tests/gnome-headless/run.sh [VIDEO]                          # needs gnome-shell
 MONITORS="1920x1080 1280x720" tests/gnome-headless/run.sh    # two monitors
 ```
 
+## Old vs new, measured
+
+`SCRIPT=bench.sh tests/gnome-headless/run.sh VIDEO` runs both players in the
+same headless gnome-shell on the same 1080p30 clip (% of one core):
+
+| State | old: gnome-shell | new: gnome-shell | new: engine + ffmpeg |
+| --- | --- | --- | --- |
+| Static desktop | — | 1.5% | 0% |
+| Playing, app window on top | **89.8%** | **9.1%** | 41.6% (own process) |
+| Overview open | **94.4%** (still playing) | **1.4%** (paused) | 1.0% |
+| App maximized | — | 1.1% (paused) | 0.9% |
+
+The old player kept the shell's main thread — the one that runs every
+animation, the hot corner and window switching — about 90% busy. The new shell
+cost is compositing one more surface.
+
+Percentages on a near-idle laptop overstate the engine: cores sit at low clocks
+and in deep idle states between frames. With one other core kept busy the same
+run measures engine 6.0% + ffmpeg 9.4%. Energy, not CPU %, is the right metric
+there, and hardware decoding wins on it.
+
 ## Measured (Ubuntu, GNOME 50 Wayland, i7-8750H, UHD 630, 1080p30 H.264)
 
 | Decoder | engine | ffmpeg | total (one core = 100%) |

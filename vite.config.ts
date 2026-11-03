@@ -12,7 +12,8 @@ export default defineConfig({
     strictPort: true,
     host: host || false,
     hmr: host ? { protocol: "ws", host, port: 1421 } : undefined,
-    watch: { ignored: ["**/src-tauri/**"] },
+    // The engine builds into engine/target; watching it reloads the page on every cargo build.
+    watch: { ignored: ["**/src-tauri/**", "**/engine/**"] },
   },
   envPrefix: ["VITE_", "TAURI_ENV_"],
   build: {
