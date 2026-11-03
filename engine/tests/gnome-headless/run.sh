@@ -28,5 +28,5 @@ echo "test dir: $ROOT"
 # private bus starts (dconf-service above all) writes into the temp dir.
 exec env XDG_CONFIG_HOME="$ROOT/config" XDG_DATA_HOME="$ROOT/data" \
   XDG_CACHE_HOME="$ROOT/cache" XDG_STATE_HOME="$ROOT/state" \
-  EXTRA_EXTENSIONS="${EXTRA_EXTENSIONS:-}" ROOT="$ROOT" ENGINE="$ENGINE" VIDEO="$VIDEO" MONITORS="${MONITORS:-1920x1080}" \
+  DEBUG_GEOMETRY="${DEBUG_GEOMETRY:-}" EXTRA_EXTENSIONS="${EXTRA_EXTENSIONS:-}" ROOT="$ROOT" ENGINE="$ENGINE" VIDEO="$VIDEO" MONITORS="${MONITORS:-1920x1080}" \
   dbus-run-session -- "$HERE/${SCRIPT:-session.sh}"

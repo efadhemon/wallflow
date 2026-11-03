@@ -29,6 +29,25 @@ every platform without slowing the desktop.
 
 ## Sessions
 
+### 2026-11-04 — overview shows the video (live-engine)
+
+- Your report after the real-session test: colours and fill right, no lag,
+  icons on top and clickable — but the **overview showed the old static image**
+  and the video only came back after leaving it.
+- Fix in the shim: on overview `showing`, a clone of the video window is laid
+  over every workspace background (per monitor). Playback is paused there, so the
+  overview shows the frame it stopped on and the desktop resumes from it.
+  - `CoverClone`: scaled evenly to cover the workspace box (its aspect differs
+    from the monitor's — a plain clone squashed the video ~19%).
+  - `RoundedLikeBackground` (GLSL): same rounded corners as GNOME's card, read
+    from the background it covers; corners only, so no strip along the edges.
+    A Clone paints in its source's size, which the shader has to account for.
+  - The static background under the clone is hidden while it is there.
+- Headless test: new check "overview shows the video" + overview screenshot;
+  `DEBUG_GEOMETRY=1` prints the overview layout. All checks pass with 1 and 2
+  monitors and with DING.
+- **Needs a logout/login** to load the new shim code in the real session.
+
 ### 2026-11-04 — engine tested in the real session (live-engine)
 
 - Installed the shim with `engine/gnome-shim/install.sh` (old
@@ -62,9 +81,9 @@ every platform without slowing the desktop.
 
 ## Open / not verified
 
-- **Visual check in the real session not done yet**: every window was maximized,
-  so the shim correctly kept it paused. Needs one look with the desktop visible
-  (minimize windows, then start it — commands below).
+- Real session, visually checked by you: desktop playback, colours, fill, no
+  lag, icons — OK. The overview fix is verified headless only; check it after
+  the next login.
 - Engine CPU % on a near-idle laptop reads high (~40% of one core) because cores
   idle at low clocks; with one other core busy the same run is ~15%. Energy
   (RAPL needs root here) is the right metric; not measured.
@@ -75,13 +94,15 @@ every platform without slowing the desktop.
 
 ## Next step
 
-1. Visual check (30 s): minimize all windows, then
+1. After logging out and in (loads the new shim), check the overview: minimize
+   all windows, then
 
    ```bash
    gdbus call --session --dest com.efadhemon.Wallflow.LiveShim --object-path /com/efadhemon/Wallflow/LiveShim --method com.efadhemon.Wallflow.LiveShim.Start "['$PWD/engine/target/release/wallflow-live', '$HOME/Videos/14846689_1920_1080_30fps.mp4', '--background']"
    ```
 
-   Hot corner / overview should stay smooth; `...LiveShim.Stop` ends it.
+   Hot corner → the overview should show the video frame (rounded corners), stay
+   smooth, and the desktop should continue from that frame. `...LiveShim.Stop` ends it.
 2. Step 6: app integration. Plan: build `wallflow-live` as a Tauri `externalBin`
    sidecar; Linux GNOME backend talks to the shim over D-Bus (`Start`/`Stop`/`Send`),
    offers to install/enable the shim when missing; Live page imports videos via

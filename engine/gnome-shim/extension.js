@@ -10,14 +10,24 @@
 // share the shell's main loop and stall its animations (overview, hot corner),
 // which is exactly what this design avoids.
 //
+// The overview draws its own copy of the background for every workspace, so
+// while it is open the shim lays a clone of the video window over those copies:
+// the overview shows the frame playback paused on instead of the old static
+// image, and the desktop picks up from that same frame when it closes.
+//
 // It also knows when the desktop cannot be seen — overview open, screen locked,
 // a fullscreen or maximized window on top — and pauses the renderer then, so a
 // covered wallpaper costs nothing and the shell's own animations get the GPU.
 
+import Clutter from 'gi://Clutter';
+import Cogl from 'gi://Cogl';
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
+import GObject from 'gi://GObject';
 import Meta from 'gi://Meta';
+import Shell from 'gi://Shell';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
+import * as Workspace from 'resource:///org/gnome/shell/ui/workspace.js';
 import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
 
 const BUS_NAME = 'com.efadhemon.Wallflow.LiveShim';
@@ -41,6 +51,90 @@ const IFACE = `
   </interface>
 </node>`;
 
+// The overview draws each workspace background with rounded corners (on the
+// work area, radius growing as the overview opens). This gives the video clone
+// the same corners. Only the corner squares are touched: the straight edges are
+// already cropped by the workspace's own clip.
+const ROUNDED_DECLARATIONS = `
+uniform vec2 size;
+uniform vec4 bounds;
+uniform float radius;
+`;
+const ROUNDED_CODE = `
+vec2 point = cogl_tex_coord_in[0].xy * size;
+vec2 inner_lo = bounds.xy + radius;
+vec2 inner_hi = bounds.xy + bounds.zw - radius;
+if (radius > 0.0 &&
+    (point.x < inner_lo.x || point.x > inner_hi.x) &&
+    (point.y < inner_lo.y || point.y > inner_hi.y)) {
+    vec2 nearest = clamp(point, inner_lo, inner_hi);
+    // +1 (not +0.5) so the arc meets the straight edges without a 1 px step.
+    cogl_color_out *= clamp(radius - length(point - nearest) + 1.0, 0.0, 1.0);
+}
+`;
+
+const RoundedLikeBackground = GObject.registerClass(
+class RoundedLikeBackground extends Shell.GLSLEffect {
+    _init(background) {
+        super._init();
+        this._background = background;
+        this._size = this.get_uniform_location('size');
+        this._bounds = this.get_uniform_location('bounds');
+        this._radius = this.get_uniform_location('radius');
+    }
+
+    vfunc_build_pipeline() {
+        this.add_glsl_snippet(Cogl.SnippetHook.FRAGMENT,
+            ROUNDED_DECLARATIONS, ROUNDED_CODE, false);
+    }
+
+    vfunc_paint_target(...args) {
+        const clone = this.get_actor();
+        const background = this._background;
+        const group = background._backgroundGroup;
+        const monitor = Main.layoutManager.monitors[background._monitorIndex];
+        const content = background._bgManager?.backgroundActor?.content;
+        const source = clone.source;
+        if (monitor && content && group && source?.width > 0 && clone.width > 0) {
+            // GNOME maps the work area onto the background group per axis; the
+            // clone sits in that group at its own offset. The offscreen target
+            // spans the source's size, measured in the clone's own units, so
+            // texture coordinates times the source size are clone coordinates.
+            const sx = group.width / monitor.width;
+            const sy = group.height / monitor.height;
+            const area = Main.layoutManager.getWorkAreaForMonitor(background._monitorIndex);
+            this.set_uniform_float(this._size, 2, [source.width, source.height]);
+            this.set_uniform_float(this._bounds, 4, [
+                (area.x - monitor.x) * sx - clone.x, (area.y - monitor.y) * sy - clone.y,
+                area.width * sx, area.height * sy,
+            ]);
+            this.set_uniform_float(this._radius, 1, [content.rounded_clip_radius]);
+        }
+        super.vfunc_paint_target(...args);
+    }
+});
+
+// The overview's workspace boxes do not have the monitor's aspect ratio (and it
+// changes while the overview animates). Like the static background, the video
+// is scaled evenly to cover the box and centred; the box crops the overflow.
+const CoverClone = GObject.registerClass(
+class CoverClone extends Clutter.Clone {
+    vfunc_allocate(box) {
+        const source = this.source;
+        const [width, height] = [box.get_width(), box.get_height()];
+        if (!source || source.width <= 0 || source.height <= 0 || width <= 0 || height <= 0) {
+            super.vfunc_allocate(box);
+            return;
+        }
+        const scale = Math.max(width / source.width, height / source.height);
+        const [w, h] = [source.width * scale, source.height * scale];
+        const cover = new Clutter.ActorBox();
+        cover.set_origin(box.x1 + (width - w) / 2, box.y1 + (height - h) / 2);
+        cover.set_size(w, h);
+        super.vfunc_allocate(cover);
+    }
+});
+
 export default class WallflowLiveShim extends Extension {
     enable() {
         this._client = null;
@@ -50,6 +144,8 @@ export default class WallflowLiveShim extends Extension {
         this._windows = new Map();
         this._paused = false;
         this._syncId = 0;
+        // WorkspaceBackground → the clone of our window laid over it.
+        this._clones = new Map();
 
         this._dbus = Gio.DBusExportedObject.wrapJSObject(IFACE, this);
         this._dbus.export(Gio.DBus.session, OBJECT_PATH);
@@ -67,7 +163,10 @@ export default class WallflowLiveShim extends Extension {
             [global.window_manager, global.window_manager.connect('map', sync)],
             [global.window_manager, global.window_manager.connect('destroy', sync)],
             [global.workspace_manager, global.workspace_manager.connect('active-workspace-changed', sync)],
-            [Main.overview, Main.overview.connect('showing', sync)],
+            [Main.overview, Main.overview.connect('showing', () => {
+                this._cloneIntoOverview();
+                sync();
+            })],
             [Main.overview, Main.overview.connect('hidden', sync)],
             [Main.sessionMode, Main.sessionMode.connect('updated', sync)],
             [Main.layoutManager, Main.layoutManager.connect('monitors-changed', () => this._placeWindows())],
@@ -83,6 +182,7 @@ export default class WallflowLiveShim extends Extension {
             this._syncId = 0;
         }
         this.Stop();
+        this._removeClones();
         this._dbus.unexport();
         this._dbus = null;
         Gio.bus_unown_name(this._nameId);
@@ -149,6 +249,7 @@ export default class WallflowLiveShim extends Extension {
     _forget() {
         for (const win of [...this._windows.keys()])
             this._releaseWindow(win);
+        this._removeClones();
         this._client = null;
         this._process = null;
         this._stdin = null;
@@ -234,6 +335,65 @@ export default class WallflowLiveShim extends Extension {
             if (parent && parent === background.get_parent())
                 parent.set_child_above_sibling(actor, background);
         }
+    }
+
+    // Every workspace (per monitor) in the overview has a WorkspaceBackground
+    // holding a copy of the static background; put the video over it. They are
+    // long-lived and created by the shell, so they are found by walking the
+    // overview rather than by patching the class.
+    _cloneIntoOverview() {
+        const sources = new Map();
+        for (const win of this._windows.keys()) {
+            const actor = win.get_compositor_private();
+            if (actor)
+                sources.set(win.get_monitor(), actor);
+        }
+        if (sources.size === 0)
+            return;
+
+        const pending = [Main.layoutManager.overviewGroup];
+        while (pending.length > 0) {
+            const actor = pending.pop();
+            if (actor instanceof Workspace.WorkspaceBackground)
+                this._cloneOver(actor, sources.get(actor._monitorIndex));
+            else
+                pending.push(...actor.get_children());
+        }
+    }
+
+    _cloneOver(background, source) {
+        const group = background._backgroundGroup;
+        if (!source || !group)
+            return;
+        const existing = this._clones.get(background);
+        if (existing?.source === source)
+            return;
+        existing?.destroy();
+
+        // Gets the whole background group (a BinLayout) and covers it.
+        const clone = new CoverClone({source, x_expand: true, y_expand: true});
+        clone.add_effect(new RoundedLikeBackground(background));
+        group.add_child(clone);
+        group.set_child_above_sibling(clone, null);
+        // The static image underneath would show through the antialiased
+        // corners; with it hidden they reveal the overview, as GNOME's do.
+        const staticActor = background._bgManager?.backgroundActor;
+        if (staticActor)
+            staticActor.opacity = 0;
+        this._clones.set(background, clone);
+        clone.connect('destroy', () => {
+            if (this._clones.get(background) === clone)
+                this._clones.delete(background);
+            const current = background._bgManager?.backgroundActor;
+            if (current)
+                current.opacity = 255;
+        });
+    }
+
+    _removeClones() {
+        for (const clone of [...this._clones.values()])
+            clone.destroy();
+        this._clones.clear();
     }
 
     _queueSync() {

@@ -35,6 +35,11 @@ probe Shot "'$ROOT/desktop.png'" >/dev/null
 
 probe Overview true >/dev/null; sleep 2
 check "overview pauses" "$(paused)" true
+# One per workspace background: at least one per monitor (more with several workspaces).
+clones=$(probe Report | grep -o '"overviewClones":[0-9]*' | grep -o '[0-9]*$')
+check "overview shows the video, not the static image" "$([ "$clones" -ge "$monitor_count" ] && echo yes || echo "no ($clones)")" yes
+probe Shot "'$ROOT/overview.png'" >/dev/null
+[ -n "${DEBUG_GEOMETRY:-}" ] && probe Report | grep -oE '"(workArea|overviewGeometry)":.*"overviewClones"' | head -c 1500 && echo && probe Report | grep -oE '"cls":"wallflow-live"[^}]*' 
 probe Overview false >/dev/null; sleep 2
 check "leaving the overview resumes" "$(paused)" false
 

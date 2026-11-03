@@ -1,3 +1,4 @@
+import Clutter from 'gi://Clutter';
 import Gio from 'gi://Gio';
 import Shell from 'gi://Shell';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
@@ -25,8 +26,27 @@ export default class Probe extends Extension {
       windowGroupOrder: kids.map(k => k === bg ? 'BACKGROUND' : (k.meta_window ? `${k.meta_window.get_wm_class()}|${k.meta_window.get_title()}` : k.constructor.name)),
       windows: global.get_window_actors().map(a => { const w = a.meta_window; return {
         cls: w.get_wm_class(), title: w.get_title(), type: w.get_window_type(), skipTaskbar: w.skip_taskbar,
-        sticky: w.is_on_all_workspaces(), max: (w.is_maximized ? w.is_maximized() : String(w.get_maximized?.())), canMax: w.can_maximize(), mon: w.get_monitor(), fs: w.is_fullscreen(), rect: w.get_frame_rect(), parentIsWindowGroup: a.get_parent() === wg }; }),
+        sticky: w.is_on_all_workspaces(), max: (w.is_maximized ? w.is_maximized() : String(w.get_maximized?.())), canMax: w.can_maximize(), mon: w.get_monitor(), fs: w.is_fullscreen(), rect: (r => [r.x, r.y, r.width, r.height])(w.get_frame_rect()), buf: (r => [r.x, r.y, r.width, r.height])(w.get_buffer_rect()), actorBox: [a.x, a.y, a.width, a.height], parentIsWindowGroup: a.get_parent() === wg }; }),
       tabList: global.display.get_tab_list(0, null).map(w => w.get_wm_class()),
+      workArea: (r => [r.x, r.y, r.width, r.height])(Main.layoutManager.getWorkAreaForMonitor(0)),
+      overviewGeometry: (() => {
+        const out = []; const todo = [Main.layoutManager.overviewGroup];
+        while (todo.length) { const a = todo.pop();
+          if (a.constructor.name.includes('WorkspaceBackground') && a._backgroundGroup) {
+            const g = a._backgroundGroup; const bgActor = a._bgManager?.backgroundActor;
+            out.push({bin: [a._bin.x, a._bin.y, a._bin.width, a._bin.height], group: [g.x, g.y, g.width, g.height],
+              bg: bgActor ? [bgActor.x, bgActor.y, bgActor.width, bgActor.height] : null,
+              radius: bgActor?.content?.rounded_clip_radius,
+              kids: g.get_children().map(k => [k.constructor.name, k.x, k.y, k.width, k.height])});
+          }
+          todo.push(...a.get_children()); }
+        return out; })(),
+      overviewClones: (() => {
+        let n = 0; const todo = [Main.layoutManager.overviewGroup];
+        while (todo.length) { const a = todo.pop();
+          if (a instanceof Clutter.Clone && a.source?.meta_window?.get_wm_class() === 'wallflow-live' && a.get_parent()) n++;
+          todo.push(...a.get_children()); }
+        return n; })(),
     });
   }
   async Shot(path) {
