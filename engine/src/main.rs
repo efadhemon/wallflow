@@ -15,7 +15,7 @@ use anyhow::{Context, Result, bail};
 use decoder::{Decoder, Frame};
 use fit::FillMode;
 use probe::VideoInfo;
-use render::Renderer;
+use render::{Gpu, Target};
 use serde::Deserialize;
 use std::io::BufRead;
 use std::path::PathBuf;
@@ -140,18 +140,24 @@ struct Stats {
     starved: u32,
 }
 
+struct Screen {
+    window: Arc<Window>,
+    target: Target,
+}
+
 struct App {
     opts: Opts,
     info: VideoInfo,
     instance: wgpu::Instance,
-    window: Option<Arc<Window>>,
-    renderer: Option<Renderer>,
+    gpu: Option<Gpu>,
+    /// One per monitor in background mode, a single one otherwise.
+    screens: Vec<Screen>,
     decoder: Decoder,
     clock: Clock,
     paused: bool,
-    /// A frame was uploaded and is waiting for its redraw. No further frame is
-    /// taken until it is drawn, so when the compositor stops asking for frames
-    /// (desktop covered) decoding stops too.
+    /// A frame was uploaded and no window has drawn it yet. No further frame is
+    /// taken until one does, so when the compositor stops asking for frames
+    /// (desktop covered everywhere) decoding stops too.
     awaiting_draw: bool,
     decoded_any: bool,
     decoder_restarts: u32,
@@ -159,23 +165,42 @@ struct App {
 }
 
 impl App {
-    fn create_window(&mut self, event_loop: &ActiveEventLoop) -> Result<()> {
-        let mut attrs = Window::default_attributes()
-            .with_title("Wallflow Live")
-            .with_decorations(!self.opts.background);
-
+    fn create_windows(&mut self, event_loop: &ActiveEventLoop) -> Result<()> {
         if self.opts.background {
-            // Wayland gives no primary monitor, so take the first one.
-            if let Some(monitor) = event_loop
-                .primary_monitor()
-                .or_else(|| event_loop.available_monitors().next())
-            {
-                attrs = attrs.with_inner_size(monitor.size());
+            let mut seen = Vec::new();
+            for monitor in event_loop.available_monitors() {
+                let position = monitor.position();
+                if seen.contains(&position) {
+                    continue; // mirrored outputs
+                }
+                seen.push(position);
+                // The title carries the monitor's origin, which is how the
+                // desktop shim knows where to put each window.
+                let attrs = Window::default_attributes()
+                    .with_title(format!("Wallflow Live @{},{}", position.x, position.y))
+                    .with_decorations(false)
+                    .with_position(position)
+                    .with_inner_size(monitor.size());
+                self.open_screen(event_loop, attrs)?;
             }
-        } else {
-            attrs = attrs.with_inner_size(winit::dpi::LogicalSize::new(960.0, 540.0));
         }
+        if self.screens.is_empty() {
+            let attrs = Window::default_attributes()
+                .with_title("Wallflow Live")
+                .with_decorations(!self.opts.background)
+                .with_inner_size(winit::dpi::LogicalSize::new(960.0, 540.0));
+            self.open_screen(event_loop, attrs)?;
+        }
+        log::info!("drawing on {} window(s)", self.screens.len());
+        self.clock.restart();
+        Ok(())
+    }
 
+    fn open_screen(
+        &mut self,
+        event_loop: &ActiveEventLoop,
+        mut attrs: winit::window::WindowAttributes,
+    ) -> Result<()> {
         #[cfg(target_os = "linux")]
         {
             attrs = winit::platform::wayland::WindowAttributesExtWayland::with_name(
@@ -191,10 +216,16 @@ impl App {
                 log::warn!("could not make the window click-through: {err}");
             }
         }
-        let renderer = Renderer::new(&self.instance, window.clone(), self.info, self.opts.fill)?;
-        self.window = Some(window);
-        self.renderer = Some(renderer);
-        self.clock.restart();
+        let target = match &self.gpu {
+            Some(gpu) => gpu.add_target(&self.instance, window.clone(), self.opts.fill)?,
+            None => {
+                let (gpu, target) =
+                    Gpu::new(&self.instance, window.clone(), self.info, self.opts.fill)?;
+                self.gpu = Some(gpu);
+                target
+            }
+        };
+        self.screens.push(Screen { window, target });
         Ok(())
     }
 
@@ -230,13 +261,13 @@ impl App {
             self.decoded_any = true;
         }
         if let Some(frame) = latest {
-            if let Some(renderer) = self.renderer.as_mut() {
-                renderer.upload(&frame.data);
+            if let Some(gpu) = self.gpu.as_mut() {
+                gpu.upload(&frame.data);
             }
             self.decoder.give_back(frame);
             self.awaiting_draw = true;
-            if let Some(window) = &self.window {
-                window.request_redraw();
+            for screen in &self.screens {
+                screen.window.request_redraw();
             }
         }
     }
@@ -282,8 +313,8 @@ impl App {
         }
         let secs = (now - since).as_secs_f64();
         log::info!(
-            "drawn {:.1} fps, dropped {}, decoder late {}",
-            self.stats.drawn as f64 / secs,
+            "drawn {:.1} fps per window, dropped {}, decoder late {}",
+            self.stats.drawn as f64 / secs / self.screens.len().max(1) as f64,
             self.stats.dropped,
             self.stats.starved
         );
@@ -302,11 +333,12 @@ impl App {
                 self.clock.restart();
             }
             Control::Fill { mode } => {
-                if let Some(renderer) = self.renderer.as_mut() {
-                    renderer.set_mode(mode);
-                }
-                if let Some(window) = &self.window {
-                    window.request_redraw();
+                self.opts.fill = mode;
+                if let Some(gpu) = &self.gpu {
+                    for screen in &mut self.screens {
+                        gpu.set_mode(&mut screen.target, mode);
+                        screen.window.request_redraw();
+                    }
                 }
             }
             Control::Quit => event_loop.exit(),
@@ -316,8 +348,8 @@ impl App {
 
 impl ApplicationHandler<UserEvent> for App {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
-        if self.window.is_none()
-            && let Err(err) = self.create_window(event_loop)
+        if self.screens.is_empty()
+            && let Err(err) = self.create_windows(event_loop)
         {
             log::error!("could not open the wallpaper window: {err:#}");
             event_loop.exit();
@@ -334,20 +366,22 @@ impl ApplicationHandler<UserEvent> for App {
         }
     }
 
-    fn window_event(&mut self, event_loop: &ActiveEventLoop, _id: WindowId, event: WindowEvent) {
+    fn window_event(&mut self, event_loop: &ActiveEventLoop, id: WindowId, event: WindowEvent) {
+        let Some(index) = self.screens.iter().position(|s| s.window.id() == id) else {
+            return;
+        };
         match event {
             WindowEvent::CloseRequested => event_loop.exit(),
             WindowEvent::Resized(size) => {
-                if let Some(renderer) = self.renderer.as_mut() {
-                    renderer.resize(size.width, size.height);
-                }
-                if let Some(window) = &self.window {
-                    window.request_redraw();
+                if let Some(gpu) = &self.gpu {
+                    let screen = &mut self.screens[index];
+                    gpu.resize(&mut screen.target, size.width, size.height);
+                    screen.window.request_redraw();
                 }
             }
             WindowEvent::RedrawRequested => {
-                if let Some(renderer) = self.renderer.as_mut()
-                    && renderer.draw()
+                if let Some(gpu) = &self.gpu
+                    && gpu.draw(&self.screens[index].target)
                 {
                     self.stats.drawn += 1;
                 }
@@ -358,7 +392,7 @@ impl ApplicationHandler<UserEvent> for App {
     }
 
     fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
-        if self.paused || self.renderer.is_none() {
+        if self.paused || self.gpu.is_none() {
             event_loop.set_control_flow(ControlFlow::Wait);
             return;
         }
@@ -429,8 +463,8 @@ fn main() -> Result<()> {
         opts,
         info,
         instance,
-        window: None,
-        renderer: None,
+        gpu: None,
+        screens: Vec::new(),
         decoder,
         paused: false,
         awaiting_draw: false,

@@ -4,7 +4,7 @@
 
 use crate::fit::{FillMode, Placement, place};
 use crate::probe::VideoInfo;
-use anyhow::{Context, Result, anyhow};
+use anyhow::{Context, Result, anyhow, bail};
 use std::sync::Arc;
 use winit::window::Window;
 
@@ -66,33 +66,47 @@ struct Params {
     full_range: f32,
 }
 
-pub struct Renderer {
-    surface: wgpu::Surface<'static>,
+/// Everything shared by all monitors: one device, one pipeline, and the two
+/// plane textures, so a frame is decoded and uploaded once however many
+/// screens show it.
+pub struct Gpu {
     device: wgpu::Device,
     queue: wgpu::Queue,
-    config: wgpu::SurfaceConfiguration,
+    adapter: wgpu::Adapter,
+    format: wgpu::TextureFormat,
     pipeline: wgpu::RenderPipeline,
-    bind_group: wgpu::BindGroup,
-    params: wgpu::Buffer,
+    layout: wgpu::BindGroupLayout,
+    sampler: wgpu::Sampler,
+    view_y: wgpu::TextureView,
+    view_uv: wgpu::TextureView,
     tex_y: wgpu::Texture,
     tex_uv: wgpu::Texture,
     video: VideoInfo,
-    mode: FillMode,
     /// Nothing is drawn until the first frame is uploaded, so a black flash
     /// never replaces the static wallpaper underneath.
     has_frame: bool,
 }
 
-impl Renderer {
+/// One window (monitor): its surface and where the video sits on it.
+pub struct Target {
+    surface: wgpu::Surface<'static>,
+    config: wgpu::SurfaceConfiguration,
+    params: wgpu::Buffer,
+    bind_group: wgpu::BindGroup,
+    mode: FillMode,
+}
+
+impl Gpu {
+    /// Opens the GPU that can present to `window` and returns the shared state
+    /// together with that window's target.
     pub fn new(
         instance: &wgpu::Instance,
         window: Arc<Window>,
         video: VideoInfo,
         mode: FillMode,
-    ) -> Result<Self> {
-        let size = window.inner_size();
+    ) -> Result<(Self, Target)> {
         let surface = instance
-            .create_surface(window)
+            .create_surface(window.clone())
             .context("creating the window surface")?;
 
         // A wallpaper never needs the discrete GPU; waking it costs battery.
@@ -117,17 +131,15 @@ impl Renderer {
         }))
         .context("opening the GPU")?;
 
-        let mut config = surface
-            .get_default_config(&adapter, size.width.max(1), size.height.max(1))
-            .ok_or_else(|| anyhow!("the GPU cannot present to this window"))?;
         // The shader writes display-referred values, so skip the sRGB encode.
         let caps = surface.get_capabilities(&adapter);
-        if let Some(format) = caps.formats.iter().find(|format| !format.is_srgb()) {
-            config.format = *format;
-        }
-        config.present_mode = wgpu::PresentMode::Fifo;
-        config.desired_maximum_frame_latency = 1;
-        surface.configure(&device, &config);
+        let format = caps
+            .formats
+            .iter()
+            .copied()
+            .find(|format| !format.is_srgb())
+            .or_else(|| caps.formats.first().copied())
+            .ok_or_else(|| anyhow!("the GPU cannot present to this window"))?;
 
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("nv12"),
@@ -183,7 +195,7 @@ impl Renderer {
                 module: &shader,
                 entry_point: Some("fs"),
                 compilation_options: Default::default(),
-                targets: &[Some(config.format.into())],
+                targets: &[Some(format.into())],
             }),
             multiview_mask: None,
             cache: None,
@@ -204,13 +216,6 @@ impl Renderer {
             wgpu::TextureFormat::Rg8Unorm,
         );
 
-        let params = device.create_buffer(&wgpu::BufferDescriptor {
-            label: Some("params"),
-            size: std::mem::size_of::<Params>() as u64,
-            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
-            mapped_at_creation: false,
-        });
-
         let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
             label: Some("video"),
             mag_filter: wgpu::FilterMode::Linear,
@@ -218,9 +223,69 @@ impl Renderer {
             ..Default::default()
         });
 
-        let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+        let gpu = Self {
+            view_y: tex_y.create_view(&Default::default()),
+            view_uv: tex_uv.create_view(&Default::default()),
+            device,
+            queue,
+            adapter,
+            format,
+            pipeline,
+            layout,
+            sampler,
+            tex_y,
+            tex_uv,
+            video,
+            has_frame: false,
+        };
+        let target = gpu.target_for(surface, window.inner_size(), mode)?;
+        Ok((gpu, target))
+    }
+
+    /// A target for another monitor's window, sharing this GPU.
+    pub fn add_target(
+        &self,
+        instance: &wgpu::Instance,
+        window: Arc<Window>,
+        mode: FillMode,
+    ) -> Result<Target> {
+        let size = window.inner_size();
+        let surface = instance
+            .create_surface(window)
+            .context("creating the window surface")?;
+        self.target_for(surface, size, mode)
+    }
+
+    fn target_for(
+        &self,
+        surface: wgpu::Surface<'static>,
+        size: winit::dpi::PhysicalSize<u32>,
+        mode: FillMode,
+    ) -> Result<Target> {
+        let mut config = surface
+            .get_default_config(&self.adapter, size.width.max(1), size.height.max(1))
+            .ok_or_else(|| anyhow!("the GPU cannot present to this window"))?;
+        if !surface
+            .get_capabilities(&self.adapter)
+            .formats
+            .contains(&self.format)
+        {
+            bail!("this monitor's surface does not support {:?}", self.format);
+        }
+        config.format = self.format;
+        config.present_mode = wgpu::PresentMode::Fifo;
+        config.desired_maximum_frame_latency = 1;
+        surface.configure(&self.device, &config);
+
+        let params = self.device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("params"),
+            size: std::mem::size_of::<Params>() as u64,
+            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+            mapped_at_creation: false,
+        });
+        let bind_group = self.device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("nv12"),
-            layout: &layout,
+            layout: &self.layout,
             entries: &[
                 wgpu::BindGroupEntry {
                     binding: 0,
@@ -228,65 +293,39 @@ impl Renderer {
                 },
                 wgpu::BindGroupEntry {
                     binding: 1,
-                    resource: wgpu::BindingResource::TextureView(
-                        &tex_y.create_view(&Default::default()),
-                    ),
+                    resource: wgpu::BindingResource::TextureView(&self.view_y),
                 },
                 wgpu::BindGroupEntry {
                     binding: 2,
-                    resource: wgpu::BindingResource::TextureView(
-                        &tex_uv.create_view(&Default::default()),
-                    ),
+                    resource: wgpu::BindingResource::TextureView(&self.view_uv),
                 },
                 wgpu::BindGroupEntry {
                     binding: 3,
-                    resource: wgpu::BindingResource::Sampler(&sampler),
+                    resource: wgpu::BindingResource::Sampler(&self.sampler),
                 },
             ],
         });
 
-        let renderer = Self {
+        let target = Target {
             surface,
-            device,
-            queue,
             config,
-            pipeline,
-            bind_group,
             params,
-            tex_y,
-            tex_uv,
-            video,
+            bind_group,
             mode,
-            has_frame: false,
         };
-        renderer.write_params();
-        Ok(renderer)
+        self.write_params(&target);
+        Ok(target)
     }
 
-    pub fn resize(&mut self, width: u32, height: u32) {
-        if width == 0 || height == 0 {
-            return;
-        }
-        self.config.width = width;
-        self.config.height = height;
-        self.surface.configure(&self.device, &self.config);
-        self.write_params();
-    }
-
-    pub fn set_mode(&mut self, mode: FillMode) {
-        self.mode = mode;
-        self.write_params();
-    }
-
-    fn write_params(&self) {
+    fn write_params(&self, target: &Target) {
         let Placement {
             pos_scale,
             uv_offset,
             uv_scale,
         } = place(
-            self.mode,
+            target.mode,
             (self.video.width, self.video.height),
-            (self.config.width, self.config.height),
+            (target.config.width, target.config.height),
         );
         let params = Params {
             pos_scale,
@@ -296,7 +335,22 @@ impl Renderer {
             full_range: if self.video.full_range { 1.0 } else { 0.0 },
         };
         self.queue
-            .write_buffer(&self.params, 0, bytemuck::bytes_of(&params));
+            .write_buffer(&target.params, 0, bytemuck::bytes_of(&params));
+    }
+
+    pub fn resize(&self, target: &mut Target, width: u32, height: u32) {
+        if width == 0 || height == 0 {
+            return;
+        }
+        target.config.width = width;
+        target.config.height = height;
+        target.surface.configure(&self.device, &target.config);
+        self.write_params(target);
+    }
+
+    pub fn set_mode(&self, target: &mut Target, mode: FillMode) {
+        target.mode = mode;
+        self.write_params(target);
     }
 
     /// Copies one NV12 frame into the two plane textures.
@@ -315,17 +369,17 @@ impl Renderer {
         self.has_frame = true;
     }
 
-    /// Draws the latest frame. Returns false when the frame could not be shown
-    /// (surface lost or occluded) so the caller can back off.
-    pub fn draw(&mut self) -> bool {
+    /// Draws the latest frame into one window. Returns false when it could not
+    /// be shown (surface lost or occluded) so the caller can back off.
+    pub fn draw(&self, target: &Target) -> bool {
         if !self.has_frame {
             return false;
         }
-        let frame = match self.surface.get_current_texture() {
+        let frame = match target.surface.get_current_texture() {
             wgpu::CurrentSurfaceTexture::Success(frame)
             | wgpu::CurrentSurfaceTexture::Suboptimal(frame) => frame,
             wgpu::CurrentSurfaceTexture::Outdated | wgpu::CurrentSurfaceTexture::Lost => {
-                self.surface.configure(&self.device, &self.config);
+                target.surface.configure(&self.device, &target.config);
                 return false;
             }
             other => {
@@ -355,7 +409,7 @@ impl Renderer {
                 ..Default::default()
             });
             pass.set_pipeline(&self.pipeline);
-            pass.set_bind_group(0, &self.bind_group, &[]);
+            pass.set_bind_group(0, &target.bind_group, &[]);
             pass.draw(0..4, 0..1);
         }
         self.queue.submit([encoder.finish()]);

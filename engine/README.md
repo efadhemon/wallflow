@@ -75,8 +75,14 @@ D-Bus API on the session bus, `com.efadhemon.Wallflow.LiveShim` at
 properties `Version`, `Running`, `Paused`. `Start` only accepts a path to a
 `wallflow-live` executable.
 
+In background mode the engine opens one window per monitor, titled with that
+monitor's origin (`Wallflow Live @x,y`), and the shim puts each on its monitor.
+One decode and one upload per frame serve every monitor. Playback pauses only
+when no monitor shows any desktop.
+
 ```bash
-tests/gnome-headless/run.sh [VIDEO]   # needs gnome-shell and gnome-text-editor
+tests/gnome-headless/run.sh [VIDEO]                          # needs gnome-shell, gnome-text-editor
+MONITORS="1920x1080 1280x720" tests/gnome-headless/run.sh    # two monitors
 ```
 
 ## Measured (Ubuntu, GNOME 50 Wayland, i7-8750H, UHD 630, 1080p30 H.264)
@@ -92,7 +98,7 @@ tests/gnome-headless/run.sh [VIDEO]   # needs gnome-shell and gnome-text-editor
 
 ## Next
 
-- One window per monitor (the shim already tracks monitor changes).
+- Per-monitor videos (all monitors currently show the same video, decoded once).
 - Shims for Windows (WorkerW), macOS (desktop-level `NSWindow`), wlroots/KDE
   (`wlr-layer-shell`) and X11 (`_NET_WM_WINDOW_TYPE_DESKTOP`).
 - Import step: transcode once to the monitor's resolution at ≤30 fps, so the

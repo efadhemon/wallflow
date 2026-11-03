@@ -46,8 +46,8 @@ export default class WallflowLiveShim extends Extension {
         this._client = null;
         this._process = null;
         this._stdin = null;
-        this._window = null;
-        this._windowSignals = [];
+        // MetaWindow → signal ids, one window per monitor.
+        this._windows = new Map();
         this._paused = false;
         this._syncId = 0;
 
@@ -70,7 +70,7 @@ export default class WallflowLiveShim extends Extension {
             [Main.overview, Main.overview.connect('showing', sync)],
             [Main.overview, Main.overview.connect('hidden', sync)],
             [Main.sessionMode, Main.sessionMode.connect('updated', sync)],
-            [Main.layoutManager, Main.layoutManager.connect('monitors-changed', () => this._placeWindow())],
+            [Main.layoutManager, Main.layoutManager.connect('monitors-changed', () => this._placeWindows())],
         ];
     }
 
@@ -147,7 +147,8 @@ export default class WallflowLiveShim extends Extension {
     // --- internals ---
 
     _forget() {
-        this._releaseWindow();
+        for (const win of [...this._windows.keys()])
+            this._releaseWindow(win);
         this._client = null;
         this._process = null;
         this._stdin = null;
@@ -166,58 +167,73 @@ export default class WallflowLiveShim extends Extension {
     _onWindowCreated(win) {
         if (!this._client?.owns_window(win))
             return;
-        this._releaseWindow();
-        this._window = win;
 
         win.set_type(Meta.WindowType.DESKTOP);
         win.hide_from_window_list();
         win.stick();
 
-        this._windowSignals = [
-            win.connect('unmanaged', () => this._releaseWindow()),
+        this._windows.set(win, [
+            win.connect('unmanaged', () => this._releaseWindow(win)),
             win.connect_after('raised', () => this._keepAboveBackground()),
-        ];
-        this._placeWindow();
-
-        // The actor exists once the first buffer is attached.
-        const actor = win.get_compositor_private();
-        if (actor) {
-            this._keepAboveBackground();
-        } else {
-            const id = win.connect('shown', () => {
-                win.disconnect(id);
+            // The renderer names each window after its monitor's origin.
+            win.connect('notify::title', () => this._placeWindow(win)),
+            win.connect('shown', () => {
+                this._placeWindow(win);
                 this._keepAboveBackground();
-            });
-        }
+            }),
+        ]);
+        this._placeWindow(win);
+        this._keepAboveBackground();
+        this._queueSync();
     }
 
-    _releaseWindow() {
-        if (this._window) {
-            for (const id of this._windowSignals)
-                this._window.disconnect(id);
-        }
-        this._windowSignals = [];
-        this._window = null;
+    _releaseWindow(win) {
+        for (const id of this._windows.get(win) ?? [])
+            win.disconnect(id);
+        this._windows.delete(win);
+        this._queueSync();
     }
 
-    _placeWindow() {
-        const monitor = Main.layoutManager.primaryMonitor;
-        if (!this._window || !monitor)
-            return;
-        this._window.move_resize_frame(false, monitor.x, monitor.y, monitor.width, monitor.height);
+    _monitorFor(win) {
+        const monitors = Main.layoutManager.monitors;
+        const match = /@(-?\d+),(-?\d+)/.exec(win.get_title() ?? '');
+        if (match) {
+            const [x, y] = [Number(match[1]), Number(match[2])];
+            const exact = monitors.find(m => m.x === x && m.y === y);
+            if (exact)
+                return exact;
+            // Scaled layouts report physical origins; fall back to the order.
+            const index = [...this._windows.keys()].indexOf(win);
+            if (index >= 0 && index < monitors.length)
+                return monitors[index];
+        }
+        return Main.layoutManager.primaryMonitor;
+    }
+
+    _placeWindow(win) {
+        const monitor = this._monitorFor(win);
+        if (monitor)
+            win.move_resize_frame(false, monitor.x, monitor.y, monitor.width, monitor.height);
+    }
+
+    _placeWindows() {
+        for (const win of this._windows.keys())
+            this._placeWindow(win);
     }
 
     // Desktop-type windows are stacked at the bottom, but other desktop windows
     // (desktop icons) must still be drawn on top of the video, so the actor is
     // pinned directly above the background group after every restack.
     _keepAboveBackground() {
-        const actor = this._window?.get_compositor_private();
         const background = Main.layoutManager._backgroundGroup;
-        if (!actor || !background)
+        if (!background)
             return;
-        const parent = actor.get_parent();
-        if (parent && parent === background.get_parent())
-            parent.set_child_above_sibling(actor, background);
+        for (const win of this._windows.keys()) {
+            const actor = win.get_compositor_private();
+            const parent = actor?.get_parent();
+            if (parent && parent === background.get_parent())
+                parent.set_child_above_sibling(actor, background);
+        }
     }
 
     _queueSync() {
@@ -230,20 +246,25 @@ export default class WallflowLiveShim extends Extension {
         });
     }
 
+    // Hidden means no monitor showing the video has any desktop in view.
     _desktopHidden() {
         if (Main.overview.visible || Main.sessionMode.isLocked)
             return true;
-        const monitor = Main.layoutManager.primaryIndex;
+        const ours = new Set([...this._windows.keys()].map(win => win.get_monitor()));
+        if (ours.size === 0)
+            return false;
         const workspace = global.workspace_manager.get_active_workspace();
-        return global.display.get_tab_list(Meta.TabList.NORMAL, workspace).some(win => {
-            if (win.minimized || win.get_monitor() !== monitor)
-                return false;
-            if (win.is_fullscreen())
-                return true;
+        const covered = new Set();
+        for (const win of global.display.get_tab_list(Meta.TabList.NORMAL, workspace)) {
+            if (win.minimized)
+                continue;
             // GNOME 49 replaced get_maximized() with is_maximized().
-            return win.is_maximized?.() ??
+            const maximized = win.is_maximized?.() ??
                 (win.get_maximized?.() === Meta.MaximizeFlags.BOTH);
-        });
+            if (win.is_fullscreen() || maximized)
+                covered.add(win.get_monitor());
+        }
+        return [...ours].every(monitor => covered.has(monitor));
     }
 
     _syncPause() {

@@ -4,6 +4,7 @@
 # Wayland socket and XDG directories (dconf included) under a temp dir.
 #
 #   tests/gnome-headless/run.sh [VIDEO]
+#   MONITORS="1920x1080 1280x720" tests/gnome-headless/run.sh   # multi-monitor
 #
 # Checks: the window becomes a hidden desktop window stacked right above the
 # background, app windows stack above it, and the overview / a maximized window
@@ -26,5 +27,5 @@ echo "test dir: $ROOT"
 # private bus starts (dconf-service above all) writes into the temp dir.
 exec env XDG_CONFIG_HOME="$ROOT/config" XDG_DATA_HOME="$ROOT/data" \
   XDG_CACHE_HOME="$ROOT/cache" XDG_STATE_HOME="$ROOT/state" \
-  ROOT="$ROOT" ENGINE="$ENGINE" VIDEO="$VIDEO" \
+  ROOT="$ROOT" ENGINE="$ENGINE" VIDEO="$VIDEO" MONITORS="${MONITORS:-1920x1080}" \
   dbus-run-session -- "$HERE/session.sh"
