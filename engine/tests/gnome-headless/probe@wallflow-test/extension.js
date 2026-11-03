@@ -66,6 +66,15 @@ export default class Probe extends Extension {
       else { try { w.unmaximize(); } catch (e) { w.unmaximize(3); } }
     }
   }
+  // What drag-and-drop would see under (x, y): DND picks with PickMode.ALL
+  // and walks up to the first actor whose _delegate accepts drops.
+  DropTargetAt(x, y) {
+    const picked = global.stage.get_actor_at_pos(Clutter.PickMode.ALL, x, y);
+    let target = null;
+    for (let a = picked; a; a = a.get_parent())
+      if (a._delegate?.acceptDrop) { target = a._delegate.constructor.name; break; }
+    return JSON.stringify({picked: picked?.constructor.name ?? null, target});
+  }
   WorkspaceOf(cls) {
     const w = global.get_window_actors().map(a => a.meta_window).find(w => w.get_wm_class() === cls);
     return w ? w.get_workspace().index() : -1;
