@@ -134,10 +134,17 @@ there, and hardware decoding wins on it.
 30.1 fps drawn, 0 dropped. The engine renders on the integrated GPU
 (`PowerPreference::LowPower`).
 
+## In the app
+
+The Wallflow app bundles the engine as a Tauri sidecar (`src-tauri/build.rs`
+builds it for the target) and drives it from `src-tauri/src/live/`: a video
+library prepared with `prepare`, start/stop through the shim, and a supervisor
+that keeps the chosen video playing across login, lock and engine restarts.
+The shim stays loaded on the lock screen (`session-modes`) and pauses there.
+
 ## Next
 
 - Per-monitor videos (all monitors currently show the same video, decoded once).
 - Shims for Windows (WorkerW), macOS (desktop-level `NSWindow`), wlroots/KDE
   (`wlr-layer-shell`) and X11 (`_NET_WM_WINDOW_TYPE_DESKTOP`).
 - Zero-copy decode → texture (DMA-BUF / D3D11 shared handles / IOSurface).
-- Wire it into the Wallflow app and bundle it as a Tauri sidecar.

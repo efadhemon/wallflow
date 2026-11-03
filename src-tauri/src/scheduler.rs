@@ -50,8 +50,9 @@ pub async fn run(app: AppHandle, mut rx: UnboundedReceiver<Command>) {
 
     rescan(&state, true).await;
 
-    let change_on_startup = state.config().change_on_startup;
-    if change_on_startup {
+    let config = state.config();
+    // A live wallpaper is restored separately (live::restore); the rotation waits.
+    if config.change_on_startup && config.live_video.is_none() {
         apply_with_retry(&app, &state).await;
     } else {
         let mut inner = state.inner.lock().expect("state poisoned");
@@ -85,6 +86,7 @@ pub async fn run(app: AppHandle, mut rx: UnboundedReceiver<Command>) {
                 let due = {
                     let inner = state.inner.lock().expect("state poisoned");
                     !inner.paused
+                        && inner.config.live_video.is_none()
                         && !inner.playlist.is_empty()
                         && inner.next_change_at.is_some_and(|at| at <= now_ms())
                 };
@@ -103,8 +105,15 @@ async fn handle(
     pending: &mut PendingRescan,
 ) {
     match command {
-        Command::Next => step(app, state, true).await,
-        Command::Prev => step(app, state, false).await,
+        // Changing the image by hand ends a live wallpaper.
+        Command::Next => {
+            end_live(state).await;
+            step(app, state, true).await
+        }
+        Command::Prev => {
+            end_live(state).await;
+            step(app, state, false).await
+        }
         Command::TogglePause => {
             {
                 let mut inner = state.inner.lock().expect("state poisoned");
@@ -145,8 +154,30 @@ async fn handle(
             publish(app, state);
         }
         Command::ApplyCurrent => {
+            end_live(state).await;
             apply(app, state).await;
         }
+    }
+}
+
+/// Stops a playing live wallpaper and hands the desktop back to the rotation.
+pub async fn end_live(state: &Arc<AppState>) {
+    {
+        let mut inner = state.inner.lock().expect("state poisoned");
+        if inner.config.live_video.is_none() {
+            return;
+        }
+        // Cleared before stopping, so live::supervise does not start it again
+        // in between.
+        inner.config.live_video = None;
+        if let Err(err) = inner.config.save(&state.config_dir) {
+            log::warn!("could not save the settings: {err:#}");
+        }
+    }
+    match tokio::task::spawn_blocking(crate::live::stop).await {
+        Ok(Ok(())) => {}
+        Ok(Err(err)) => log::warn!("could not stop the live wallpaper: {err:#}"),
+        Err(err) => log::warn!("could not stop the live wallpaper: {err}"),
     }
 }
 

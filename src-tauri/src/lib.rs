@@ -1,6 +1,7 @@
 mod commands;
 mod config;
 mod gallery;
+mod live;
 mod scanner;
 mod scheduler;
 mod state;
@@ -78,6 +79,13 @@ pub fn run() {
             commands::fetch_latest_version,
             commands::search_gallery,
             commands::add_remote_image,
+            commands::live_status,
+            commands::live_list,
+            commands::live_import,
+            commands::live_remove,
+            commands::live_play,
+            commands::live_stop,
+            commands::live_install_helper,
         ])
         .setup(setup)
         .build(tauri::generate_context!())
@@ -89,6 +97,10 @@ pub fn run() {
                 }
             }
             RunEvent::Exit => {
+                // Quitting Wallflow ends its live wallpaper too.
+                if let Err(err) = live::stop() {
+                    log::warn!("could not stop the live wallpaper: {err:#}");
+                }
                 if tracking_enabled() {
                     let _ = handler.track_event("app_exited", None);
                     handler.flush_events_blocking();
@@ -111,7 +123,8 @@ fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     let cache_dir = app.path().app_cache_dir()?;
     let log_dir = app.path().app_log_dir()?;
     let images_dir = app.path().app_data_dir()?.join("images");
-    for dir in [&config_dir, &cache_dir, &log_dir, &images_dir] {
+    let live_dir = app.path().app_data_dir()?.join("live");
+    for dir in [&config_dir, &cache_dir, &log_dir, &images_dir, &live_dir] {
         std::fs::create_dir_all(dir)?;
     }
 
@@ -142,6 +155,7 @@ fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
         images_dir,
         tx,
         watcher: Mutex::new(None),
+        live: live::Live::new(live_dir),
     });
     app.manage(state.clone());
 
@@ -182,6 +196,7 @@ fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
         });
     }
 
-    tauri::async_runtime::spawn(scheduler::run(handle, rx));
+    tauri::async_runtime::spawn(scheduler::run(handle.clone(), rx));
+    tauri::async_runtime::spawn(live::supervise(handle));
     Ok(())
 }

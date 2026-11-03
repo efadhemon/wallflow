@@ -23,3 +23,6 @@ src-tauri/gen
 website/downloads/*
 !website/downloads/.gitkeep
 .vercel
+
+src-tauri/binaries
+engine/target

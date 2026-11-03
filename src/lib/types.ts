@@ -19,6 +19,8 @@ export interface Config {
   autostart: boolean;
   startMinimized: boolean;
   theme: Theme;
+  /** Id of the live wallpaper playing, if any. Owned by the backend. */
+  liveVideo: string | null;
 }
 
 export interface ImageInfo {
@@ -37,6 +39,8 @@ export interface Status {
   playlistSize: number;
   position: number;
   lastError: string | null;
+  /** Id of the live wallpaper playing instead of the rotation, if any. */
+  live: string | null;
 }
 
 export interface ImageEntry {
@@ -103,3 +107,37 @@ export type GalleryOrientation = "landscape" | "ultrawide" | "portrait" | "squar
 export type GallerySorting = "relevance" | "toplist" | "hot" | "date_added" | "views" | "favorites" | "random";
 export type GalleryTopRange = "1d" | "3d" | "1w" | "1M" | "3M" | "6M" | "1y";
 export type GalleryAtLeast = "any" | "1920x1080" | "2560x1440" | "3840x2160";
+
+export interface LiveVideo {
+  id: string;
+  name: string;
+  width: number;
+  height: number;
+  fps: number;
+  duration: number | null;
+  addedAt: number;
+  videoPath: string;
+  posterPath: string;
+}
+
+/** ready: can play. needsSetup / needsLogin: GNOME helper missing / not loaded yet. */
+export type LiveSupport = "ready" | "needsSetup" | "needsLogin" | "unsupported";
+
+export interface LiveStatus {
+  support: LiveSupport;
+  reason: string | null;
+  ffmpeg: boolean;
+  engine: boolean;
+  running: boolean;
+  /** Playing, but paused because the desktop is covered. */
+  paused: boolean;
+  active: string | null;
+}
+
+export interface LiveImportProgress {
+  id: string;
+  name: string;
+  fraction: number;
+  state: "preparing" | "done" | "failed";
+  error: string | null;
+}

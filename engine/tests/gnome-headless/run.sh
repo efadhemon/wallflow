@@ -6,6 +6,7 @@
 #   tests/gnome-headless/run.sh [VIDEO]
 #   MONITORS="1920x1080 1280x720" tests/gnome-headless/run.sh   # multi-monitor
 #   SCRIPT=bench.sh tests/gnome-headless/run.sh                 # CPU in each state
+#   SCRIPT=app.sh tests/gnome-headless/run.sh                   # the Wallflow app restores a live wallpaper
 #
 # Checks: the window becomes a hidden desktop window stacked right above the
 # background, app windows stack above it, and the overview / a maximized window
@@ -28,5 +29,5 @@ echo "test dir: $ROOT"
 # private bus starts (dconf-service above all) writes into the temp dir.
 exec env XDG_CONFIG_HOME="$ROOT/config" XDG_DATA_HOME="$ROOT/data" \
   XDG_CACHE_HOME="$ROOT/cache" XDG_STATE_HOME="$ROOT/state" \
-  DEBUG_GEOMETRY="${DEBUG_GEOMETRY:-}" EXTRA_EXTENSIONS="${EXTRA_EXTENSIONS:-}" ROOT="$ROOT" ENGINE="$ENGINE" VIDEO="$VIDEO" MONITORS="${MONITORS:-1920x1080}" \
+  DEBUG_GEOMETRY="${DEBUG_GEOMETRY:-}" APP="${APP:-$ENGINE_DIR/../src-tauri/target/debug/wallflow}" EXTRA_EXTENSIONS="${EXTRA_EXTENSIONS:-}" ROOT="$ROOT" ENGINE="$ENGINE" VIDEO="$VIDEO" MONITORS="${MONITORS:-1920x1080}" \
   dbus-run-session -- "$HERE/${SCRIPT:-session.sh}"

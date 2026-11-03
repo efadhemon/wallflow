@@ -8,17 +8,17 @@ Goal: replace the old per-platform live wallpaper (`live-wall` branch: GStreamer
 inside gnome-shell, GDI on Windows) with one Rust engine that plays smoothly on
 every platform without slowing the desktop.
 
-| # | Step | Status |
-| --- | --- | --- |
-| 1 | Review and fix the non-live app (scheduler, config sync, file writes, UI bugs) | **done** — `review-fixes` (4193a7a) |
-| 2 | Engine core: ffmpeg decode → wgpu NV12 render, frame pacing, stdin control | **done** — `engine/` |
-| 3 | GNOME shim extension: desktop window above background, pause when hidden | **done**, verified headless + real session |
-| 4 | Multi-monitor (one window per monitor, decoded once) | **done**, verified headless (2 monitors) |
-| 5 | `prepare` import step (downscale, ≤30 fps, poster) | **done** |
-| 6 | Integrate into the app: bundle engine as Tauri sidecar, Live page, prepare progress UI, start/stop through the shim | **next** |
-| 7 | Shims for other desktops: Windows (WorkerW), macOS (desktop-level NSWindow), KDE/wlroots (wlr-layer-shell), X11 | planned |
-| 8 | Zero-copy decode → texture (DMA-BUF / D3D11 / IOSurface) | planned |
-| 9 | Merge `live-engine` → `dev` → `main`, release | planned |
+| #   | Step                                                                                                                | Status                                            |
+| --- | ------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------- |
+| 1   | Review and fix the non-live app (scheduler, config sync, file writes, UI bugs)                                      | **done** — `review-fixes` (4193a7a)               |
+| 2   | Engine core: ffmpeg decode → wgpu NV12 render, frame pacing, stdin control                                          | **done** — `engine/`                              |
+| 3   | GNOME shim extension: desktop window above background, pause when hidden                                            | **done**, verified headless + real session        |
+| 4   | Multi-monitor (one window per monitor, decoded once)                                                                | **done**, verified headless (2 monitors)          |
+| 5   | `prepare` import step (downscale, ≤30 fps, poster)                                                                  | **done**                                          |
+| 6   | Integrate into the app: bundle engine as Tauri sidecar, Live page, prepare progress UI, start/stop through the shim | **done** (GNOME); real-session UI not clicked yet |
+| 7   | Shims for other desktops: Windows (WorkerW), macOS (desktop-level NSWindow), KDE/wlroots (wlr-layer-shell), X11     | planned                                           |
+| 8   | Zero-copy decode → texture (DMA-BUF / D3D11 / IOSurface)                                                            | planned                                           |
+| 9   | Merge `live-engine` → `dev` → `main`, release                                                                       | planned                                           |
 
 ## Branches
 
@@ -28,6 +28,46 @@ every platform without slowing the desktop.
 - `live-wall` — the old live wallpaper. To be dropped; nothing from it is reused.
 
 ## Sessions
+
+### 2026-11-04 — engine integrated into the app (live-engine)
+
+- **Build:** `src-tauri/build.rs` builds `engine/` for the target triple and
+  copies it to `src-tauri/binaries/wallflow-live-<triple>` (Tauri
+  `externalBin`). Every Rust build (dev, build, check, clippy, CI) gets it; no
+  yarn step. `.deb` now depends on `ffmpeg`. `binaries/` and `engine/target` are
+  git-ignored; eslint/prettier skip `engine/` (GNOME/GJS code style).
+- **Backend `src-tauri/src/live/`:** library in `<app data>/live/<id>/`
+  (`video.mp4`, `poster.jpg`, `meta.json`; id = hash of size + first/last 4 MiB,
+  so re-adding a file is free); import runs `wallflow-live prepare` for the
+  largest monitor with `live://import` progress events; `gnome.rs` drives the
+  shim over D-Bus (`gdbus`) and can install + enable it (copy compiled in,
+  old in-shell extension turned off); `supervise` keeps the selected video
+  playing (login, shell restart, engine crash), 2 s at first then every 15 s.
+- **Config:** `liveVideo` (backend-owned; `set_config` keeps the backend's
+  value). While set, the timer rotation is suspended and the poster is the
+  static wallpaper; Next / Previous / picking an image ends the live wallpaper;
+  a fill-mode change goes to the engine instead. Quitting the app stops it.
+- **Commands:** `live_status`, `live_list`, `live_import`, `live_remove`,
+  `live_play`, `live_stop`, `live_install_helper`.
+- **UI:** new **Live** page (sidebar): setup banners (GNOME helper / log in
+  again / unsupported / FFmpeg missing), now-playing card (Playing / Paused while
+  the desktop is covered / Starting…, Stop), poster grid with Play and remove,
+  import tiles with progress. Dashboard banner and sidebar status "Live
+  wallpaper" while playing.
+- **Bug found and fixed:** locking the screen disabled the shim (GNOME turns
+  extensions off on lock), which ended the live wallpaper for good. The shim now
+  declares `"session-modes": ["user", "unlock-dialog"]` and only pauses there;
+  the app's supervisor covers anything else that kills the engine.
+- **Dev tool:** `yarn dev` opened in a plain browser runs the UI against a
+  Tauri stand-in with sample data (`src/dev/browserMock.ts`, dev builds only;
+  `window.__mock` switches states). `.claude/launch.json` starts vite.
+- **Verified:** 31 Rust unit tests; e2e import with the real sidecar + FFmpeg
+  (`WALLFLOW_TEST_VIDEO=… cargo test -- --ignored`); headless GNOME suites (1 and
+  2 monitors, DING, lock/unlock) and a new `SCRIPT=app.sh` run of the real app:
+  restores the live wallpaper at startup, rotation leaves it alone, survives
+  lock/unlock, restarts a killed engine. UI states checked in the browser with
+  the stand-in. **Not yet:** clicking through the real app window in your
+  session, and a release build (`yarn tauri build`) / Windows / macOS CI.
 
 ### 2026-11-04 — overview: windows could not be moved to another workspace (live-engine)
 
@@ -110,8 +150,12 @@ every platform without slowing the desktop.
 ## Open / not verified
 
 - Real session, visually checked by you: desktop playback, colours, fill, no
-  lag, icons — OK. The overview fix is verified headless only; check it after
-  the next login.
+  lag, icons, overview, moving windows between workspaces — OK.
+- The Live page has not been clicked through in the real app window yet.
+- Release CI builds the engine for every target via `build.rs`; it has only been
+  compiled on Linux. The macOS / Windows release jobs may need fixes.
+- Your autostart entry points at the debug build (`src-tauri/target/debug/wallflow`),
+  which needs `yarn dev` running for its window; install a release build instead.
 - Engine CPU % on a near-idle laptop reads high (~40% of one core) because cores
   idle at low clocks; with one other core busy the same run is ~15%. Energy
   (RAPL needs root here) is the right metric; not measured.
@@ -122,20 +166,14 @@ every platform without slowing the desktop.
 
 ## Next step
 
-1. After logging out and in (loads the new shim), re-test dragging a window to
-   another workspace in the overview, with the live wallpaper running. Then check the overview: minimize
-   all windows, then
-
-   ```bash
-   gdbus call --session --dest com.efadhemon.Wallflow.LiveShim --object-path /com/efadhemon/Wallflow/LiveShim --method com.efadhemon.Wallflow.LiveShim.Start "['$PWD/engine/target/release/wallflow-live', '$HOME/Videos/14846689_1920_1080_30fps.mp4', '--background']"
-   ```
-
-   Hot corner → the overview should show the video frame (rounded corners), stay
-   smooth, and the desktop should continue from that frame. `...LiveShim.Stop` ends it.
-2. Step 6: app integration. Plan: build `wallflow-live` as a Tauri `externalBin`
-   sidecar; Linux GNOME backend talks to the shim over D-Bus (`Start`/`Stop`/`Send`),
-   offers to install/enable the shim when missing; Live page imports videos via
-   `prepare` with a progress bar and uses the poster as the static wallpaper.
+1. Log out and back in once (loads the shim with the lock-screen fix).
+2. Run the app (`yarn tauri dev`), open **Live**, add a video from `~/Videos`,
+   watch the import progress, press Play. Check: plays behind the desktop,
+   overview, lock + unlock, Stop brings the image rotation back, Next on the
+   Dashboard ends the live wallpaper.
+3. `yarn tauri build` and install the `.deb` (checks the sidecar is bundled and
+   found next to the binary, and the `ffmpeg` dependency).
+4. Then step 7 (shims for Windows / macOS / KDE / X11) — Windows first.
 
 ## Testing
 
@@ -145,4 +183,9 @@ engine/tests/gnome-headless/run.sh [VIDEO]                # end-to-end, throwawa
 MONITORS="1920x1080 1280x720" engine/tests/gnome-headless/run.sh
 EXTRA_EXTENSIONS="'ding@rastersoft.com'" engine/tests/gnome-headless/run.sh
 SCRIPT=bench.sh engine/tests/gnome-headless/run.sh VIDEO  # CPU per state, old vs new
+SCRIPT=app.sh engine/tests/gnome-headless/run.sh          # the real app (cargo build first)
+SCRIPT=scenarios.sh engine/tests/gnome-headless/run.sh    # overview drag / wallpaper-change diagnostics
+cd src-tauri && cargo test                                # app unit tests
+WALLFLOW_TEST_VIDEO=~/Videos/clip.mp4 cargo test -- --ignored --test-threads 1   # real import (+ shim)
+yarn dev   # then open http://localhost:1420 in a browser: UI with sample data
 ```

@@ -9,6 +9,7 @@ import { About } from "./routes/About";
 import { Dashboard } from "./routes/Dashboard";
 import { Gallery } from "./routes/Gallery";
 import { Library } from "./routes/Library";
+import { Live } from "./routes/Live";
 import { Settings } from "./routes/Settings";
 import { useApp } from "./state/AppContext";
 
@@ -26,10 +27,15 @@ export function App() {
 
         <main className="flex-1 overflow-y-auto">
           {route === "dashboard" && (
-            <Dashboard onBrowse={() => setRoute("library")} onGallery={() => setRoute("gallery")} />
+            <Dashboard
+              onBrowse={() => setRoute("library")}
+              onGallery={() => setRoute("gallery")}
+              onLive={() => setRoute("live")}
+            />
           )}
           {route === "library" && <Library />}
           {route === "gallery" && <Gallery />}
+          {route === "live" && <Live />}
           {route === "settings" && <Settings />}
           {route === "about" && <About />}
         </main>

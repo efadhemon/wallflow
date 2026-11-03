@@ -52,9 +52,19 @@ pub struct Args {
 #[derive(Serialize)]
 #[serde(tag = "event", rename_all = "camelCase")]
 enum Report<'a> {
-    Started { width: u32, height: u32, fps: f64 },
-    Progress { fraction: f64 },
-    Done { video: &'a Path, poster: &'a Path },
+    Started {
+        width: u32,
+        height: u32,
+        fps: f64,
+        duration: Option<f64>,
+    },
+    Progress {
+        fraction: f64,
+    },
+    Done {
+        video: &'a Path,
+        poster: &'a Path,
+    },
 }
 
 fn report(event: &Report) {
@@ -71,6 +81,7 @@ pub fn run(args: &Args) -> Result<()> {
         width,
         height,
         fps: plan.fps.unwrap_or(info.fps),
+        duration: info.duration,
     });
 
     let part = with_suffix(&args.output, ".part.mp4");
