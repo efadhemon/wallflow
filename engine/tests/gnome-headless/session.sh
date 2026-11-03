@@ -39,6 +39,11 @@ check "overview pauses" "$(paused)" true
 clones=$(probe Report | grep -o '"overviewClones":[0-9]*' | grep -o '[0-9]*$')
 check "overview shows the video, not the static image" "$([ "$clones" -ge "$monitor_count" ] && echo yes || echo "no ($clones)")" yes
 probe Shot "'$ROOT/overview.png'" >/dev/null
+# A wallpaper change while the overview is open (e.g. Wallflow's own rotation)
+# must not cover the video with the new static image.
+dconf write /org/gnome/desktop/background/picture-uri "'file:///usr/share/backgrounds/warty-final-ubuntu.png'"; sleep 2
+check "a wallpaper change keeps the video on top" "$(probe Report | grep -o '"overviewVideoOnTop":[a-z]*' | grep -o '[a-z]*$')" true
+probe Shot "'$ROOT/overview-after-change.png'" >/dev/null
 # Drag and drop must still find the workspace under the video (near the card's
 # corner, away from window previews and the search entry).
 echo "     drop target: $(probe DropTargetAt 120.0 600.0)"

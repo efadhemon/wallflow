@@ -10,6 +10,7 @@ const IFACE = `<node><interface name="test.Probe">
 <method name="Max"><arg type="s" direction="in" name="cls"/><arg type="b" direction="in" name="on"/></method>
 <method name="WorkspaceOf"><arg type="s" direction="in" name="cls"/><arg type="i" direction="out" name="index"/></method>
 <method name="DropTargetAt"><arg type="d" direction="in" name="x"/><arg type="d" direction="in" name="y"/><arg type="s" direction="out" name="json"/></method>
+<method name="Scenario"><arg type="s" direction="in" name="name"/><arg type="s" direction="out" name="json"/></method>
 <method name="Open"><arg type="as" direction="in" name="argv"/></method>
 </interface></node>`;
 export default class Probe extends Extension {
@@ -43,6 +44,18 @@ export default class Probe extends Extension {
           }
           todo.push(...a.get_children()); }
         return out; })(),
+      // Per workspace background: is the video clone the top child, and is
+      // every static background actor under it hidden?
+      overviewVideoOnTop: (() => {
+        const out = []; const todo = [Main.layoutManager.overviewGroup];
+        while (todo.length) { const a = todo.pop();
+          if (a.constructor.name.includes('WorkspaceBackground') && a._backgroundGroup) {
+            const kids = a._backgroundGroup.get_children();
+            const top = kids[kids.length - 1];
+            const staticShown = kids.some(k => k.constructor.name.includes('BackgroundActor') && k.opacity > 0);
+            out.push(top instanceof Clutter.Clone && !staticShown);
+          } else todo.push(...a.get_children()); }
+        return out.length > 0 && out.every(Boolean); })(),
       overviewClones: (() => {
         let n = 0; const todo = [Main.layoutManager.overviewGroup];
         while (todo.length) { const a = todo.pop();
@@ -74,6 +87,15 @@ export default class Probe extends Extension {
     for (let a = picked; a; a = a.get_parent())
       if (a._delegate?.acceptDrop) { target = a._delegate.constructor.name; break; }
     return JSON.stringify({picked: picked?.constructor.name ?? null, target});
+  }
+  // Things that happen in the overview while the video clone is shown.
+  Scenario(name) {
+    const editor = global.get_window_actors().map(a => a.meta_window).find(w => w.get_wm_class() === 'org.gnome.TextEditor');
+    if (name === 'dragBegin' && editor) Main.overview.beginWindowDrag(editor);
+    if (name === 'dragCancel' && editor) Main.overview.cancelledWindowDrag(editor);
+    if (name === 'dragEnd' && editor) Main.overview.endWindowDrag(editor);
+    if (name === 'moveWindow' && editor) Main.moveWindowToMonitorAndWorkspace(editor, 0, 1);
+    return JSON.stringify({name, editor: !!editor});
   }
   WorkspaceOf(cls) {
     const w = global.get_window_actors().map(a => a.meta_window).find(w => w.get_wm_class() === cls);

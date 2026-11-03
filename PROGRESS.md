@@ -29,6 +29,27 @@ every platform without slowing the desktop.
 
 ## Sessions
 
+### 2026-11-04 — overview: video covered after a wallpaper change (live-engine)
+
+- Your report + screen recording: in the overview a window could not be moved
+  to another workspace, and mid-drag the workspace card went black, then showed
+  the old static image (sunset).
+- Root cause of the black/sunset: the Wallflow app (old debug build from
+  autostart) rotated the static wallpaper while the overview was open. GNOME's
+  `BackgroundManager` then `add_child`s a new background actor on **top** of the
+  workspace background group — black until it loads, then the new image —
+  covering the video clone. Fixed: the shim watches `child-added`, keeps new
+  background actors hidden and the clone on top. Regression check added (fails
+  without the fix, passes with it).
+- Drag and drop itself: the drop target under the video (current card and the
+  side card) is GNOME's `Workspace`, identical with and without the engine, and
+  moving a window to another workspace during the overview works in the test.
+  The drag failure itself is **not reproduced**; a real mouse drag cannot be
+  simulated in the headless shell (virtual pointer events do not arrive).
+  Re-test in the real session after the next login.
+- When integrating: the app must stop rotating static wallpapers while a live
+  wallpaper plays (and set the poster as the static one).
+
 ### 2026-11-04 — overview shows the video (live-engine)
 
 - Your report after the real-session test: colours and fill right, no lag,
@@ -94,7 +115,8 @@ every platform without slowing the desktop.
 
 ## Next step
 
-1. After logging out and in (loads the new shim), check the overview: minimize
+1. After logging out and in (loads the new shim), re-test dragging a window to
+   another workspace in the overview, with the live wallpaper running. Then check the overview: minimize
    all windows, then
 
    ```bash

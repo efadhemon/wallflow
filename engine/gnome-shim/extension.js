@@ -380,13 +380,26 @@ export default class WallflowLiveShim extends Extension {
         const staticActor = background._bgManager?.backgroundActor;
         if (staticActor)
             staticActor.opacity = 0;
+        // When the wallpaper changes, GNOME adds the new background actor on
+        // top of the group (black until it loads, then the new image), which
+        // would cover the video. Keep each new one hidden and the clone on top.
+        group.connectObject('child-added', (_group, child) => {
+            if (child === clone)
+                return;
+            if (child instanceof Meta.BackgroundActor)
+                child.opacity = 0;
+            group.set_child_above_sibling(clone, null);
+        }, clone);
         this._clones.set(background, clone);
         clone.connect('destroy', () => {
             if (this._clones.get(background) === clone)
                 this._clones.delete(background);
-            const current = background._bgManager?.backgroundActor;
-            if (current)
-                current.opacity = 255;
+            // Both the shown one and one still loading after a change.
+            for (const actor of [background._bgManager?.backgroundActor,
+                background._bgManager?._newBackgroundActor]) {
+                if (actor)
+                    actor.opacity = 255;
+            }
         });
     }
 
