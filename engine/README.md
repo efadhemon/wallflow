@@ -88,6 +88,10 @@ D-Bus API on the session bus, `com.efadhemon.Wallflow.LiveShim` at
 properties `Version`, `Running`, `Paused`. `Start` only accepts a path to a
 `wallflow-live` executable.
 
+To try it in your own session: `engine/gnome-shim/install.sh` (turns off the old
+in-shell player; `--remove` undoes it), log out and back in, then start the
+engine through the shim's `Start` method as the script prints.
+
 In background mode the engine opens one window per monitor, titled with that
 monitor's origin (`Wallflow Live @x,y`), and the shim puts each on its monitor.
 One decode and one upload per frame serve every monitor. Playback pauses only
