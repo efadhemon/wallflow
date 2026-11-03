@@ -8,6 +8,8 @@ const IFACE = `<node><interface name="test.Probe">
 <method name="Shot"><arg type="s" direction="in" name="path"/></method>
 <method name="Overview"><arg type="b" direction="in" name="show"/></method>
 <method name="Max"><arg type="s" direction="in" name="cls"/><arg type="b" direction="in" name="on"/></method>
+<method name="WorkspaceOf"><arg type="s" direction="in" name="cls"/><arg type="i" direction="out" name="index"/></method>
+<method name="DropTargetAt"><arg type="d" direction="in" name="x"/><arg type="d" direction="in" name="y"/><arg type="s" direction="out" name="json"/></method>
 <method name="Open"><arg type="as" direction="in" name="argv"/></method>
 </interface></node>`;
 export default class Probe extends Extension {
@@ -63,6 +65,10 @@ export default class Probe extends Extension {
       if (on) { try { w.maximize(); } catch (e) { w.maximize(3); } }
       else { try { w.unmaximize(); } catch (e) { w.unmaximize(3); } }
     }
+  }
+  WorkspaceOf(cls) {
+    const w = global.get_window_actors().map(a => a.meta_window).find(w => w.get_wm_class() === cls);
+    return w ? w.get_workspace().index() : -1;
   }
   Open(argv) { Gio.Subprocess.new(argv, 0); }
 }

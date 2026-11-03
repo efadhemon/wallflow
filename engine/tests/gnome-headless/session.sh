@@ -39,6 +39,10 @@ check "overview pauses" "$(paused)" true
 clones=$(probe Report | grep -o '"overviewClones":[0-9]*' | grep -o '[0-9]*$')
 check "overview shows the video, not the static image" "$([ "$clones" -ge "$monitor_count" ] && echo yes || echo "no ($clones)")" yes
 probe Shot "'$ROOT/overview.png'" >/dev/null
+# Drag and drop must still find the workspace under the video (near the card's
+# corner, away from window previews and the search entry).
+echo "     drop target: $(probe DropTargetAt 120.0 600.0)"
+check "workspace under the video accepts drops" "$(probe DropTargetAt 120.0 600.0 | grep -o '"target":"[A-Za-z]*"' | grep -o '[A-Za-z]*"$' | tr -d '"')" Workspace
 [ -n "${DEBUG_GEOMETRY:-}" ] && probe Report | grep -oE '"(workArea|overviewGeometry)":.*"overviewClones"' | head -c 1500 && echo && probe Report | grep -oE '"cls":"wallflow-live"[^}]*' 
 probe Overview false >/dev/null; sleep 2
 check "leaving the overview resumes" "$(paused)" false
@@ -57,7 +61,9 @@ probe Max "'org.gnome.TextEditor'" false >/dev/null; sleep 2
 check "unmaximizing resumes" "$(paused)" false
 
 shim Stop >/dev/null; sleep 1
-check "engine exits on Stop" "$(pgrep -fc "$ENGINE" || true)" 0
+running() { gdbus call --session --dest com.efadhemon.Wallflow.LiveShim --object-path /com/efadhemon/Wallflow/LiveShim --method org.freedesktop.DBus.Properties.Get com.efadhemon.Wallflow.LiveShim Running | grep -o 'true\|false'; }
+# Asked through the shim: an engine of the real session may run alongside.
+check "engine exits on Stop" "$(running)" false
 
 grep -E "wallflow_live" "$ROOT/shell.log" | tail -4
 [ $failures -eq 0 ] && echo "all checks passed" || { echo "$failures check(s) failed"; exit 1; }
