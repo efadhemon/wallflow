@@ -2,7 +2,7 @@
 # Runs inside the private session bus started by run.sh.
 set -uo pipefail
 unset DISPLAY WAYLAND_DISPLAY XDG_SESSION_TYPE
-dconf write /org/gnome/shell/enabled-extensions "['wallflow-live@com.efadhemon.wallflow','probe@wallflow-test']"
+dconf write /org/gnome/shell/enabled-extensions "['wallflow-live@com.efadhemon.wallflow','probe@wallflow-test'${EXTRA_EXTENSIONS:+,$EXTRA_EXTENSIONS}]"
 dconf write /org/gnome/shell/disable-user-extensions false
 dconf write /org/gnome/shell/welcome-dialog-last-shown-version "'999'"
 
@@ -23,6 +23,7 @@ check() { if [ "$2" = "$3" ]; then echo "ok   $1"; else echo "FAIL $1: got '$2',
 
 shim Start "['$ENGINE', '$VIDEO', '--background']" >/dev/null
 sleep 5
+check "plays on an uncovered desktop" "$(paused)" false
 report=$(probe Report)
 check "desktop window above background" "$(echo "$report" | grep -o '"windowGroupOrder":\["BACKGROUND","wallflow-live' | wc -l)" 1
 check "every video window is DESKTOP type" "$(echo "$report" | grep -o '"cls":"wallflow-live","title":"[^"]*","type":[0-9]*' | grep -vc '"type":1$')" 0
@@ -38,7 +39,10 @@ probe Overview false >/dev/null; sleep 2
 check "leaving the overview resumes" "$(paused)" false
 
 probe Open "['gnome-text-editor']" >/dev/null; sleep 4
-check "app window stacks above the video" "$(probe Report | grep -oE '"windowGroupOrder":\["BACKGROUND",("wallflow-live[^"]*",)+"org.gnome.TextEditor' | wc -l)" 1
+order=$(probe Report | grep -o '"windowGroupOrder":[^]]*]')
+echo "     stacking: $order"
+# Video right above the background; anything else (desktop icons, apps) above it.
+check "app window stacks above the video" "$(echo "$order" | grep -oE '\["BACKGROUND",("wallflow-live[^"]*",)+.*"org.gnome.TextEditor' | wc -l)" 1
 probe Shot "'$ROOT/with-window.png'" >/dev/null
 probe Max "'org.gnome.TextEditor'" true >/dev/null; sleep 2
 # With more monitors, the others still show the desktop, so playback goes on.
