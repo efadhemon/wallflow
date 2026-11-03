@@ -8,6 +8,7 @@
 
 mod decoder;
 mod fit;
+mod prepare;
 mod probe;
 mod render;
 
@@ -437,8 +438,44 @@ fn listen_stdin(proxy: EventLoopProxy<UserEvent>) {
         .expect("spawning the control thread");
 }
 
+fn parse_prepare(mut args: impl Iterator<Item = String>) -> Result<prepare::Args> {
+    let mut input = None;
+    let mut out = prepare::Args {
+        input: PathBuf::new(),
+        output: PathBuf::new(),
+        poster: PathBuf::new(),
+        screen: (1920, 1080),
+        ffmpeg: "ffmpeg".into(),
+        ffprobe: "ffprobe".into(),
+    };
+    while let Some(arg) = args.next() {
+        let mut value = |name: &str| args.next().with_context(|| format!("{name} needs a value"));
+        match arg.as_str() {
+            "--out" => out.output = value("--out")?.into(),
+            "--poster" => out.poster = value("--poster")?.into(),
+            "--width" => out.screen.0 = value("--width")?.parse().context("--width")?,
+            "--height" => out.screen.1 = value("--height")?.parse().context("--height")?,
+            "--ffmpeg" => out.ffmpeg = value("--ffmpeg")?,
+            "--ffprobe" => out.ffprobe = value("--ffprobe")?,
+            other if other.starts_with('-') => bail!("unknown option {other}"),
+            other => input = Some(PathBuf::from(other)),
+        }
+    }
+    out.input = input.context(
+        "usage: wallflow-live prepare INPUT --out OUT.mp4 --poster OUT.jpg [--width W --height H]",
+    )?;
+    if out.output.as_os_str().is_empty() || out.poster.as_os_str().is_empty() {
+        bail!("prepare needs --out and --poster");
+    }
+    Ok(out)
+}
+
 fn main() -> Result<()> {
+    // Logs go to stderr; stdout is reserved for the JSON `prepare` reports.
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
+    if std::env::args().nth(1).as_deref() == Some("prepare") {
+        return prepare::run(&parse_prepare(std::env::args().skip(2))?);
+    }
     let opts = parse_args()?;
 
     let info = probe::probe(&opts.ffprobe, &opts.video)?;

@@ -13,11 +13,19 @@ pub struct VideoInfo {
     pub bt709: bool,
     /// Full-range ("pc") YUV instead of the usual studio range.
     pub full_range: bool,
+    /// Seconds, when the container knows it.
+    pub duration: Option<f64>,
 }
 
 #[derive(Deserialize)]
 struct Probe {
     streams: Vec<Stream>,
+    format: Option<Format>,
+}
+
+#[derive(Deserialize)]
+struct Format {
+    duration: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -38,7 +46,7 @@ pub fn probe(ffprobe: &str, path: &Path) -> Result<VideoInfo> {
             "-select_streams",
             "v:0",
             "-show_entries",
-            "stream=width,height,avg_frame_rate,r_frame_rate,color_space,color_range",
+            "stream=width,height,avg_frame_rate,r_frame_rate,color_space,color_range:format=duration",
             "-of",
             "json",
         ])
@@ -57,6 +65,11 @@ pub fn probe(ffprobe: &str, path: &Path) -> Result<VideoInfo> {
 
 fn parse(json: &[u8]) -> Result<VideoInfo> {
     let probe: Probe = serde_json::from_slice(json).context("ffprobe sent unreadable JSON")?;
+    let duration = probe
+        .format
+        .and_then(|format| format.duration)
+        .and_then(|raw| raw.parse::<f64>().ok())
+        .filter(|secs| secs.is_finite() && *secs > 0.0);
     let Some(stream) = probe.streams.into_iter().next() else {
         bail!("the file has no video stream");
     };
@@ -82,6 +95,7 @@ fn parse(json: &[u8]) -> Result<VideoInfo> {
         fps,
         bt709,
         full_range: stream.color_range.as_deref() == Some("pc"),
+        duration,
     })
 }
 
@@ -108,7 +122,8 @@ mod tests {
     fn parses_ffprobe_json() {
         let info = parse(
             br#"{"streams":[{"width":1920,"height":1080,"avg_frame_rate":"0/0",
-                "r_frame_rate":"24/1","color_space":"bt709","color_range":"tv"}]}"#,
+                "r_frame_rate":"24/1","color_space":"bt709","color_range":"tv"}],
+                "format":{"duration":"12.5"}}"#,
         )
         .unwrap();
         assert_eq!(
@@ -118,7 +133,8 @@ mod tests {
                 height: 1080,
                 fps: 24.0,
                 bt709: true,
-                full_range: false
+                full_range: false,
+                duration: Some(12.5),
             }
         );
     }
