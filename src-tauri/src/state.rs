@@ -5,6 +5,7 @@ use notify::RecommendedWatcher;
 use rand::seq::SliceRandom;
 use rand::RngExt;
 use serde::Serialize;
+use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -20,7 +21,13 @@ pub enum Command {
     /// Config changed: rebuild the playlist and restart the countdown.
     Reload,
     /// Files on disk changed: refresh the playlist but leave the countdown alone.
+    /// Debounced, since the watcher sends one per filesystem event.
     Rescan,
+    /// Like `Rescan`, but sent by the app itself after it added, removed or
+    /// excluded an image, so it runs straight away.
+    Refresh,
+    /// Only the interval changed: restart the countdown, keep everything else.
+    Rearm,
     /// Re-apply whatever is current, e.g. after picking an image in the UI.
     ApplyCurrent,
 }
@@ -76,22 +83,27 @@ pub struct Inner {
     pub last_error: Option<String>,
 }
 
+/// Every image in the configured folders plus the managed images directory,
+/// sorted. This walks the disk, so call it without holding the state lock.
+pub fn scan_images(folders: &[Folder], images_dir: &Path) -> Vec<PathBuf> {
+    let mut images = scanner::scan(folders);
+    images.extend(scanner::scan(&[Folder {
+        path: images_dir.to_path_buf(),
+        recursive: false,
+    }]));
+    images.sort();
+    images.dedup();
+    images
+}
+
 impl Inner {
-    /// Rescans the folders plus the managed images directory and rebuilds the
-    /// play order. `force` is for settings changes; without it an unchanged set
-    /// of paths keeps its existing order, so a filesystem event cannot restart
-    /// a shuffle pass halfway through.
-    pub fn rebuild_playlist(&mut self, images_dir: &Path, force: bool) {
-        let mut images = scanner::scan(&self.config.folders);
-        images.extend(scanner::scan(&[Folder {
-            path: images_dir.to_path_buf(),
-            recursive: false,
-        }]));
-        images.sort();
-        images.dedup();
+    /// Rebuilds the play order from a fresh `scan_images` result. `force` is for
+    /// settings changes; without it the images that survived keep their place,
+    /// so a filesystem event cannot restart a shuffle pass halfway through.
+    pub fn rebuild_playlist(&mut self, images: Vec<PathBuf>, force: bool) {
         self.images = images;
 
-        // `scan` returns sorted paths, so this stays sorted after filtering.
+        // `scan_images` returns sorted paths, so this stays sorted after filtering.
         let mut candidates: Vec<PathBuf> = self
             .images
             .iter()
@@ -108,7 +120,28 @@ impl Inner {
         }
 
         if self.config.order == Order::Shuffle {
-            candidates.shuffle(&mut rand::rng());
+            if !force && !self.playlist.is_empty() {
+                // Keep the pass going: survivors stay in order, newcomers are
+                // shuffled in after them.
+                let wanted: HashSet<&PathBuf> = candidates.iter().collect();
+                let known: HashSet<&PathBuf> = self.playlist.iter().collect();
+                let mut fresh: Vec<PathBuf> = candidates
+                    .iter()
+                    .filter(|path| !known.contains(path))
+                    .cloned()
+                    .collect();
+                fresh.shuffle(&mut rand::rng());
+                let mut kept: Vec<PathBuf> = self
+                    .playlist
+                    .iter()
+                    .filter(|path| wanted.contains(path))
+                    .cloned()
+                    .collect();
+                kept.extend(fresh);
+                candidates = kept;
+            } else {
+                candidates.shuffle(&mut rand::rng());
+            }
         }
 
         // Keep showing the same image across a rebuild when it survived the change.
@@ -247,4 +280,66 @@ pub fn now_ms() -> u64 {
         .duration_since(UNIX_EPOCH)
         .map(|d| d.as_millis() as u64)
         .unwrap_or(0)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn inner(order: Order) -> Inner {
+        Inner {
+            config: Config {
+                order,
+                ..Config::default()
+            },
+            images: Vec::new(),
+            playlist: Vec::new(),
+            index: 0,
+            current: None,
+            paused: false,
+            next_change_at: None,
+            last_error: None,
+        }
+    }
+
+    fn paths(names: &[&str]) -> Vec<PathBuf> {
+        names
+            .iter()
+            .map(|name| PathBuf::from(format!("/w/{name}")))
+            .collect()
+    }
+
+    #[test]
+    fn soft_rebuild_keeps_the_shuffle_pass_and_appends_newcomers() {
+        let mut state = inner(Order::Shuffle);
+        state.rebuild_playlist(paths(&["a", "b", "c", "d"]), true);
+        state.advance(true);
+        let before = state.playlist.clone();
+        let current = state.current.clone();
+
+        state.config.excluded.push(before[3].clone());
+        state.rebuild_playlist(paths(&["a", "b", "c", "d", "e"]), false);
+
+        let expected: Vec<PathBuf> = before[..3].iter().cloned().chain(paths(&["e"])).collect();
+        assert_eq!(state.playlist, expected);
+        assert_eq!(state.current, current);
+        assert_eq!(state.playlist[state.index], current.unwrap());
+    }
+
+    #[test]
+    fn soft_rebuild_keeps_sequential_order_sorted() {
+        let mut state = inner(Order::Sequential);
+        state.rebuild_playlist(paths(&["b", "d"]), true);
+        state.rebuild_playlist(paths(&["a", "b", "c", "d"]), false);
+        assert_eq!(state.playlist, paths(&["a", "b", "c", "d"]));
+    }
+
+    #[test]
+    fn removing_the_current_image_moves_to_a_remaining_one() {
+        let mut state = inner(Order::Sequential);
+        state.rebuild_playlist(paths(&["a", "b"]), true);
+        state.current = Some(PathBuf::from("/w/b"));
+        state.rebuild_playlist(paths(&["a"]), false);
+        assert_eq!(state.current, Some(PathBuf::from("/w/a")));
+    }
 }

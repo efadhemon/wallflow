@@ -3,7 +3,8 @@ use crate::config::FillMode;
 use anyhow::{anyhow, bail, Context, Result};
 use percent_encoding::{utf8_percent_encode, AsciiSet, CONTROLS};
 use std::path::Path;
-use std::process::Command;
+use std::process::{Command, Stdio};
+use std::time::{Duration, Instant};
 
 /// Characters that must not appear raw in a `file://` URI. `%` is included so an
 /// image literally named `100%.jpg` round-trips instead of producing a broken URI.
@@ -142,16 +143,40 @@ unsafe fn libc_getuid() -> u32 {
     getuid()
 }
 
+/// A desktop tool that has not answered by now is stuck (typically on a session
+/// bus that is not up yet). Without a limit it would hold the scheduler forever.
+const RUN_TIMEOUT: Duration = Duration::from_secs(15);
+
 fn run(program: &str, args: &[&str]) -> Result<String> {
     let mut command = Command::new(program);
-    command.args(args);
+    command
+        .args(args)
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped());
     if let Some(address) = dbus_address() {
         command.env("DBUS_SESSION_BUS_ADDRESS", address);
     }
 
-    let output = command
-        .output()
+    let mut child = command
+        .spawn()
         .with_context(|| format!("running `{program}` (is it installed?)"))?;
+
+    let started = Instant::now();
+    while child.try_wait()?.is_none() {
+        if started.elapsed() >= RUN_TIMEOUT {
+            let _ = child.kill();
+            let _ = child.wait();
+            bail!(
+                "`{program}` did not finish within {}s",
+                RUN_TIMEOUT.as_secs()
+            );
+        }
+        std::thread::sleep(Duration::from_millis(20));
+    }
+    // These tools print a line or two, far below the pipe buffer, so reading
+    // after the exit cannot block.
+    let output = child.wait_with_output()?;
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
@@ -182,6 +207,13 @@ fn gsettings_picture_option(mode: FillMode) -> &'static str {
 }
 
 fn set_gsettings(schema: &str, path: &Path, mode: FillMode, dark_variant: bool) -> Result<()> {
+    // The fill mode goes first: set after the image, it makes the desktop redraw
+    // (and fade) a second time.
+    let option = gsettings_picture_option(mode);
+    if let Err(err) = run("gsettings", &["set", schema, "picture-options", option]) {
+        log::debug!("could not set picture-options: {err}");
+    }
+
     let uri = file_uri(path);
     run("gsettings", &["set", schema, "picture-uri", &uri])?;
 
@@ -190,11 +222,6 @@ fn set_gsettings(schema: &str, path: &Path, mode: FillMode, dark_variant: bool) 
         if let Err(err) = run("gsettings", &["set", schema, "picture-uri-dark", &uri]) {
             log::debug!("picture-uri-dark not available: {err}");
         }
-    }
-
-    let option = gsettings_picture_option(mode);
-    if let Err(err) = run("gsettings", &["set", schema, "picture-options", option]) {
-        log::debug!("could not set picture-options: {err}");
     }
 
     Ok(())

@@ -187,8 +187,7 @@ export function Gallery() {
   }, [startDownload]);
 
   useEffect(() => {
-    let unlisten: (() => void) | undefined;
-    void onDownloadProgress(progress => {
+    const listening = onDownloadProgress(progress => {
       const current = activeRef.current;
       let found = false;
       const next = new Map(current);
@@ -202,10 +201,9 @@ export function Gallery() {
       activeRef.current = next;
       setActive(next);
       showBatchToast(next);
-    }).then(fn => {
-      unlisten = fn;
     });
-    return () => unlisten?.();
+    // Unsubscribes even when this unmounts before the listener is registered.
+    return () => void listening.then(unlisten => unlisten());
   }, [showBatchToast]);
 
   // --- Column measurement ---

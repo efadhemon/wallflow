@@ -10,7 +10,8 @@ pub fn rewatch(state: &Arc<AppState>) {
 
     let mut watcher =
         match notify::recommended_watcher(move |event: notify::Result<notify::Event>| {
-            if event.is_ok() {
+            // Reads (our own thumbnailing included) do not change what is on disk.
+            if event.is_ok_and(|event| !event.kind.is_access()) {
                 let _ = tx.send(Command::Rescan);
             }
         }) {
