@@ -2,7 +2,17 @@
   "uuid": "wallflow-live@com.efadhemon.wallflow",
   "name": "Wallflow Live Wallpaper",
   "description": "Places Wallflow's live wallpaper window behind the desktop. All decoding and drawing happens in Wallflow's own process; this extension only positions the window and pauses playback while the desktop is hidden.",
-  "shell-version": ["46", "47", "48", "49", "50"],
+  "shell-version": [
+    "46",
+    "47",
+    "48",
+    "49",
+    "50"
+  ],
   "url": "https://github.com/efadhemon/wallflow",
-  "version": 1
+  "version": 1,
+  "session-modes": [
+    "user",
+    "unlock-dialog"
+  ]
 }

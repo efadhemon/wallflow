@@ -15,6 +15,10 @@
 // the overview shows the frame playback paused on instead of the old static
 // image, and the desktop picks up from that same frame when it closes.
 //
+// It stays enabled on the lock screen ("session-modes" in metadata.json) and
+// only pauses the renderer there; otherwise GNOME would disable it on every
+// lock, ending the live wallpaper until the app started it again.
+//
 // It also knows when the desktop cannot be seen — overview open, screen locked,
 // a fullscreen or maximized window on top — and pauses the renderer then, so a
 // covered wallpaper costs nothing and the shell's own animations get the GPU.

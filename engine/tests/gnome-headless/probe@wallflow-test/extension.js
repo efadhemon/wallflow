@@ -11,6 +11,7 @@ const IFACE = `<node><interface name="test.Probe">
 <method name="WorkspaceOf"><arg type="s" direction="in" name="cls"/><arg type="i" direction="out" name="index"/></method>
 <method name="DropTargetAt"><arg type="d" direction="in" name="x"/><arg type="d" direction="in" name="y"/><arg type="s" direction="out" name="json"/></method>
 <method name="Scenario"><arg type="s" direction="in" name="name"/><arg type="s" direction="out" name="json"/></method>
+<method name="Lock"><arg type="b" direction="in" name="locked"/></method>
 <method name="Open"><arg type="as" direction="in" name="argv"/></method>
 </interface></node>`;
 export default class Probe extends Extension {
@@ -108,6 +109,11 @@ export default class Probe extends Extension {
     if (name === 'dragEnd' && editor) Main.overview.endWindowDrag(editor);
     if (name === 'moveWindow' && editor) Main.moveWindowToMonitorAndWorkspace(editor, 0, 1);
     return JSON.stringify({name, editor: !!editor});
+  }
+  // Lock, or unlock as after a successful password (no authentication here).
+  Lock(locked) {
+    if (locked) Main.screenShield.lock(false);
+    else Main.screenShield.deactivate(false);
   }
   WorkspaceOf(cls) {
     const w = global.get_window_actors().map(a => a.meta_window).find(w => w.get_wm_class() === cls);

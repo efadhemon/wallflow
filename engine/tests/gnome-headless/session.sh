@@ -15,6 +15,7 @@ trap 'kill $SHELL_PID 2>/dev/null; wait $SHELL_PID 2>/dev/null' EXIT
 
 probe() { gdbus call --session --dest test.Probe --object-path /test/Probe --method "test.Probe.$1" "${@:2}"; }
 shim() { gdbus call --session --dest com.efadhemon.Wallflow.LiveShim --object-path /com/efadhemon/Wallflow/LiveShim --method "com.efadhemon.Wallflow.LiveShim.$1" "${@:2}"; }
+running() { gdbus call --session --dest com.efadhemon.Wallflow.LiveShim --object-path /com/efadhemon/Wallflow/LiveShim --method org.freedesktop.DBus.Properties.Get com.efadhemon.Wallflow.LiveShim Running | grep -o 'true\|false'; }
 paused() { gdbus call --session --dest com.efadhemon.Wallflow.LiveShim --object-path /com/efadhemon/Wallflow/LiveShim --method org.freedesktop.DBus.Properties.Get com.efadhemon.Wallflow.LiveShim Paused | grep -o 'true\|false'; }
 for _ in $(seq 1 60); do probe Report >/dev/null 2>&1 && break; sleep 0.5; done
 
@@ -78,8 +79,14 @@ check "a maximized window pauses only if it hides every desktop" "$(paused)" "$w
 probe Max "'org.gnome.TextEditor'" false >/dev/null; sleep 2
 check "unmaximizing resumes" "$(paused)" false
 
+# Locking must not end the live wallpaper: it pauses, and plays again after unlocking.
+probe Lock true >/dev/null; sleep 3
+check "locking keeps the engine running" "$(running)" true
+check "locked screen pauses playback" "$(paused)" true
+probe Lock false >/dev/null; sleep 3
+check "unlocking resumes playback" "$(paused)" false
+
 shim Stop >/dev/null; sleep 1
-running() { gdbus call --session --dest com.efadhemon.Wallflow.LiveShim --object-path /com/efadhemon/Wallflow/LiveShim --method org.freedesktop.DBus.Properties.Get com.efadhemon.Wallflow.LiveShim Running | grep -o 'true\|false'; }
 # Asked through the shim: an engine of the real session may run alongside.
 check "engine exits on Stop" "$(running)" false
 
