@@ -183,6 +183,14 @@ every platform without slowing the desktop.
      libraries per target in CI, LGPL means dynamic linking (dlls / dylibs ship
      anyway), unsafe FFI, `prepare` rewritten or still needs the CLI.
   Recommendation: 1 with a trimmed build now; native playback later (see plan).
+  **Size estimates (not measured yet; measure in W0):** 1.0.5 was
+  `setup.exe` 3.8 MB, `.dmg` 7.1 / 7.4 MB. Engine alone ≈ +2–3 MB compressed
+  (Windows / macOS pull fewer crates than Linux: 232 vs 322). Option 1 with a
+  trimmed shared-library FFmpeg: setup.exe ≈ 10–15 MB, .dmg ≈ 13–18 MB; with a
+  stock LGPL build ≈ +40–80 MB. Option 2: installers ≈ 6–10 MB, plus a first-use
+  download about the size of option 1's FFmpeg. If `prepare` also goes native
+  later (Media Foundation SinkWriter / AVAssetExportSession), Windows / macOS
+  need no FFmpeg at all: ≈ 6–10 MB.
 
 - Real session, visually checked by you: desktop playback, colours, fill, no
   lag, icons, overview, moving windows between workspaces — OK.
