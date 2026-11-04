@@ -29,6 +29,14 @@ every platform without slowing the desktop.
 
 ## Sessions
 
+### 2026-11-04 — status check on host EMON (live-engine)
+
+- Pulled `live-engine` (head 01d1c4f); this log matched the git history.
+- On this machine: `engine` 10 and `src-tauri` 31 unit tests pass, sidecar
+  builds into `src-tauri/binaries/`. The shim is not installed here yet, the old
+  in-shell extension is not either. No code changes; Next step rewritten as a
+  concrete test checklist for this machine.
+
 ### 2026-11-04 — engine integrated into the app (live-engine)
 
 - **Build:** `src-tauri/build.rs` builds `engine/` for the target triple and
@@ -166,14 +174,23 @@ every platform without slowing the desktop.
 
 ## Next step
 
-1. Log out and back in once (loads the shim with the lock-screen fix).
-2. Run the app (`yarn tauri dev`), open **Live**, add a video from `~/Videos`,
-   watch the import progress, press Play. Check: plays behind the desktop,
-   overview, lock + unlock, Stop brings the image rotation back, Next on the
-   Dashboard ends the live wallpaper.
-3. `yarn tauri build` and install the `.deb` (checks the sidecar is bundled and
-   found next to the binary, and the `ffmpeg` dependency).
-4. Then step 7 (shims for Windows / macOS / KDE / X11) — Windows first.
+Real-app test on host `EMON` (GNOME 50.1 Wayland, DING on, ffmpeg present, shim
+**not installed** here, autostart runs the installed `/usr/bin/wallflow`):
+
+1. Quit the installed Wallflow (autostart `/usr/bin/wallflow --minimized`) so it
+   cannot rotate the static wallpaper during the test.
+2. `yarn tauri dev` → **Live** page → the "GNOME helper" banner → install it
+   from the app (first real test of `live_install_helper`) → log out and in.
+3. Import a video from `~/Videos` (try `12058185_2160_1440_25fps.mp4`: checks
+   the downscale in `prepare`), watch the progress tile, press Play.
+4. Checklist: plays behind the desktop with icons on top · overview shows the
+   frame, windows can be dragged to another workspace · a maximized window
+   pauses it · lock + unlock · fill-mode change · Stop brings the image rotation
+   back · Next on the Dashboard ends it · quitting the app stops it · restart the
+   app → it comes back · remove a video from the library.
+5. `yarn tauri build`, install the `.deb` over the old 1.0.5 (sidecar found next
+   to the binary, `ffmpeg` dependency, autostart starts it with the live wallpaper).
+6. Then step 7 (shims for Windows / macOS / KDE / X11) — Windows first.
 
 ## Testing
 
