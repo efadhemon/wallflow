@@ -34,8 +34,12 @@ every platform without slowing the desktop.
 - You ran `yarn tauri dev` for a long while and checked the Live page in the
   real window: everything worked. Shim `wallflow-live@com.efadhemon.wallflow`
   is now installed on this machine.
-- Found while planning: CI runs only on `main`, so the Windows / macOS build of
-  the engine sidecar is still untested, and those platforms have no FFmpeg.
+- CI on `live-engine` (run 41790324676) failed on macOS and Windows: an
+  unused `mut` in the engine outside Linux, and `build.rs` passed clippy's
+  wrapper env into the nested engine build. Fixed in cf8d291, plus GNOME-only items allowed as dead code elsewhere and explicit
+  engine fmt / clippy / test steps in CI. Cross-clippy from Linux is not
+  possible (ring / objc2 need the target's C compiler), so CI is the check.
+- Windows / macOS plan written (section below).
 
 ### 2026-11-04 — status check on host EMON (live-engine)
 
@@ -165,11 +169,20 @@ every platform without slowing the desktop.
 
 ## Open / not verified
 
-- **Open decision — FFmpeg on Windows / macOS:** Linux gets it from the
-  `.deb` dependency. Options: bundle an LGPL FFmpeg build as a second sidecar
-  (simplest for users, ~80 MB, license notice needed), download it on first use
-  of the Live page, or link libav* into the engine (no child process, harder
-  cross builds).
+- **Open decision — FFmpeg on Windows / macOS** (Linux: `.deb` dependency).
+  `prepare` uses `libx264` (GPL); an LGPL FFmpeg has none, so every LGPL
+  option also needs the hardware-encoder switch in W0.
+  1. Bundle LGPL `ffmpeg` + `ffprobe` as sidecars. Works offline, one tested
+     version. Stock builds are large; a trimmed custom build (our decoders,
+     demuxers, scale, mjpeg, h264_mf / videotoolbox) is much smaller but needs
+     its own CI build. LGPL notice + source link required.
+  2. Download on first use of the Live page. Small installer; needs internet,
+     hosting, checksum check, an error / retry UI, and the binaries still have to
+     be signed (macOS arm64) and may trip antivirus. Same license duty.
+  3. Link libav* into the engine. No pipe, the way to zero-copy, but FFmpeg dev
+     libraries per target in CI, LGPL means dynamic linking (dlls / dylibs ship
+     anyway), unsafe FFI, `prepare` rewritten or still needs the CLI.
+  Recommendation: 1 with a trimmed build now; native playback later (see plan).
 
 - Real session, visually checked by you: desktop playback, colours, fill, no
   lag, icons, overview, moving windows between workspaces — OK.
@@ -187,26 +200,61 @@ every platform without slowing the desktop.
 
 ## Next step
 
-1. **Release build on Linux (step 5 of the old list):** `yarn tauri build`,
-   install the `.deb` over the old 1.0.5 in `/usr/bin`. Check: the sidecar is
-   bundled and found next to the binary, `ffmpeg` is pulled in as a dependency,
-   autostart (`/usr/bin/wallflow --minimized`) brings the live wallpaper back
-   after login.
-2. **Windows / macOS compile check:** run the `CI` workflow on `live-engine`
-   (`gh workflow run ci.yml --ref live-engine`; it only runs on `main` by
-   itself). `build.rs` now builds `engine/` for every target and that has only
-   been compiled on Linux.
-3. **Decide how FFmpeg reaches Windows / macOS users** (see Open decisions);
-   the Windows shim is useless without it.
-4. **Windows shim (step 7):** no extension needed, the engine does it itself.
-   `--background` on Windows: create the window, `SetParent` it into the
-   `WorkerW` behind the desktop icons (send `0x052C` to `Progman` first), one
-   window per monitor in virtual-screen coordinates; pause when a fullscreen or
-   maximized window covers the monitor or the session is locked
-   (`WTSRegisterSessionNotification`). App side: `src-tauri/src/live/windows.rs`
-   starts the engine directly instead of through the GNOME D-Bus shim.
-5. Then macOS (desktop-level `NSWindow`), KDE / wlroots (`wlr-layer-shell`
-   background layer), X11; then zero-copy (step 8) and the merge (step 9).
+1. Check the CI run on `live-engine` (run 41797820483, after cf8d291): all
+   three OSes must be green before any Windows / macOS work.
+2. **You decide FFmpeg for Windows / macOS** (options under Open decisions).
+3. Linux release build: `yarn tauri build`, install the `.deb` over 1.0.5
+   (sidecar bundled and found, `ffmpeg` dependency, autostart restores the live
+   wallpaper).
+4. Then the Windows / macOS plan below, phase W0 first.
+
+## Windows / macOS plan
+
+**W0 — common groundwork (Linux-testable)**
+- Engine reports its state on stdout as JSON lines (`{"event":"state","paused":…}`,
+  `{"event":"error",…}`), because on Windows / macOS no shim sits in between:
+  the app starts the engine itself and keeps its stdin.
+- App: split `live/` into backends behind one interface (`gnome.rs`,
+  `windows.rs`, `macos.rs`; start / stop / send / state). The supervisor
+  restarts a child process that exited.
+- `prepare` picks the encoder from `ffmpeg -encoders`: `libx264` if present
+  (Linux distro FFmpeg), else `h264_mf` (Windows) / `h264_videotoolbox` (macOS),
+  bitrate-based (`-b:v` from size × fps) because hardware encoders ignore CRF.
+- FFmpeg delivery as decided (bundle / download / link).
+
+**W1 — Windows**
+- Engine `--background`: send `0x052C` to `Progman`, find the `WorkerW` behind
+  the icons (Windows 11 24H2 moved it under `Progman`: handle both layouts),
+  `SetParent` each monitor window into it, positions relative to the virtual
+  screen (it can start at negative x/y), per-monitor DPI v2.
+- Pause per monitor: `SetWinEventHook` (foreground / move-size / minimize) →
+  a maximized or fullscreen window covers that monitor;
+  `SHQueryUserNotificationState` for fullscreen games / presentations;
+  `WTSRegisterSessionNotification` for lock and user switch.
+- Explorer restart: `TaskbarCreated` message → find `WorkerW` again, re-parent.
+- Decode: `-hwaccel d3d11va`. Poster as the static wallpaper (existing
+  `wallpaper/windows.rs`).
+- Test: Windows 10 and 11 (24H2) on a real machine, 2 monitors, mixed DPI.
+
+**W2 — macOS**
+- Engine `--background`: one `NSWindow` per `NSScreen` at
+  `kCGDesktopWindowLevel`, `canJoinAllSpaces | stationary | ignoresCycle`,
+  `ignoresMouseEvents`; activation policy `accessory` so the engine gets no
+  Dock icon.
+- Pause: `NSWindow` occlusion state (macOS reports it, unlike Mutter),
+  `NSWorkspace` screens sleep / wake and session resign, screen lock
+  (`com.apple.screenIsLocked`).
+- Decode: `-hwaccel videotoolbox`. Poster on every Space via the existing
+  `wallpaper/macos.rs`.
+- Release: engine + FFmpeg signed with hardened runtime and notarized with
+  the app (Tauri signs `externalBin`); per-arch (arm64 / x86_64) like the
+  current release matrix.
+- Test: a real Mac (Apple Silicon), Spaces, a fullscreen app, external monitor.
+
+**Later (step 8):** playback only ever sees `prepare`d H.264 MP4, which the OS
+decodes natively. Native players (Media Foundation → D3D11 texture,
+AVFoundation → IOSurface → Metal) would give zero-copy and remove FFmpeg from
+playback; FFmpeg would then be needed only for `prepare`.
 
 ## Testing
 
