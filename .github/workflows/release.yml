@@ -97,7 +97,9 @@ jobs:
 
       - uses: swatinem/rust-cache@v2
         with:
-          workspaces: ./src-tauri -> target
+          workspaces: |
+            ./src-tauri -> target
+            ./engine -> target
           key: ${{ matrix.target }}
 
       - uses: actions/setup-node@v5

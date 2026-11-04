@@ -200,15 +200,15 @@ impl App {
     fn open_screen(
         &mut self,
         event_loop: &ActiveEventLoop,
-        mut attrs: winit::window::WindowAttributes,
+        attrs: winit::window::WindowAttributes,
     ) -> Result<()> {
         #[cfg(target_os = "linux")]
-        {
-            attrs = winit::platform::wayland::WindowAttributesExtWayland::with_name(
+        let attrs = {
+            let attrs = winit::platform::wayland::WindowAttributesExtWayland::with_name(
                 attrs, APP_ID, APP_ID,
             );
-            attrs = winit::platform::x11::WindowAttributesExtX11::with_name(attrs, APP_ID, APP_ID);
-        }
+            winit::platform::x11::WindowAttributesExtX11::with_name(attrs, APP_ID, APP_ID)
+        };
 
         let window = Arc::new(event_loop.create_window(attrs)?);
         if self.opts.background {

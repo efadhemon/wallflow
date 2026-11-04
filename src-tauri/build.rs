@@ -31,7 +31,12 @@ fn build_engine() {
         .env_remove("CARGO_TARGET_DIR")
         .env_remove("RUSTFLAGS")
         .env_remove("CARGO_ENCODED_RUSTFLAGS")
-        .env_remove("CARGO_BUILD_TARGET");
+        .env_remove("CARGO_BUILD_TARGET")
+        // Under `cargo clippy` these would lint the engine with our flags; CI
+        // checks the engine on its own.
+        .env_remove("RUSTC_WRAPPER")
+        .env_remove("RUSTC_WORKSPACE_WRAPPER")
+        .env_remove("CLIPPY_ARGS");
     if target != host {
         command.args(["--target", &target]);
     }

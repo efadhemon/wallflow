@@ -59,6 +59,8 @@ pub struct ImportProgress {
 }
 
 /// Can this desktop play live wallpapers, and if not, what is missing.
+// Only GNOME has a shim yet; the Windows / macOS ones will construct these too.
+#[cfg_attr(not(target_os = "linux"), allow(dead_code))]
 #[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub enum Support {
@@ -348,6 +350,7 @@ pub fn screen_size(app: &AppHandle) -> (u32, u32) {
     (width.max(1), height.max(1))
 }
 
+#[cfg_attr(not(target_os = "linux"), allow(dead_code))]
 pub fn engine_fill(mode: crate::config::FillMode) -> &'static str {
     use crate::config::FillMode;
     match mode {
