@@ -188,8 +188,16 @@ every platform without slowing the desktop.
   lag, icons, overview, moving windows between workspaces — OK.
 - Release CI builds the engine for every target via `build.rs`; it has only been
   compiled on Linux. The macOS / Windows release jobs may need fixes.
-- Autostart on host EMON runs the installed 1.0.5 (`/usr/bin/wallflow`), which
-  has no live engine: replace it with the new `.deb` (Next step 1).
+- Autostart on host EMON points at `/usr/bin/wallflow`, which is **not
+  installed** (no `wallflow` package): login starts nothing until the new
+  `.deb` is installed.
+- **Size (Linux):** 1.0.5 `.deb` was 5.4 MB. The engine sidecar adds 14.2 MB
+  as built now (≈4.5 MB compressed): `engine/Cargo.toml` has no release
+  profile. With strip + LTO it is 6.3 MB (≈2.1–2.7 MB compressed). FFmpeg
+  itself is not in the package (apt dependency, already installed on Ubuntu
+  desktops that play video).
+- **AppImage has no FFmpeg:** `depends: ffmpeg` only applies to the `.deb`; an
+  AppImage user without system FFmpeg sees the "FFmpeg missing" banner.
 - Engine CPU % on a near-idle laptop reads high (~40% of one core) because cores
   idle at low clocks; with one other core busy the same run is ~15%. Energy
   (RAPL needs root here) is the right metric; not measured.
@@ -200,8 +208,7 @@ every platform without slowing the desktop.
 
 ## Next step
 
-1. Check the CI run on `live-engine` (run 41797820483, after cf8d291): all
-   three OSes must be green before any Windows / macOS work.
+1. CI on `live-engine` is green on all three OSes (run 41797820483, cf8d291).
 2. **You decide FFmpeg for Windows / macOS** (options under Open decisions).
 3. Linux release build: `yarn tauri build`, install the `.deb` over 1.0.5
    (sidecar bundled and found, `ffmpeg` dependency, autostart restores the live
