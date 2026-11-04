@@ -15,7 +15,7 @@ every platform without slowing the desktop.
 | 3   | GNOME shim extension: desktop window above background, pause when hidden                                            | **done**, verified headless + real session        |
 | 4   | Multi-monitor (one window per monitor, decoded once)                                                                | **done**, verified headless (2 monitors)          |
 | 5   | `prepare` import step (downscale, ≤30 fps, poster)                                                                  | **done**                                          |
-| 6   | Integrate into the app: bundle engine as Tauri sidecar, Live page, prepare progress UI, start/stop through the shim | **done** (GNOME); real-session UI not clicked yet |
+| 6   | Integrate into the app: bundle engine as Tauri sidecar, Live page, prepare progress UI, start/stop through the shim | **done** (GNOME), checked by you in the real app |
 | 7   | Shims for other desktops: Windows (WorkerW), macOS (desktop-level NSWindow), KDE/wlroots (wlr-layer-shell), X11     | planned                                           |
 | 8   | Zero-copy decode → texture (DMA-BUF / D3D11 / IOSurface)                                                            | planned                                           |
 | 9   | Merge `live-engine` → `dev` → `main`, release                                                                       | planned                                           |
@@ -28,6 +28,14 @@ every platform without slowing the desktop.
 - `live-wall` — the old live wallpaper. To be dropped; nothing from it is reused.
 
 ## Sessions
+
+### 2026-11-04 — real-app test passed on host EMON (live-engine)
+
+- You ran `yarn tauri dev` for a long while and checked the Live page in the
+  real window: everything worked. Shim `wallflow-live@com.efadhemon.wallflow`
+  is now installed on this machine.
+- Found while planning: CI runs only on `main`, so the Windows / macOS build of
+  the engine sidecar is still untested, and those platforms have no FFmpeg.
 
 ### 2026-11-04 — status check on host EMON (live-engine)
 
@@ -157,13 +165,18 @@ every platform without slowing the desktop.
 
 ## Open / not verified
 
+- **Open decision — FFmpeg on Windows / macOS:** Linux gets it from the
+  `.deb` dependency. Options: bundle an LGPL FFmpeg build as a second sidecar
+  (simplest for users, ~80 MB, license notice needed), download it on first use
+  of the Live page, or link libav* into the engine (no child process, harder
+  cross builds).
+
 - Real session, visually checked by you: desktop playback, colours, fill, no
   lag, icons, overview, moving windows between workspaces — OK.
-- The Live page has not been clicked through in the real app window yet.
 - Release CI builds the engine for every target via `build.rs`; it has only been
   compiled on Linux. The macOS / Windows release jobs may need fixes.
-- Your autostart entry points at the debug build (`src-tauri/target/debug/wallflow`),
-  which needs `yarn dev` running for its window; install a release build instead.
+- Autostart on host EMON runs the installed 1.0.5 (`/usr/bin/wallflow`), which
+  has no live engine: replace it with the new `.deb` (Next step 1).
 - Engine CPU % on a near-idle laptop reads high (~40% of one core) because cores
   idle at low clocks; with one other core busy the same run is ~15%. Energy
   (RAPL needs root here) is the right metric; not measured.
@@ -174,23 +187,26 @@ every platform without slowing the desktop.
 
 ## Next step
 
-Real-app test on host `EMON` (GNOME 50.1 Wayland, DING on, ffmpeg present, shim
-**not installed** here, autostart runs the installed `/usr/bin/wallflow`):
-
-1. Quit the installed Wallflow (autostart `/usr/bin/wallflow --minimized`) so it
-   cannot rotate the static wallpaper during the test.
-2. `yarn tauri dev` → **Live** page → the "GNOME helper" banner → install it
-   from the app (first real test of `live_install_helper`) → log out and in.
-3. Import a video from `~/Videos` (try `12058185_2160_1440_25fps.mp4`: checks
-   the downscale in `prepare`), watch the progress tile, press Play.
-4. Checklist: plays behind the desktop with icons on top · overview shows the
-   frame, windows can be dragged to another workspace · a maximized window
-   pauses it · lock + unlock · fill-mode change · Stop brings the image rotation
-   back · Next on the Dashboard ends it · quitting the app stops it · restart the
-   app → it comes back · remove a video from the library.
-5. `yarn tauri build`, install the `.deb` over the old 1.0.5 (sidecar found next
-   to the binary, `ffmpeg` dependency, autostart starts it with the live wallpaper).
-6. Then step 7 (shims for Windows / macOS / KDE / X11) — Windows first.
+1. **Release build on Linux (step 5 of the old list):** `yarn tauri build`,
+   install the `.deb` over the old 1.0.5 in `/usr/bin`. Check: the sidecar is
+   bundled and found next to the binary, `ffmpeg` is pulled in as a dependency,
+   autostart (`/usr/bin/wallflow --minimized`) brings the live wallpaper back
+   after login.
+2. **Windows / macOS compile check:** run the `CI` workflow on `live-engine`
+   (`gh workflow run ci.yml --ref live-engine`; it only runs on `main` by
+   itself). `build.rs` now builds `engine/` for every target and that has only
+   been compiled on Linux.
+3. **Decide how FFmpeg reaches Windows / macOS users** (see Open decisions);
+   the Windows shim is useless without it.
+4. **Windows shim (step 7):** no extension needed, the engine does it itself.
+   `--background` on Windows: create the window, `SetParent` it into the
+   `WorkerW` behind the desktop icons (send `0x052C` to `Progman` first), one
+   window per monitor in virtual-screen coordinates; pause when a fullscreen or
+   maximized window covers the monitor or the session is locked
+   (`WTSRegisterSessionNotification`). App side: `src-tauri/src/live/windows.rs`
+   starts the engine directly instead of through the GNOME D-Bus shim.
+5. Then macOS (desktop-level `NSWindow`), KDE / wlroots (`wlr-layer-shell`
+   background layer), X11; then zero-copy (step 8) and the merge (step 9).
 
 ## Testing
 
