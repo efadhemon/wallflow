@@ -29,6 +29,28 @@ every platform without slowing the desktop.
 
 ## Sessions
 
+### 2026-11-05 — plan for steps 1–6; release build; W0 and FFmpeg started (host EMON)
+
+- You chose to bundle FFmpeg. Full plan for steps 1–6 written (below, 1d479de).
+- **1.1** engine release profile (f306fc4): sidecar 14.2 → 8.8 MB.
+- **1.2** `yarn tauri build`: `.deb` 9.7 MB (1.0.5: 5.4 MB), contains
+  `/usr/bin/wallflow-live`, `Depends: ffmpeg, …`; the app looks for the engine
+  beside itself, so `/usr/bin` works. AppImage 89 MB. Not installed yet.
+- **3.1** `prepare` picks libx264 → h264_videotoolbox → h264_mf (980dcc6);
+  real prepare with libx264 unchanged.
+- **3.2** `--events` (82c6419): `ready`, `state` (only on change), `error`;
+  checked with a real run (pause twice → one event; missing file → error).
+- **2.1–2.3** (5f0fa31): FFmpeg build script, workflow, fetch script. Local
+  Linux build of the same flags: ffmpeg + ffprobe ≈ 5.2 MB compressed, LGPL,
+  only libc / libm; the engine plays a video with it; prepare reports "no H.264
+  encoder" cleanly (expected, Linux build has none). Pinned by commit, not
+  tarball hash: ffmpeg.org reset the connection here, and GitHub archive hashes
+  are not guaranteed stable.
+- **2.5** (e56a117): bundled FFmpeg first, then PATH; passed to the engine
+  for playback and prepare. Headless GNOME `app.sh`: all 6 checks pass.
+- Git over SSH from this machine: `Permission denied (publickey)` on push and
+  fetch, though `ssh -T git@github.com` authenticates. Pushed over HTTPS.
+
 ### 2026-11-04 — real-app test passed on host EMON (live-engine)
 
 - You ran `yarn tauri dev` for a long while and checked the Live page in the
@@ -195,18 +217,24 @@ every platform without slowing the desktop.
 
 ## Next step
 
-Step 1.2: you install the new `.deb` (`sudo apt install ./…deb`, path in the
-latest session entry), log out and in, check the live wallpaper comes back.
-Meanwhile: step 2 (FFmpeg bundle) and step 3 (W0).
+1. **You:** install the new `.deb`
+   (`sudo apt install ./src-tauri/target/release/bundle/deb/Wallflow_1.0.5_amd64.deb`),
+   log out and in, check the live wallpaper comes back by itself.
+2. **You approve, then run** the FFmpeg workflow (creates a pre-release in the
+   repo): `gh workflow run ffmpeg.yml --ref live-engine`. Then copy the
+   release's `SHA256SUMS` into `scripts/ffmpeg/SHA256SUMS` and do 2.4
+   (externalBin + fetch step in CI / release) — needs the release first, or the
+   Windows / macOS CI jobs fail.
+3. Meanwhile: 3.3 (engine `platform` module) and 3.4 (`direct` backend).
 
 ## Plan (steps 1–6)
 
-Decided 2026-11-05: **FFmpeg is bundled** on Windows / macOS (option 1), as a
+Decided 2026-11-05: **FFmpeg n9.0.2 is bundled** on Windows / macOS (option 1), as a
 trimmed **static LGPL** build of `ffmpeg` + `ffprobe`. Static, not shared
 libraries: two `externalBin` sidecars, nothing to place or sign separately;
 both binaries are entirely LGPL code, so static linking is fine for the license.
 
-### Step 1 — Linux release
+### Step 1 — Linux release (1.1 done f306fc4; 1.2 built, you install)
 - 1.1 Engine release profile (strip, LTO, 1 codegen unit; opt-level 3 because
   the render loop is hot; panic stays unwind so a decoder-thread panic does not
   kill playback). Measure the size.
@@ -214,13 +242,13 @@ both binaries are entirely LGPL code, so static linking is fine for the license.
   `/usr/bin/wallflow-live` present, `Depends: ffmpeg`. You install it and check
   autostart + live wallpaper after login.
 
-### Step 2 — FFmpeg bundle (Windows / macOS)
+### Step 2 — FFmpeg bundle (2.1–2.3 and 2.5 done 5f0fa31, e56a117; 2.4, 2.6, 2.7 left)
 - 2.1 `scripts/ffmpeg/build.sh <target>`: pinned FFmpeg 8.0.x source + sha256,
   `--disable-everything` then only what the engine uses:
   protocols `file,pipe`; demuxers `mov,matroska,avi,mpegts,image2`; muxers
   `mp4,rawvideo,image2`; decoders `h264,hevc,vp8,vp9,av1,mpeg4,mjpeg,png`;
   parsers for those; encoders `mjpeg,rawvideo` + `h264_mf` (Windows) /
-  `h264_videotoolbox` (macOS); filters `scale,fps,format,null,setsar`;
+  `h264_videotoolbox` (macOS); filters `buffer,buffersink,null,format,scale,fps,setsar`;
   hwaccels `*_d3d11va` / `*_videotoolbox`; `ffmpeg` + `ffprobe`, no ffplay,
   no network, no docs. No `--enable-gpl`, no `--enable-nonfree`.
 - 2.2 Workflow `ffmpeg.yml` (manual): Windows x86_64 (mingw-w64 cross build
@@ -240,12 +268,12 @@ both binaries are entirely LGPL code, so static linking is fine for the license.
   About with the version and a link to the source release.
 - 2.7 Measure the real `setup.exe` / `.dmg` sizes.
 
-### Step 3 — W0, common groundwork (Linux-testable)
+### Step 3 — W0, common groundwork (3.1 done 980dcc6, 3.2 done 82c6419)
 - 3.1 `prepare` picks the encoder from `ffmpeg -encoders`: `libx264` (CRF 20)
   → `h264_mf` / `h264_videotoolbox` (bitrate ≈ 0.1 bit per pixel per frame,
   e.g. 1080p30 ≈ 6 Mbit/s) → error. Pure function, unit tested with recorded
   encoder lists.
-- 3.2 Engine prints JSON lines on stdout while playing: `ready` (screens),
+- 3.2 Engine prints JSON lines on stdout while playing, with `--events`: `ready` (screens),
   `state` (`playing` / `paused`, why), `error`. The GNOME shim ignores them.
 - 3.3 Engine `platform` module: `attach_background(window, monitor)` and a
   cover watcher that sends pause / resume into the event loop. Linux: no-op
