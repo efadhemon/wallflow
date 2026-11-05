@@ -29,6 +29,23 @@ every platform without slowing the desktop.
 
 ## Sessions
 
+### 2026-11-05 — repository public: website to GitHub Pages, release plan (host EMON)
+
+- Branch `github-pages` (from `main`, worktree `.worktrees/pages`), PR #8:
+  `pages.yml` deploys `website/` to Pages (on website changes, by hand, after
+  each tagged release) with download links to the latest published release;
+  update check via GitHub's latest-release API (needs a User-Agent: 403
+  without); `api/version.json` kept for apps up to 1.0.5; Vercel files,
+  `deploy-website.yml`, the Vercel release job, installer staging and
+  `VITE_VERSION_API_URL` removed; CSP leftovers removed; CI on pull requests;
+  manual release runs are drafts. Commits 0ec1d76, 9bd1b76, 94ed849.
+- Pages enabled with GitHub Actions as source (`efadhemon.github.io/wallflow`,
+  deploys allowed from `main`). Setting the custom domain was not allowed from
+  here (DNS / domain change): yours.
+- Checked: tsc, eslint, clippy, 20 tests; API returns v1.0.5; `.deb`,
+  AppImage and `.exe` release links redirect (302). The two `.dmg` links gave
+  504 from this network although the API lists them: check in a browser.
+
 ### 2026-11-05 — FFmpeg release published, sidecars wired in (host EMON)
 
 - FFmpeg workflow: `workflow_dispatch` needs the file on `main`, so it now also
@@ -218,11 +235,10 @@ every platform without slowing the desktop.
 
 ## Open / not verified
 
-- **LGPL source (your decision):** the app ships FFmpeg's license and exact
-  configure line and links to FFmpeg's public source at the pinned commit. The
-  safest reading of the LGPL wants the distributor to offer the source itself:
-  e.g. the FFmpeg source tarball next to the installers on the website, or make
-  the `ffmpeg-n9.0.2-wf1` release public. Not done yet.
+- **LGPL source:** settled by the repository going public: the
+  `ffmpeg-n9.0.2-wf1` release (build script, configure line) is public and
+  links FFmpeg's source at the pinned commit. Attaching the FFmpeg source
+  tarball to that release would make it complete on our side.
 - FFmpeg on Windows / macOS: **decided, bundled** (Plan, step 2). Earlier size
   estimates: `setup.exe` ≈ 10–15 MB, `.dmg` ≈ 13–18 MB; measure in 2.7.
 - Real session, visually checked by you: desktop playback, colours, fill, no
@@ -247,11 +263,47 @@ every platform without slowing the desktop.
 
 ## Next step
 
-1. **You decide** where the FFmpeg source is offered publicly (Open / not
-   verified → LGPL source).
-2. Step 4 (W1, Windows) together with 3.3: engine attaches behind the desktop,
-   cover detection; then the `direct` backend becomes the default on Windows.
-   Needs a Windows PC for 4.6.
+1. **You:** review and merge PR #8 (`github-pages` → `main`). Then in
+   Settings → Pages set the custom domain `wallflow.efadhemon.dev` and point
+   its DNS at GitHub Pages (CNAME `efadhemon.github.io`); then delete the
+   Vercel project and the secrets `VERCEL_TOKEN`, `VERCEL_ORG_ID`,
+   `VERCEL_PROJECT_ID`, `VITE_VERSION_API_URL`.
+2. Release 1.0.6 (Release plan below).
+3. Merge `main` into `live-engine`, then release 1.1.0.
+
+## Release plan
+
+The repository is public (2026-11-05). Website: GitHub Pages
+(`.github/workflows/pages.yml`), download buttons and the in-app update check
+read GitHub releases. A **manual** run of `release.yml` makes a **draft**
+release (rehearsal: test the installers, then publish the draft by hand and run
+the Website workflow, or delete it and push the tag); a **tag push** publishes
+and refreshes the website. Apps up to 1.0.5 still read
+`wallflow.efadhemon.dev/api/version.json`, which every deploy rewrites, so the
+custom domain must keep pointing at the site.
+
+**1.0.6 — the public, low-risk release (from `main`)**
+- PR #8, `dev` (2 commits: titlebar, gallery virtualization) and
+  `review-fixes` (4193a7a) into `main`. No live wallpaper.
+- `yarn version:patch` → PR → merge → tag `v1.0.6`.
+- Proves the new pipeline: release assets, Pages refresh, 1.0.5 apps show the
+  update banner (via `api/version.json`), 1.0.6 asks GitHub.
+
+**1.1.0 — live wallpapers on Linux (GNOME) (`live-engine`)**
+- Merge `main` into `live-engine` (workflow conflicts: keep the FFmpeg fetch
+  steps from `live-engine`, the Pages / no-Vercel changes from `main`).
+- Rehearsal: manual release run → draft. Check on real machines: `.deb` on
+  Ubuntu 24.04 (helper install from the Live page, log out / in, play), the
+  AppImage (FFmpeg banner when the system has none), Windows and macOS install
+  and run with the Live page saying "coming soon", and their installer sizes
+  (step 2.7).
+- Release notes: GNOME only; KDE, X11, Windows, macOS later; FFmpeg LGPL
+  (source: release `ffmpeg-n9.0.2-wf1`, public now).
+- `live-engine` → `dev` → `main`, tag `v1.1.0`; drop `live-wall`.
+
+**1.2.0 — Windows live wallpaper** (Plan step 4, needs a Windows PC)
+**1.3.0 — macOS live wallpaper** (Plan step 5, needs a Mac)
+**Later — KDE / wlroots, X11, zero-copy** (Plan step 6)
 
 ## Plan (steps 1–6)
 
