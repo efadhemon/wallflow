@@ -19,7 +19,7 @@ Hand-off log between machines. Read this after `git pull`, before changing anyth
 
 **Next session, in order**
 
-1. **PR `deps-update` → `dev`** (checked by you in `yarn tauri dev`
+1. **PR #11 `deps-update` → `dev`** (https://github.com/efadhemon/wallflow/pull/11; checked by you in `yarn tauri dev`
    2026-11-06, incl. the new Dashboard): CI on all three OSes (first build
    of Tauri 2.12 / wry 0.57 on Windows / macOS), merge, then `dev` → `main`.
 2. **Release 1.1.0 (live wallpaper on Linux/GNOME):** rehearsal release
@@ -30,9 +30,11 @@ Hand-off log between machines. Read this after `git pull`, before changing anyth
 3. **1.2.0 Windows** (Plan step 4, with 3.3), needs a Windows PC.
 4. **1.3.0 macOS** (Plan step 5), needs a Mac. Later: KDE / X11 / zero-copy.
 
-**Branch flow:** feature branch → PR into `dev` → PR `dev` → `main` → tag
-`vX.Y.Z` on `main` releases. Keep only `main`, `dev` and active feature
-branches. The old `live-wall` player is kept as tag `archive/live-wall`.
+**Branch flow (rule for every PR, written in README "Branches and pull
+requests"):** feature branch from `dev` → PR into `dev` → PR `dev` → `main` →
+tag `vX.Y.Z` on `main` releases. Only `dev` → `main` PRs target `main`. Keep
+only `main`, `dev` and active feature branches. The old `live-wall` player is
+kept as tag `archive/live-wall`.
 
 ## Roadmap
 
@@ -63,6 +65,15 @@ every platform without slowing the desktop.
   (old player, kept as tag `archive/live-wall` → 14f72eb).
 
 ## Sessions
+
+### 2026-11-06 — branch flow in README, PR #11 (host EMON)
+
+- PR #11 `deps-update` opened (first against `main`, then moved to `dev` to
+  follow the flow; description updated). CI starting.
+- README: new section "Branches and pull requests": feature branch from `dev`,
+  PR into `dev` (never `main`), CI green on all three OSes, `dev` → `main` is
+  the only PR into `main`, tag `vX.Y.Z` on `main`, delete merged branches.
+  You asked that every PR follows it.
 
 ### 2026-11-06 — website: new Dashboard screenshot (host EMON)
 
