@@ -10,7 +10,7 @@
 //       latest published release, so download links never point at a release
 //       that is still being built.
 
-import { readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
@@ -32,6 +32,8 @@ if (!version || !/^\d+\.\d+\.\d+/.test(version)) {
 const cargoPath = join(root, "src-tauri", "Cargo.toml");
 const cargoLockPath = join(root, "src-tauri", "Cargo.lock");
 const websitePath = join(root, "website", "index.html");
+// Read by the update check of apps up to 1.0.5 (newer ones ask GitHub).
+const versionJsonPath = join(root, "website", "api", "version.json");
 
 let drift = false;
 
@@ -91,9 +93,16 @@ function syncWebsite() {
   for (const [re, replacement] of replacements) {
     updated = updated.replace(re, replacement);
   }
-  if (updated === original) return;
-  writeFileSync(websitePath, updated);
-  console.log(`Updated website/index.html -> ${version}`);
+  if (updated !== original) {
+    writeFileSync(websitePath, updated);
+    console.log(`Updated website/index.html -> ${version}`);
+  }
+  const json = `${JSON.stringify({ version }, null, 2)}\n`;
+  if (!existsSync(versionJsonPath) || readFileSync(versionJsonPath, "utf8") !== json) {
+    mkdirSync(dirname(versionJsonPath), { recursive: true });
+    writeFileSync(versionJsonPath, json);
+    console.log(`Updated website/api/version.json -> ${version}`);
+  }
 }
 
 if (websiteOnly) {
