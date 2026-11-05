@@ -1,6 +1,6 @@
 [package]
 name = "wallflow"
-version = "1.0.6"
+version = "1.1.0"
 edition = "2021"
 authors = ["Emon Hossain"]
 repository = "https://github.com/efadhemon/wallflow"
@@ -25,7 +25,7 @@ tauri-plugin-dialog = "2.7.2"
 tauri-plugin-log = "2.9.0"
 tauri-plugin-opener = "2.5.4"
 tauri-plugin-single-instance = "2.4.3"
-tokio = { version = "1.53.1", features = ["rt-multi-thread", "sync", "time", "macros", "fs", "io-util"] }
+tokio = { version = "1.53.1", features = ["rt-multi-thread", "sync", "time", "macros", "fs", "io-util", "process"] }
 walkdir = "2.5.0"
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "stream"] }
 futures-util = { version = "0.3", default-features = false, features = ["std"] }

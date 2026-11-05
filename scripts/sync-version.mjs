@@ -86,6 +86,7 @@ function syncWebsite() {
     [/(Wallflow_)\d+\.\d+\.\d+(_)/g, `$1${version}$2`],
     [/(\/releases\/download\/v)\d+\.\d+\.\d+(\/)/g, `$1${version}$2`],
     [/(Version )\d+\.\d+\.\d+/g, `$1${version}`],
+    [/("softwareVersion": ")\d+\.\d+\.\d+(")/g, `$1${version}$2`],
   ];
   let updated = original;
   for (const [re, replacement] of replacements) {

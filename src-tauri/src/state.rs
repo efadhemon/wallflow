@@ -68,6 +68,8 @@ pub struct Status {
     pub playlist_size: usize,
     pub position: usize,
     pub last_error: Option<String>,
+    /// Id of the live wallpaper playing instead of the rotation, if any.
+    pub live: Option<String>,
 }
 
 pub struct Inner {
@@ -243,6 +245,7 @@ impl Inner {
                 self.index + 1
             },
             last_error: self.last_error.clone(),
+            live: self.config.live_video.clone(),
         }
     }
 }
@@ -257,6 +260,7 @@ pub struct AppState {
     pub images_dir: PathBuf,
     pub tx: UnboundedSender<Command>,
     pub watcher: Mutex<Option<RecommendedWatcher>>,
+    pub live: crate::live::Live,
 }
 
 impl AppState {

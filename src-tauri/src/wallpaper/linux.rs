@@ -147,7 +147,7 @@ unsafe fn libc_getuid() -> u32 {
 /// bus that is not up yet). Without a limit it would hold the scheduler forever.
 const RUN_TIMEOUT: Duration = Duration::from_secs(15);
 
-fn run(program: &str, args: &[&str]) -> Result<String> {
+pub(crate) fn run(program: &str, args: &[&str]) -> Result<String> {
     let mut command = Command::new(program);
     command
         .args(args)
@@ -186,7 +186,7 @@ fn run(program: &str, args: &[&str]) -> Result<String> {
     Ok(String::from_utf8_lossy(&output.stdout).into_owned())
 }
 
-fn which(program: &str) -> bool {
+pub(crate) fn which(program: &str) -> bool {
     Command::new("sh")
         .arg("-c")
         .arg(format!("command -v {program}"))

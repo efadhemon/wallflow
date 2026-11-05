@@ -57,9 +57,9 @@
     const tabs = Array.prototype.slice.call(stage.querySelectorAll("[data-hero-tab]"));
     const caption = stage.querySelector("[data-hero-caption]");
     const captions = [
+      "Play a video behind your desktop",
       "Search Wallhaven and add a wallpaper",
       "Folders you watch, files you add",
-      "Countdown, pause, skip from the window",
     ];
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     let index = 0;
@@ -153,18 +153,15 @@
     next.addEventListener("click", function () {
       move(1);
     });
-    scroller.addEventListener(
-      "keydown",
-      function (event) {
-        if (event.key === "ArrowLeft") {
-          event.preventDefault();
-          move(-1);
-        } else if (event.key === "ArrowRight") {
-          event.preventDefault();
-          move(1);
-        }
-      },
-    );
+    scroller.addEventListener("keydown", function (event) {
+      if (event.key === "ArrowLeft") {
+        event.preventDefault();
+        move(-1);
+      } else if (event.key === "ArrowRight") {
+        event.preventDefault();
+        move(1);
+      }
+    });
     scroller.addEventListener("scroll", update, { passive: true });
     window.addEventListener("resize", update);
     update();

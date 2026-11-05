@@ -1,11 +1,33 @@
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { openUrl } from "@tauri-apps/plugin-opener";
-import { Download, ExternalLink, ImageIcon, LoaderCircle, Search } from "lucide-react";
+import { Download, ExternalLink, Eye, Heart, ImageIcon, LoaderCircle, Maximize2, Search, Sparkles } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { ImagePreview, ViewerAction } from "../components/ImagePreview";
 import { Button, Card, EmptyState, Select } from "../components/ui";
 import { api, onDownloadProgress } from "../lib/api";
-import { composeQuery, CUSTOM_ID, MIN_RESOLUTIONS, ORIENTATIONS, parentById, PARENTS, SORTING } from "../lib/gallery";
-import type { DownloadProgress, GalleryAtLeast, GalleryOrientation, GalleryPhoto, GallerySorting } from "../lib/types";
+import {
+  collectionById,
+  colorLabel,
+  COLLECTIONS,
+  COLORS,
+  composeQuery,
+  CUSTOM_ID,
+  MIN_RESOLUTIONS,
+  ORIENTATIONS,
+  presetById,
+  presetSort,
+  SORTING,
+  TOP_RANGES,
+  type GallerySort,
+} from "../lib/gallery";
+import type {
+  DownloadProgress,
+  GalleryAtLeast,
+  GalleryOrientation,
+  GalleryPhoto,
+  GallerySorting,
+  GalleryTopRange,
+} from "../lib/types";
 import { cn, formatBytes } from "../lib/utils";
 import { useApp } from "../state/AppContext";
 
@@ -31,12 +53,16 @@ interface QueuedJob {
 
 export function Gallery() {
   const { notify, upsertToast } = useApp();
-  const [parentId, setParentId] = useState(PARENTS[0].id);
+  const [collectionId, setCollectionId] = useState(COLLECTIONS[0].id);
+  const [presetId, setPresetId] = useState<string | null>(null);
   const [queryInput, setQueryInput] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [orientation, setOrientation] = useState<GalleryOrientation>("landscape");
-  const [sorting, setSorting] = useState<GallerySorting>("relevance");
+  const [sorting, setSorting] = useState<GallerySorting>(COLLECTIONS[0].sort.sorting);
+  const [topRange, setTopRange] = useState<GalleryTopRange>(COLLECTIONS[0].sort.topRange ?? "1M");
   const [atleast, setAtLeast] = useState<GalleryAtLeast>("1920x1080");
+  const [color, setColor] = useState("");
+  const [previewIndex, setPreviewIndex] = useState<number | null>(null);
   const [photos, setPhotos] = useState<GalleryPhoto[]>([]);
   const [page, setPage] = useState(1);
   const [lastPage, setLastPage] = useState(1);
@@ -54,8 +80,10 @@ export function Gallery() {
   const batchRef = useRef({ added: 0, already: 0 });
   const startDownloadRef = useRef<(photo: GalleryPhoto, apply: boolean) => void>(() => {});
 
-  const parent = parentById(parentId);
-  const composedQuery = useMemo(() => composeQuery(parent.keyword, debouncedQuery), [parent.keyword, debouncedQuery]);
+  const collection = collectionById(collectionId);
+  const preset = presetById(collection, presetId);
+  const baseQuery = preset ? preset.query : collection.query;
+  const composedQuery = useMemo(() => composeQuery(baseQuery, debouncedQuery), [baseQuery, debouncedQuery]);
 
   useEffect(() => {
     const handle = window.setTimeout(() => setDebouncedQuery(queryInput.trim()), SEARCH_DEBOUNCE_MS);
@@ -74,10 +102,12 @@ export function Gallery() {
         const result = await api.searchGallery({
           query: composedQuery || null,
           ratios: orientation,
-          categories: parent.categories,
+          categories: collection.categories,
           sorting: emptyQuery && sorting === "relevance" ? "toplist" : sorting,
           page: nextPage,
           atleast,
+          topRange,
+          colors: color || null,
         });
         if (id !== requestId.current) return;
 
@@ -98,7 +128,7 @@ export function Gallery() {
         }
       }
     },
-    [atleast, composedQuery, notify, orientation, parent.categories, sorting],
+    [atleast, collection.categories, color, composedQuery, notify, orientation, sorting, topRange],
   );
 
   useEffect(() => {
@@ -236,9 +266,7 @@ export function Gallery() {
 
   // --- Row virtualizer ---
   const rowCount = Math.ceil(photos.length / columns);
-  const colWidth = gridNode
-    ? (gridNode.clientWidth - (columns - 1) * GAP) / columns
-    : COL_MIN_WIDTH;
+  const colWidth = gridNode ? (gridNode.clientWidth - (columns - 1) * GAP) / columns : COL_MIN_WIDTH;
   const estimatedRowHeight = colWidth * ASPECT + GAP;
 
   const virtualizer = useVirtualizer({
@@ -263,17 +291,47 @@ export function Gallery() {
     virtualizer.measure();
   }, [columns, virtualizer]);
 
+  const applySort = (sort: GallerySort) => {
+    setSorting(sort.sorting);
+    if (sort.topRange) setTopRange(sort.topRange);
+  };
 
-  const selectParent = (id: string) => {
-    setParentId(id);
+  const selectCollection = (id: string) => {
+    const next = collectionById(id);
+    setCollectionId(id);
+    setPresetId(null);
     setQueryInput("");
     setDebouncedQuery("");
-    setSorting(parentById(id).keyword ? "relevance" : "toplist");
+    setPreviewIndex(null);
+    applySort(next.sort);
   };
 
-  const toggleSub = (sub: string) => {
-    setQueryInput(current => (current.trim() === sub ? "" : sub));
+  const togglePreset = (id: string) => {
+    const nextId = presetId === id ? null : id;
+    setPresetId(nextId);
+    setPreviewIndex(null);
+    applySort(presetSort(collection, presetById(collection, nextId)));
   };
+
+  /** Wallhaven's `like:` search finds wallpapers visually and tag-wise close to one. */
+  const findSimilar = (photo: GalleryPhoto) => {
+    setCollectionId(CUSTOM_ID);
+    setPresetId(null);
+    setQueryInput(`like:${photo.id}`);
+    setDebouncedQuery(`like:${photo.id}`);
+    setSorting("relevance");
+    setPreviewIndex(null);
+  };
+
+  // Stepping to the end of the loaded results in the preview pulls the next page in.
+  useEffect(() => {
+    if (previewIndex == null) return;
+    if (previewIndex >= photos.length - 3 && !loading && !loadingMore && page < lastPage) {
+      void fetchPage(page + 1, true);
+    }
+  }, [previewIndex, photos.length, loading, loadingMore, page, lastPage, fetchPage]);
+
+  const previewPhoto = previewIndex != null ? (photos[previewIndex] ?? null) : null;
 
   const addPhoto = (photo: GalleryPhoto, apply: boolean) => {
     if (activeRef.current.has(photo.id) || queuedRef.current.some(job => job.photo.id === photo.id)) return;
@@ -292,8 +350,7 @@ export function Gallery() {
     startDownload(photo, apply);
   };
 
-  const activeSub = queryInput.trim();
-  const queryPending = activeSub !== debouncedQuery;
+  const queryPending = queryInput.trim() !== debouncedQuery;
   const searching = queryPending || loading;
 
   return (
@@ -301,15 +358,15 @@ export function Gallery() {
       <section className="flex flex-col gap-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap gap-1.5">
-            {PARENTS.map(item => (
+            {COLLECTIONS.map(item => (
               <Chip
                 key={item.id}
                 label={item.label}
-                active={parentId === item.id}
-                onClick={() => selectParent(item.id)}
+                active={collectionId === item.id}
+                onClick={() => selectCollection(item.id)}
               />
             ))}
-            <Chip label="Custom" active={parentId === CUSTOM_ID} onClick={() => selectParent(CUSTOM_ID)} />
+            <Chip label="Custom" active={collectionId === CUSTOM_ID} onClick={() => selectCollection(CUSTOM_ID)} />
           </div>
           <button
             type="button"
@@ -321,10 +378,18 @@ export function Gallery() {
           </button>
         </div>
 
-        {parent.subs.length > 0 && (
+        <p className="text-xs text-ink-muted">{collection.description}</p>
+
+        {collection.presets.length > 0 && (
           <div className="flex flex-wrap gap-1.5">
-            {parent.subs.map(sub => (
-              <Chip key={sub} label={sub} small active={activeSub === sub} onClick={() => toggleSub(sub)} />
+            {collection.presets.map(item => (
+              <Chip
+                key={item.id}
+                label={item.label}
+                small
+                active={presetId === item.id}
+                onClick={() => togglePreset(item.id)}
+              />
             ))}
           </div>
         )}
@@ -336,7 +401,11 @@ export function Gallery() {
               type="search"
               value={queryInput}
               onChange={event => setQueryInput(event.target.value)}
-              placeholder={parentId === CUSTOM_ID ? "Search Wallhaven" : `Search in ${parent.label.toLowerCase()}`}
+              placeholder={
+                collectionId === CUSTOM_ID
+                  ? "Search Wallhaven: mountains, +tag, -tag, like:ID"
+                  : `Narrow ${preset ? preset.label : collection.label}…`
+              }
               aria-busy={searching}
               className={cn(
                 "focus-ring h-9.5 w-full rounded-lg border border-line bg-surface pl-9 text-sm text-ink outline-none placeholder:text-ink-muted",
@@ -372,6 +441,19 @@ export function Gallery() {
               </option>
             ))}
           </Select>
+          {sorting === "toplist" && (
+            <Select
+              aria-label="Top range"
+              value={topRange}
+              onChange={event => setTopRange(event.target.value as GalleryTopRange)}
+            >
+              {TOP_RANGES.map(option => (
+                <option key={option.id} value={option.id}>
+                  {option.label}
+                </option>
+              ))}
+            </Select>
+          )}
           <Select
             aria-label="Minimum resolution"
             value={atleast}
@@ -383,6 +465,28 @@ export function Gallery() {
               </option>
             ))}
           </Select>
+          <div className="relative inline-flex items-center">
+            {color && (
+              <span
+                aria-hidden
+                className="pointer-events-none absolute left-3 h-3 w-3 rounded-full border border-line"
+                style={{ backgroundColor: `#${color}` }}
+              />
+            )}
+            <Select
+              aria-label="Colour"
+              value={color}
+              onChange={event => setColor(event.target.value)}
+              className={color ? "pl-8" : undefined}
+            >
+              <option value="">Any colour</option>
+              {COLORS.map(option => (
+                <option key={option.id} value={option.id}>
+                  {option.label}
+                </option>
+              ))}
+            </Select>
+          </div>
         </div>
       </section>
 
@@ -414,7 +518,7 @@ export function Gallery() {
           <EmptyState
             icon={<ImageIcon size={24} />}
             title="No wallpapers match"
-            description="Try another parent, subquery, or orientation."
+            description="Try another collection, a broader search, or a different shape, size or colour."
           />
         </Card>
       ) : (
@@ -422,10 +526,7 @@ export function Gallery() {
           <p className="text-xs text-ink-muted">
             {total.toLocaleString()} wallpaper{total === 1 ? "" : "s"}
           </p>
-          <div
-            ref={setGridNode}
-            style={{ height: virtualizer.getTotalSize(), position: "relative" }}
-          >
+          <div ref={setGridNode} style={{ height: virtualizer.getTotalSize(), position: "relative" }}>
             {virtualItems.map(virtualRow => {
               const startIdx = virtualRow.index * columns;
               const rowPhotos = photos.slice(startIdx, startIdx + columns);
@@ -440,11 +541,8 @@ export function Gallery() {
                     transform: `translateY(${virtualRow.start}px)`,
                   }}
                 >
-                  <div
-                    className="grid gap-3"
-                    style={{ gridTemplateColumns: `repeat(${columns}, 1fr)` }}
-                  >
-                    {rowPhotos.map(photo => (
+                  <div className="grid gap-3" style={{ gridTemplateColumns: `repeat(${columns}, 1fr)` }}>
+                    {rowPhotos.map((photo, offset) => (
                       <GalleryTile
                         key={photo.id}
                         photo={photo}
@@ -454,6 +552,7 @@ export function Gallery() {
                         onAdd={() => addPhoto(photo, false)}
                         onUse={() => addPhoto(photo, true)}
                         onOpen={() => void openUrl(photo.url)}
+                        onPreview={() => setPreviewIndex(startIdx + offset)}
                       />
                     ))}
                   </div>
@@ -468,7 +567,132 @@ export function Gallery() {
           )}
         </>
       )}
+
+      {previewPhoto && previewIndex != null && (
+        <GalleryPreview
+          photo={previewPhoto}
+          position={`${previewIndex + 1} / ${total.toLocaleString()}`}
+          progress={active.get(previewPhoto.id) ?? null}
+          busy={active.has(previewPhoto.id)}
+          waiting={queued.some(job => job.photo.id === previewPhoto.id)}
+          onPrev={previewIndex > 0 ? () => setPreviewIndex(previewIndex - 1) : undefined}
+          onNext={previewIndex < photos.length - 1 ? () => setPreviewIndex(previewIndex + 1) : undefined}
+          onClose={() => setPreviewIndex(null)}
+          onAdd={() => addPhoto(previewPhoto, false)}
+          onUse={() => addPhoto(previewPhoto, true)}
+          onSimilar={() => findSimilar(previewPhoto)}
+          onColor={hex => {
+            setColor(hex);
+            setPreviewIndex(null);
+          }}
+        />
+      )}
     </div>
+  );
+}
+
+function GalleryPreview({
+  photo,
+  position,
+  progress,
+  busy,
+  waiting,
+  onPrev,
+  onNext,
+  onClose,
+  onAdd,
+  onUse,
+  onSimilar,
+  onColor,
+}: {
+  photo: GalleryPhoto;
+  position: string;
+  progress: Pick<DownloadProgress, "received" | "total"> | null;
+  busy: boolean;
+  waiting: boolean;
+  onPrev?: () => void;
+  onNext?: () => void;
+  onClose: () => void;
+  onAdd: () => void;
+  onUse: () => void;
+  onSimilar: () => void;
+  onColor: (hex: string) => void;
+}) {
+  const percent =
+    progress?.total && progress.total > 0
+      ? Math.min(100, Math.round((progress.received / progress.total) * 100))
+      : null;
+
+  return (
+    <ImagePreview
+      src={photo.path}
+      placeholder={photo.thumbLarge}
+      title={`Wallhaven ${photo.id}`}
+      position={position}
+      onPrev={onPrev}
+      onNext={onNext}
+      onClose={onClose}
+      meta={
+        <>
+          <span>{photo.resolution}</span>
+          <span>{formatBytes(photo.fileSize)}</span>
+          <span className="capitalize">{photo.category}</span>
+          <span className="inline-flex items-center gap-1">
+            <Eye size={12} />
+            {photo.views.toLocaleString()}
+          </span>
+          <span className="inline-flex items-center gap-1">
+            <Heart size={12} />
+            {photo.favorites.toLocaleString()}
+          </span>
+          {photo.colors.length > 0 && (
+            <span className="inline-flex items-center gap-1">
+              {photo.colors.map(hex => {
+                const label = colorLabel(hex);
+                return (
+                  <button
+                    key={hex}
+                    type="button"
+                    disabled={!label}
+                    title={label ? `Find more ${label.toLowerCase()} wallpapers` : hex}
+                    aria-label={label ? `Filter by ${label}` : hex}
+                    onClick={() => onColor(hex.replace("#", "").toLowerCase())}
+                    className="focus-ring h-3.5 w-3.5 cursor-pointer rounded-full border border-white/40 disabled:cursor-default"
+                    style={{ backgroundColor: hex }}
+                  />
+                );
+              })}
+            </span>
+          )}
+        </>
+      }
+      actions={
+        busy || waiting ? (
+          <span className="inline-flex h-9 items-center gap-2 rounded-lg bg-white/12 px-4 text-sm">
+            <LoaderCircle size={14} className="animate-spin" />
+            {waiting ? "Waiting…" : percent != null ? `Downloading ${percent}%` : "Downloading…"}
+          </span>
+        ) : (
+          <>
+            <ViewerAction onClick={onSimilar}>
+              <Sparkles size={14} />
+              Find similar
+            </ViewerAction>
+            <ViewerAction onClick={() => void openUrl(photo.url)}>
+              <ExternalLink size={14} />
+              Wallhaven
+            </ViewerAction>
+            <ViewerAction onClick={onAdd}>
+              <Download size={14} />
+              Add to library
+            </ViewerAction>
+            <ViewerAction primary onClick={onUse}>
+              Use now
+            </ViewerAction>
+          </>
+        )
+      }
+    />
   );
 }
 
@@ -492,7 +716,8 @@ function batchProgressMessage(jobs: ActiveJob[]): { message: string; progress: n
   }
 
   return {
-    message: percent != null ? `Downloading ${jobs.length} wallpapers (${percent}%)` : `Downloading ${jobs.length} wallpapers`,
+    message:
+      percent != null ? `Downloading ${jobs.length} wallpapers (${percent}%)` : `Downloading ${jobs.length} wallpapers`,
     progress: percent,
   };
 }
@@ -544,6 +769,7 @@ function GalleryTile({
   onAdd,
   onUse,
   onOpen,
+  onPreview,
 }: {
   photo: GalleryPhoto;
   busy: boolean;
@@ -552,19 +778,26 @@ function GalleryTile({
   onAdd: () => void;
   onUse: () => void;
   onOpen: () => void;
+  onPreview: () => void;
 }) {
   const percent =
     progress?.total && progress.total > 0
       ? Math.min(100, Math.round((progress.received / progress.total) * 100))
       : null;
-  const progressLabel =
-    percent != null ? `${percent}%` : progress ? formatBytes(progress.received) : "Downloading…";
+  const progressLabel = percent != null ? `${percent}%` : progress ? formatBytes(progress.received) : "Downloading…";
 
   return (
     <div className="group relative overflow-hidden rounded-lg border border-line">
-      <div className="aspect-16/10 w-full" style={{ backgroundColor: photo.color ?? undefined }}>
+      <button
+        type="button"
+        onClick={onPreview}
+        title="Preview full screen"
+        aria-label={`Preview wallpaper ${photo.id}`}
+        className="focus-ring block aspect-16/10 w-full cursor-zoom-in"
+        style={{ backgroundColor: photo.color ?? undefined }}
+      >
         <img src={photo.thumb} alt="" loading="lazy" draggable={false} className="h-full w-full object-cover" />
-      </div>
+      </button>
 
       <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-linear-to-t from-black/75 to-transparent px-2 pt-8 pb-1.5">
         <p className="truncate text-[11px] text-white">
@@ -601,6 +834,15 @@ function GalleryTile({
       )}
 
       <div className="absolute top-2 right-2 flex gap-1 opacity-0 transition group-hover:opacity-100">
+        <button
+          type="button"
+          title="Preview full screen"
+          aria-label="Preview full screen"
+          onClick={onPreview}
+          className="focus-ring flex h-6 w-6 cursor-pointer items-center justify-center rounded-md bg-black/55 text-white"
+        >
+          <Maximize2 size={12} />
+        </button>
         <button
           type="button"
           title="Open on Wallhaven"

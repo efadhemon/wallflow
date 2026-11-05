@@ -1,0 +1,90 @@
+name: FFmpeg
+
+# Builds the trimmed LGPL FFmpeg bundled on Windows and macOS
+# (scripts/ffmpeg/build.sh) and publishes it as the release
+# ffmpeg-<tag>-wf<build>. Runs when scripts/ffmpeg/ or this file changes (a
+# manual run needs the file on the default branch); a release that already
+# exists is left alone, so bump WALLFLOW_FFMPEG_BUILD to publish a new build.
+# Then copy the release's SHA256SUMS into scripts/ffmpeg/SHA256SUMS.
+on:
+  push:
+    paths:
+      - "scripts/ffmpeg/build.sh"
+      - "scripts/ffmpeg/version.env"
+      - ".github/workflows/ffmpeg.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            target: x86_64-pc-windows-msvc
+          - os: macos-14
+            target: aarch64-apple-darwin
+          - os: macos-14
+            target: x86_64-apple-darwin
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Tools (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y mingw-w64 nasm
+
+      - name: Tools (macOS)
+        if: runner.os == 'macOS'
+        run: brew install nasm
+
+      - name: Build
+        run: scripts/ffmpeg/build.sh ${{ matrix.target }} out
+
+      - name: Smoke test (native only)
+        if: matrix.target == 'aarch64-apple-darwin'
+        run: |
+          out/ffmpeg -hide_banner -encoders | grep h264_videotoolbox
+          out/ffprobe -version | head -1
+
+      - name: Pack
+        run: tar -czf ffmpeg-${{ matrix.target }}.tar.gz -C out .
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ffmpeg-${{ matrix.target }}
+          path: ffmpeg-${{ matrix.target }}.tar.gz
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          source scripts/ffmpeg/version.env
+          tag="ffmpeg-$FFMPEG_TAG-wf$WALLFLOW_FFMPEG_BUILD"
+          if gh release view "$tag" --repo "${{ github.repository }}" >/dev/null 2>&1; then
+            echo "$tag already exists; bump WALLFLOW_FFMPEG_BUILD to publish a new build."
+            exit 0
+          fi
+          cd dist
+          sha256sum ffmpeg-*.tar.gz > SHA256SUMS
+          cat SHA256SUMS
+          notes="FFmpeg $FFMPEG_TAG ($FFMPEG_COMMIT), LGPL v2.1 or later, trimmed for Wallflow's live wallpaper engine.
+          Source: https://github.com/FFmpeg/FFmpeg/tree/$FFMPEG_COMMIT
+          Build script: https://github.com/${{ github.repository }}/blob/${{ github.sha }}/scripts/ffmpeg/build.sh"
+          gh release create "$tag" ffmpeg-*.tar.gz SHA256SUMS \
+            --repo "${{ github.repository }}" --target "${{ github.sha }}" \
+            --title "$tag" --notes "$notes" --prerelease

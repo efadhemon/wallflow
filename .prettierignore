@@ -19,3 +19,6 @@ src-tauri/Cargo.lock
 *.png
 *.ico
 *.icns
+src-tauri/binaries
+# GNOME Shell code follows GNOME's own style (4 spaces).
+engine

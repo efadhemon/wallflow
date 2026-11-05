@@ -1,8 +1,9 @@
 use crate::config::{self, Config, Folder};
 use crate::gallery::{self, GalleryPage, SearchParams};
+use crate::live::{self, LiveStatus, LiveVideo};
 use crate::scanner;
 use crate::state::{AppState, Command, Status};
-use crate::{thumbs, watcher};
+use crate::{scheduler, thumbs, watcher};
 use serde::Serialize;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -77,6 +78,9 @@ pub async fn set_config(
 
     let (folders_changed, playlist_changed, look_changed, interval_changed, autostart_changed) = {
         let mut inner = state.inner.lock().expect("state poisoned");
+        // Which live wallpaper plays is the backend's business; a settings form
+        // holding an older copy must not start or stop one.
+        config.live_video = inner.config.live_video.clone();
         // Saved under the lock so two quick changes are written in the order they win.
         config.save(&state.config_dir).map_err(fail)?;
         let old = &inner.config;
@@ -104,7 +108,13 @@ pub async fn set_config(
         state.send(Command::Rearm);
     }
     if look_changed {
-        state.send(Command::ApplyCurrent);
+        if config.live_video.is_some() {
+            // Re-applying an image would end the live wallpaper; tell the engine.
+            let fill = config.fill_mode;
+            tokio::task::spawn_blocking(move || live::set_fill(fill));
+        } else {
+            state.send(Command::ApplyCurrent);
+        }
     }
 
     Ok(config)
@@ -230,6 +240,19 @@ pub async fn get_thumbnail(state: State<'_, Arc<AppState>>, path: PathBuf) -> Re
     let cache_dir = state.cache_dir.clone();
 
     tokio::task::spawn_blocking(move || thumbs::thumbnail(&cache_dir, &path))
+        .await
+        .map_err(fail)?
+        .map(|path| path.to_string_lossy().into_owned())
+        .map_err(fail)
+}
+
+/// Screen-sized copy for the full-screen preview. Library images can live anywhere
+/// on disk, so they are re-encoded into the cache rather than exposed directly.
+#[tauri::command]
+pub async fn get_preview(state: State<'_, Arc<AppState>>, path: PathBuf) -> Reply<String> {
+    let cache_dir = state.cache_dir.clone();
+
+    tokio::task::spawn_blocking(move || thumbs::preview(&cache_dir, &path))
         .await
         .map_err(fail)?
         .map(|path| path.to_string_lossy().into_owned())
@@ -364,7 +387,9 @@ pub async fn fetch_latest_version(url: String) -> Reply<Option<String>> {
     Ok(raw)
 }
 
+// Tauri maps each argument to a key of the IPC payload, so they stay flat.
 #[tauri::command]
+#[allow(clippy::too_many_arguments)]
 pub async fn search_gallery(
     query: Option<String>,
     ratios: Option<String>,
@@ -372,6 +397,8 @@ pub async fn search_gallery(
     sorting: Option<String>,
     page: Option<u32>,
     atleast: Option<String>,
+    top_range: Option<String>,
+    colors: Option<String>,
 ) -> Reply<GalleryPage> {
     gallery::search(SearchParams {
         query,
@@ -380,6 +407,8 @@ pub async fn search_gallery(
         sorting,
         page: page.unwrap_or(1),
         atleast,
+        top_range,
+        colors,
     })
     .await
     .map_err(fail)
@@ -517,4 +546,117 @@ fn sha256_hex(bytes: &[u8]) -> String {
         let _ = write!(hex, "{byte:02x}");
     }
     hex
+}
+
+#[tauri::command]
+pub async fn live_status(state: State<'_, Arc<AppState>>) -> Reply<LiveStatus> {
+    let active = state.config().live_video;
+    tokio::task::spawn_blocking(move || live::status(active))
+        .await
+        .map_err(fail)
+}
+
+#[tauri::command]
+pub fn live_list(state: State<'_, Arc<AppState>>) -> Vec<LiveVideo> {
+    state.live.list()
+}
+
+/// Prepares the picked videos one after another (each already uses half the
+/// cores), reporting progress through `live://import` events.
+#[tauri::command]
+pub async fn live_import(
+    app: AppHandle,
+    state: State<'_, Arc<AppState>>,
+    paths: Vec<PathBuf>,
+) -> Reply<Vec<LiveVideo>> {
+    let engine = live::engine_path().map_err(fail)?;
+    if !live::ffmpeg_available() {
+        return Err("FFmpeg is needed to add live wallpapers. Install it (e.g. `sudo apt install ffmpeg`) and try again.".into());
+    }
+    let screen = live::screen_size(&app);
+    let emit = |progress: live::ImportProgress| {
+        if let Err(err) = app.emit(live::IMPORT_EVENT, &progress) {
+            log::debug!("no window to receive import progress: {err}");
+        }
+    };
+
+    let mut added = Vec::new();
+    let mut first_error = None;
+    for path in paths {
+        match state.live.import(&emit, &engine, &path, screen).await {
+            Ok(video) => added.push(video),
+            Err(err) => {
+                log::warn!("could not add {}: {err:#}", path.display());
+                first_error.get_or_insert_with(|| format!("{err:#}"));
+            }
+        }
+    }
+    match (added.is_empty(), first_error) {
+        (true, Some(err)) => Err(err),
+        _ => Ok(added),
+    }
+}
+
+#[tauri::command]
+pub async fn live_remove(app: AppHandle, state: State<'_, Arc<AppState>>, id: String) -> Reply<()> {
+    if state.config().live_video.as_deref() == Some(id.as_str()) {
+        scheduler::end_live(&state).await;
+        state.send(Command::ApplyCurrent);
+    }
+    state.live.remove(&id).map_err(fail)?;
+    scheduler::publish(&app, &state);
+    Ok(())
+}
+
+/// Plays a library video as the wallpaper. The rotation pauses and the video's
+/// poster becomes the static wallpaper (lock screen, before the engine is up).
+#[tauri::command]
+pub async fn live_play(app: AppHandle, state: State<'_, Arc<AppState>>, id: String) -> Reply<()> {
+    let video = state
+        .live
+        .get(&id)
+        .ok_or_else(|| "That live wallpaper is no longer in the library.".to_string())?;
+    let fill = state.config().fill_mode;
+
+    let started = video.clone();
+    tokio::task::spawn_blocking(move || live::start(&started, fill))
+        .await
+        .map_err(fail)?
+        .map_err(fail)?;
+
+    {
+        let mut inner = state.inner.lock().expect("state poisoned");
+        inner.config.live_video = Some(id);
+        inner.config.save(&state.config_dir).map_err(fail)?;
+    }
+
+    let shared = state.inner().clone();
+    let poster = video.poster_path;
+    tokio::task::spawn_blocking(move || {
+        if let Err(err) = shared.backend.set(&poster, fill) {
+            log::warn!("could not set the poster as the static wallpaper: {err:#}");
+        }
+    });
+
+    scheduler::publish(&app, &state);
+    Ok(())
+}
+
+/// Stops the live wallpaper and puts the rotation's current image back.
+#[tauri::command]
+pub async fn live_stop(app: AppHandle, state: State<'_, Arc<AppState>>) -> Reply<()> {
+    scheduler::end_live(&state).await;
+    state.send(Command::ApplyCurrent);
+    scheduler::publish(&app, &state);
+    Ok(())
+}
+
+/// GNOME: installs and enables the helper extension. It loads at the next login.
+#[tauri::command]
+pub async fn live_install_helper(state: State<'_, Arc<AppState>>) -> Reply<LiveStatus> {
+    tokio::task::spawn_blocking(live::install_helper)
+        .await
+        .map_err(fail)?
+        .map_err(fail)?;
+    live_status(state).await
 }

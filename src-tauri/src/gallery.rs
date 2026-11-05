@@ -32,6 +32,8 @@ const PROGRESS_BYTES: u64 = 128 * 1024;
 const MAGIC_LEN: usize = 16;
 
 const ALLOWED_RATIOS: &[&str] = &["landscape", "portrait", "square"];
+/// Wallhaven has no "ultrawide" keyword, so it is spelled out as ratio buckets.
+const ULTRAWIDE_RATIOS: &str = "21x9,32x9,48x9";
 const ALLOWED_SORTING: &[&str] = &[
     "date_added",
     "relevance",
@@ -39,7 +41,10 @@ const ALLOWED_SORTING: &[&str] = &[
     "views",
     "favorites",
     "toplist",
+    "hot",
 ];
+const ALLOWED_TOP_RANGES: &[&str] = &["1d", "3d", "1w", "1M", "3M", "6M", "1y"];
+const DEFAULT_TOP_RANGE: &str = "1M";
 
 #[derive(Debug, Clone, Default)]
 pub struct SearchParams {
@@ -49,6 +54,8 @@ pub struct SearchParams {
     pub sorting: Option<String>,
     pub page: u32,
     pub atleast: Option<String>,
+    pub top_range: Option<String>,
+    pub colors: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -59,8 +66,15 @@ pub struct GalleryPhoto {
     pub resolution: String,
     pub file_size: u64,
     pub thumb: String,
+    /// Wider thumbnail shown while the full image loads in the preview.
+    pub thumb_large: String,
     pub color: Option<String>,
+    pub colors: Vec<String>,
     pub path: String,
+    pub views: u64,
+    pub favorites: u64,
+    pub category: String,
+    pub file_type: String,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -108,11 +122,20 @@ struct WallhavenPhoto {
     path: String,
     colors: Vec<String>,
     thumbs: WallhavenThumbs,
+    #[serde(default)]
+    views: u64,
+    #[serde(default)]
+    favorites: u64,
+    #[serde(default)]
+    category: String,
+    #[serde(default)]
+    file_type: String,
 }
 
 #[derive(Debug, Deserialize)]
 struct WallhavenThumbs {
     small: String,
+    large: String,
 }
 
 /// Join a parent keyword with a subquery. Custom search passes an empty parent.
@@ -153,6 +176,9 @@ pub fn build_search_url(params: &SearchParams) -> Result<Url> {
                 pairs.append_pair("ratios", DEFAULT_RATIOS);
             }
             Some("any") => {}
+            Some("ultrawide") => {
+                pairs.append_pair("ratios", ULTRAWIDE_RATIOS);
+            }
             Some(value) if ALLOWED_RATIOS.contains(&value) => {
                 pairs.append_pair("ratios", value);
             }
@@ -184,7 +210,28 @@ pub fn build_search_url(params: &SearchParams) -> Result<Url> {
         pairs.append_pair("sorting", sorting);
 
         if sorting == "toplist" {
-            pairs.append_pair("topRange", "1M");
+            let range = params
+                .top_range
+                .as_deref()
+                .map(str::trim)
+                .filter(|value| !value.is_empty())
+                .unwrap_or(DEFAULT_TOP_RANGE);
+            if !ALLOWED_TOP_RANGES.contains(&range) {
+                bail!("unsupported top range: {range}");
+            }
+            pairs.append_pair("topRange", range);
+        }
+
+        if let Some(colors) = params
+            .colors
+            .as_deref()
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+        {
+            if !colors.split(',').all(is_hex_color) {
+                bail!("unsupported color: {colors}");
+            }
+            pairs.append_pair("colors", colors);
         }
 
         let page = params.page.max(1);
@@ -481,6 +528,10 @@ fn is_category_bits(value: &str) -> bool {
     value.len() == 3 && value.bytes().all(|byte| byte == b'0' || byte == b'1')
 }
 
+fn is_hex_color(value: &str) -> bool {
+    value.len() == 6 && value.bytes().all(|byte| byte.is_ascii_hexdigit())
+}
+
 fn is_resolution(value: &str) -> bool {
     let mut parts = value.split('x');
     matches!(
@@ -499,8 +550,14 @@ impl From<WallhavenPhoto> for GalleryPhoto {
             resolution: photo.resolution,
             file_size: photo.file_size,
             thumb: photo.thumbs.small,
-            color: photo.colors.into_iter().next(),
+            thumb_large: photo.thumbs.large,
+            color: photo.colors.first().cloned(),
+            colors: photo.colors,
             path: photo.path,
+            views: photo.views,
+            favorites: photo.favorites,
+            category: photo.category,
+            file_type: photo.file_type,
         }
     }
 }
@@ -585,6 +642,49 @@ mod tests {
     }
 
     #[test]
+    fn toplist_range_ultrawide_and_colors_are_forwarded() {
+        let url = build_search_url(&SearchParams {
+            ratios: Some("ultrawide".into()),
+            sorting: Some("toplist".into()),
+            top_range: Some("1w".into()),
+            colors: Some("0066cc".into()),
+            page: 1,
+            ..SearchParams::default()
+        })
+        .unwrap();
+        let query: Vec<(String, String)> = url
+            .query_pairs()
+            .map(|(k, v)| (k.into_owned(), v.into_owned()))
+            .collect();
+        assert!(query.contains(&("ratios".into(), "21x9,32x9,48x9".into())));
+        assert!(query.contains(&("topRange".into(), "1w".into())));
+        assert!(query.contains(&("colors".into(), "0066cc".into())));
+    }
+
+    #[test]
+    fn hot_sorting_is_allowed_and_bad_values_are_rejected() {
+        assert!(build_search_url(&SearchParams {
+            sorting: Some("hot".into()),
+            page: 1,
+            ..SearchParams::default()
+        })
+        .is_ok());
+        assert!(build_search_url(&SearchParams {
+            sorting: Some("toplist".into()),
+            top_range: Some("5y".into()),
+            page: 1,
+            ..SearchParams::default()
+        })
+        .is_err());
+        assert!(build_search_url(&SearchParams {
+            colors: Some("blue".into()),
+            page: 1,
+            ..SearchParams::default()
+        })
+        .is_err());
+    }
+
+    #[test]
     fn rejects_unknown_orientation() {
         let err = build_search_url(&SearchParams {
             ratios: Some("wide".into()),
@@ -640,6 +740,10 @@ mod tests {
         let photo = GalleryPhoto::from(parsed.data.into_iter().next().unwrap());
         assert_eq!(photo.id, "94x38z");
         assert_eq!(photo.thumb, "https://th.wallhaven.cc/small/94/94x38z.jpg");
+        assert_eq!(
+            photo.thumb_large,
+            "https://th.wallhaven.cc/lg/94/94x38z.jpg"
+        );
         assert_eq!(photo.color.as_deref(), Some("#000000"));
         assert_eq!(parsed.meta.total, 848);
     }

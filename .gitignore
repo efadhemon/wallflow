@@ -20,3 +20,6 @@ src-tauri/gen
 
 .cursor/*
 
+src-tauri/binaries
+engine/target
+/target/

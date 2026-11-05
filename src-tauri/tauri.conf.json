@@ -24,7 +24,7 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self'; img-src 'self' asset: http://asset.localhost data: https://th.wallhaven.cc; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self' ipc: http://ipc.localhost",
+      "csp": "default-src 'self'; img-src 'self' asset: http://asset.localhost data: https://th.wallhaven.cc https://w.wallhaven.cc; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self' ipc: http://ipc.localhost",
       "assetProtocol": {
         "enable": true,
         "scope": []
@@ -43,7 +43,8 @@
     "createUpdaterArtifacts": false,
     "linux": {
       "deb": {
-        "section": "utils"
+        "section": "utils",
+        "depends": ["ffmpeg"]
       },
       "appimage": {
         "bundleMediaFramework": false
@@ -59,6 +60,7 @@
     },
     "macOS": {
       "minimumSystemVersion": "10.15"
-    }
+    },
+    "externalBin": ["binaries/wallflow-live"]
   }
 }
