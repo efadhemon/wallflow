@@ -349,8 +349,8 @@ pub fn read_logs(state: State<'_, Arc<AppState>>) -> Reply<String> {
     Ok(lines[start..].join("\n"))
 }
 
-/// Fetches a remote version.json (or GitHub-style release) outside the webview so
-/// CSP / CORS never block the update check.
+/// Fetches the latest GitHub release (or a `{"version": …}` file) outside the
+/// webview so CSP / CORS never block the update check.
 #[tauri::command]
 pub async fn fetch_latest_version(url: String) -> Reply<Option<String>> {
     let parsed = reqwest::Url::parse(&url).map_err(fail)?;
@@ -361,6 +361,11 @@ pub async fn fetch_latest_version(url: String) -> Reply<Option<String>> {
     let response = reqwest::Client::new()
         .get(parsed)
         .header(reqwest::header::ACCEPT, "application/json")
+        // GitHub's API rejects requests without one.
+        .header(
+            reqwest::header::USER_AGENT,
+            concat!("Wallflow/", env!("CARGO_PKG_VERSION")),
+        )
         .timeout(std::time::Duration::from_secs(8))
         .send()
         .await

@@ -20,10 +20,6 @@ src-tauri/gen
 
 .cursor/*
 
-website/downloads/*
-!website/downloads/.gitkeep
-.vercel
-
 src-tauri/binaries
 engine/target
 /target/

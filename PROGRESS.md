@@ -39,6 +39,13 @@ every platform without slowing the desktop.
   1.0.5 apps read it, from the old domain).
 - 1.0.6 prepared on `github-pages` (PR #8 retitled "Release 1.0.6"): `dev` and
   `review-fixes` merged in cleanly, `yarn version:patch` (e06534c).
+- You found the old domain still in your checkout: the change was only on
+  `github-pages`. Merged `github-pages` into `live-engine` (conflicts:
+  `.gitignore`, CSP — kept `w.wallhaven.cc` for the gallery preview). Now no
+  `wallflow.efadhemon.dev`, Vercel or `VITE_VERSION_API_URL` outside this log;
+  FFmpeg fetch steps and Pages / draft-release workflow both present.
+  tsc, eslint, clippy, 32 app + engine tests pass. Worktree `.worktrees/pages`
+  removed (nothing unpushed).
 
 ### 2026-11-05 — repository public: website to GitHub Pages, release plan (host EMON)
 
@@ -279,8 +286,8 @@ every platform without slowing the desktop.
    `git tag v1.0.6 <merge commit> && git push origin v1.0.6`.
 2. **You:** delete the Vercel project and the secrets `VERCEL_TOKEN`,
    `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`, `VITE_VERSION_API_URL`.
-3. Merge `main` into `live-engine` (take the Pages URL, no Vercel, no
-   `api/version.json`; keep the FFmpeg fetch steps), then the 1.1.0 rehearsal.
+3. The 1.1.0 rehearsal (`github-pages` is already merged into `live-engine`;
+   after PR #8 lands, merging `main` again only brings the merge commit).
 
 ## Release plan
 

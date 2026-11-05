@@ -10,41 +10,24 @@ permissions:
   contents: write
 
 jobs:
-  # Fail fast if the tag (or package.json on a manual run) does not match
-  # website/api/version.json. The live API is updated only after this release
-  # deploys the site, so we read the file in the repo.
+  # Fail fast if the tag does not match the app version.
   check-version:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
 
-      - name: Match version.json to this release
+      - name: Match the tag to package.json and Cargo
         env:
           REF_TYPE: ${{ github.ref_type }}
           REF_NAME: ${{ github.ref_name }}
         run: |
-          pkg="$(python3 -c 'import json; print(json.load(open("package.json"))["version"])')"
-          file="$(python3 -c 'import json; print(json.load(open("website/api/version.json"))["version"])')"
-
-          if [ "$REF_TYPE" = "tag" ]; then
-            tag="${REF_NAME#v}"
-            if [ "$tag" != "$pkg" ]; then
-              echo "Tag $REF_NAME does not match package.json ($pkg)." >&2
-              exit 1
-            fi
-            expected="$tag"
-          else
-            expected="$pkg"
-          fi
-
-          echo "Release version: $expected"
-          echo "website/api/version.json: $file"
-
-          if [ "$file" != "$expected" ]; then
-            echo "website/api/version.json ($file) does not match this release ($expected)." >&2
-            echo "Bump package.json and run yarn version:sync before tagging." >&2
+          pkg="$(node -p 'require("./package.json").version')"
+          if [ "$REF_TYPE" = "tag" ] && [ "${REF_NAME#v}" != "$pkg" ]; then
+            echo "Tag $REF_NAME does not match package.json ($pkg)." >&2
             exit 1
           fi
+          node scripts/sync-version.mjs --check
+          echo "Release version: $pkg"
 
   publish:
     needs: check-version
@@ -109,21 +92,6 @@ jobs:
 
       - run: yarn install --frozen-lockfile
 
-      # Vite inlines this at build time into the update banner (useUpdateCheck).
-      # Set repository secret VITE_VERSION_API_URL to the public version.json URL,
-      # e.g. https://wallflow.efadhemon.dev/api/version.json
-      - name: Require version API URL
-        shell: bash
-        env:
-          VITE_VERSION_API_URL: ${{ secrets.VITE_VERSION_API_URL }}
-        run: |
-          if [ -z "$VITE_VERSION_API_URL" ]; then
-            echo "Set repository secret VITE_VERSION_API_URL to the public version.json URL." >&2
-            echo "Example: https://wallflow.efadhemon.dev/api/version.json" >&2
-            exit 1
-          fi
-          echo "Update check URL: $VITE_VERSION_API_URL"
-
       # Compiled into the binary by option_env!("APTABASE_APP_KEY").
       # Set repository secret APTABASE_APP_KEY to the Aptabase app key.
       - name: Require Aptabase app key
@@ -147,7 +115,6 @@ jobs:
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          VITE_VERSION_API_URL: ${{ secrets.VITE_VERSION_API_URL }}
           APTABASE_APP_KEY: ${{ secrets.APTABASE_APP_KEY }}
           # linuxdeploy is itself an AppImage; GitHub runners cannot mount FUSE.
           APPIMAGE_EXTRACT_AND_RUN: "1"
@@ -165,49 +132,25 @@ jobs:
             - **macOS (Apple Silicon):** `Wallflow_*_aarch64.dmg`
             - **macOS (Intel):** `Wallflow_*_x64.dmg`
           generateReleaseNotes: true
-          releaseDraft: false
+          # A manual run is a rehearsal: a draft release to test the
+          # installers on every system before anyone else sees them. Publish
+          # the draft by hand, then run the Website workflow.
+          releaseDraft: ${{ github.event_name == 'workflow_dispatch' }}
           prerelease: false
           includeUpdaterJson: false
           args: ${{ matrix.args }} --target ${{ matrix.target }}
 
-      - name: Stage installers
-        shell: bash
-        run: |
-          mkdir -p installers
-          find "src-tauri/target/${{ matrix.target }}/release/bundle" \
-            \( -name 'Wallflow_*.deb' -o -name 'Wallflow_*.AppImage' -o -name 'Wallflow_*.dmg' -o -name 'Wallflow_*-setup.exe' \) \
-            ! -name '*.tar.gz' \
-            -exec cp {} installers/ \;
-          ls -la installers
-          test -n "$(ls -A installers)"
-
-      - uses: actions/upload-artifact@v6
-        with:
-          name: installers-${{ matrix.target }}
-          path: installers/*
-          if-no-files-found: error
-
-  # Copies the just-built installers into website/downloads and publishes the
-  # public site. Skips if any platform job failed so we never advertise a
-  # partial set of downloads.
-  deploy-website:
+  # The website links to the newest release; refresh it once this one is out.
+  # A run started with the GITHUB_TOKEN may trigger workflow_dispatch, and the
+  # Pages deploy then runs on main, which the github-pages environment allows.
+  website:
     needs: publish
+    if: github.ref_type == 'tag'
     runs-on: ubuntu-latest
-    concurrency:
-      group: website-production
-      cancel-in-progress: false
+    permissions:
+      actions: write
     steps:
-      - uses: actions/checkout@v5
-
-      - uses: actions/download-artifact@v5
-        with:
-          pattern: installers-*
-          path: website/downloads
-          merge-multiple: true
-
-      - name: Deploy website to Vercel
+      - name: Deploy the website
         env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-        run: bash scripts/deploy-website.sh
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run pages.yml --repo "${{ github.repository }}" --ref main
