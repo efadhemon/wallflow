@@ -2,6 +2,40 @@
 
 Hand-off log between machines. Read this after `git pull`, before changing anything.
 
+## Summary — start here (2026-11-05)
+
+**Where things are**
+- Repository is **public**. Website: **https://efadhemon.github.io/wallflow/**
+  (GitHub Pages, `pages.yml`; no custom domain any more). Downloads and the
+  in-app update check come from GitHub releases.
+- `main` = `dev` = 56c878c (PR #8 merged: Pages move, app fixes from
+  `review-fixes`, `dev`'s gallery/titlebar work, version **1.0.6**).
+  **1.0.6 is not tagged / released yet.** Latest release: v1.0.5.
+- `live-engine` = `main` + the live wallpaper work (35 commits ahead):
+  Rust engine `engine/`, GNOME shim, Live page, `direct` backend, bundled
+  LGPL FFmpeg for Windows / macOS (`ffmpeg-n9.0.2-wf1` pre-release). Works on
+  GNOME (Ubuntu), checked by you in the real app and from the installed `.deb`.
+  Windows / macOS: builds and CI green, Live page says "coming soon".
+- CI is green on all three OSes for `main` and `live-engine`.
+
+**Next session, in order**
+1. Release **1.0.6** from `main`: optional rehearsal (Actions → Release → Run
+   workflow = draft release; test; delete the draft), then
+   `git tag v1.0.6 56c878c && git push origin v1.0.6`. Check the release
+   assets, the website's download buttons, and the update banner in 1.0.5.
+2. Delete the Vercel project and the secrets `VERCEL_TOKEN`, `VERCEL_ORG_ID`,
+   `VERCEL_PROJECT_ID`, `VITE_VERSION_API_URL` (no longer used).
+3. **1.1.0 (live wallpaper on Linux/GNOME):** PR `live-engine` → `dev`,
+   rehearsal release (draft) from `dev`/`main`, test `.deb` + AppImage on
+   Ubuntu and that Windows / macOS install fine; measure installer sizes
+   (Plan 2.7); then `dev` → `main`, tag `v1.1.0`. Details: Release plan.
+4. **1.2.0 Windows** (Plan step 4, with 3.3), needs a Windows PC.
+5. **1.3.0 macOS** (Plan step 5), needs a Mac. Later: KDE / X11 / zero-copy.
+
+**Branch flow:** feature branch → PR into `dev` → PR `dev` → `main` → tag
+`vX.Y.Z` on `main` releases. Keep only `main`, `dev` and active feature
+branches. The old `live-wall` player is kept as tag `archive/live-wall`.
+
 ## Roadmap
 
 Goal: replace the old per-platform live wallpaper (`live-wall` branch: GStreamer
@@ -10,7 +44,7 @@ every platform without slowing the desktop.
 
 | #   | Step                                                                                                                | Status                                            |
 | --- | ------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------- |
-| 1   | Review and fix the non-live app (scheduler, config sync, file writes, UI bugs)                                      | **done** — `review-fixes` (4193a7a)               |
+| 1   | Review and fix the non-live app (scheduler, config sync, file writes, UI bugs)                                      | **done**, in `main` (1.0.6)                       |
 | 2   | Engine core: ffmpeg decode → wgpu NV12 render, frame pacing, stdin control                                          | **done** — `engine/`                              |
 | 3   | GNOME shim extension: desktop window above background, pause when hidden                                            | **done**, verified headless + real session        |
 | 4   | Multi-monitor (one window per monitor, decoded once)                                                                | **done**, verified headless (2 monitors)          |
@@ -22,12 +56,23 @@ every platform without slowing the desktop.
 
 ## Branches
 
-- `live-engine` — current work: `review-fixes` + `engine/` + the gallery preview
-  feature (9d7fa5a, from another session). Pushed.
-- `review-fixes` — app fixes only, pushed, not merged to `dev` yet.
-- `live-wall` — the old live wallpaper. To be dropped; nothing from it is reused.
+- `main` — released code; tags `vX.Y.Z` release from here.
+- `dev` — integration; feature branches merge here first, then `dev` → `main`.
+- `live-engine` — the live wallpaper engine (feature branch), up to date with
+  `main`, 35 commits ahead. Goes to `dev` for 1.1.0.
+- Deleted 2026-11-05: `review-fixes`, `github-pages` (both merged), `live-wall`
+  (old player, kept as tag `archive/live-wall` → 14f72eb).
 
 ## Sessions
+
+### 2026-11-05 — PR #8 merged, branches cleaned up (host EMON)
+
+- You merged PR #8; CI and the Website deploy on `main` passed (runs
+  42009086688, 42009086648).
+- Branches: deleted `github-pages`, `review-fixes` (fully in `main`) and
+  `live-wall` (tag `archive/live-wall` first). `dev` fast-forwarded to `main`
+  (56c878c). `main` merged into `live-engine`.
+- Summary for the next session written at the top.
 
 ### 2026-11-05 — no custom domain; 1.0.6 prepared (host EMON)
 
@@ -281,13 +326,7 @@ every platform without slowing the desktop.
 
 ## Next step
 
-1. **You:** review and merge PR #8 (now "Release 1.0.6"). Optional rehearsal:
-   run Release by hand → draft `v1.0.6`, test, delete the draft. Then
-   `git tag v1.0.6 <merge commit> && git push origin v1.0.6`.
-2. **You:** delete the Vercel project and the secrets `VERCEL_TOKEN`,
-   `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`, `VITE_VERSION_API_URL`.
-3. The 1.1.0 rehearsal (`github-pages` is already merged into `live-engine`;
-   after PR #8 lands, merging `main` again only brings the merge commit).
+See **Summary — start here** at the top.
 
 ## Release plan
 
