@@ -68,7 +68,7 @@ jobs:
         run: cargo test --manifest-path src-tauri/Cargo.toml
 
   check-macos:
-    runs-on: macos-14
+    runs-on: macos-15
 
     steps:
       - uses: actions/checkout@v5
