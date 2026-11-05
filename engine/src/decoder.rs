@@ -14,7 +14,7 @@ use crate::probe::VideoInfo;
 use anyhow::{Context, Result};
 use std::io::{ErrorKind, Read};
 use std::path::Path;
-use std::process::{Child, Command, Stdio};
+use std::process::{Child, Stdio};
 use std::sync::mpsc::{self, Receiver, Sender, SyncSender, TryRecvError};
 use std::thread::{self, JoinHandle};
 
@@ -43,7 +43,7 @@ pub struct Decoder {
 
 impl Decoder {
     pub fn spawn(ffmpeg: &str, path: &Path, info: &VideoInfo, hwaccel: &str) -> Result<Self> {
-        let mut command = Command::new(ffmpeg);
+        let mut command = crate::process::command(ffmpeg);
         command.args(["-hide_banner", "-loglevel", "error", "-nostdin"]);
         if hwaccel != "none" {
             command.args(["-hwaccel", hwaccel]);

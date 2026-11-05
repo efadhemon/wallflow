@@ -1,8 +1,8 @@
 import { convertFileSrc } from "@tauri-apps/api/core";
+import { cn } from "cn";
 import { ImageOff } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { api } from "../lib/api";
-import { cn } from "../lib/utils";
 
 /**
  * Thumbnails are generated on demand by the Rust side and served from the app

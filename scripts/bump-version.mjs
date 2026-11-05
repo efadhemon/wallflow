@@ -6,7 +6,7 @@ import semver from "semver";
 const [, , type] = process.argv; // patch, minor, or major
 
 if (!["patch", "minor", "major"].includes(type)) {
-  console.error("Usage: node scripts/bump-version.js [patch|minor|major]");
+  console.error("Usage: node scripts/bump-version.mjs [patch|minor|major]");
   process.exit(1);
 }
 

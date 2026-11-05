@@ -1,10 +1,10 @@
+import { cn } from "cn";
 import { X } from "lucide-react";
 import { useState } from "react";
 import { Sidebar, type Route } from "./components/Sidebar";
 import { Titlebar } from "./components/Titlebar";
 import { UpdateBanner } from "./components/UpdateBanner";
 import { usesCustomTitlebar } from "./lib/platform";
-import { cn } from "./lib/utils";
 import { About } from "./routes/About";
 import { Dashboard } from "./routes/Dashboard";
 import { Gallery } from "./routes/Gallery";

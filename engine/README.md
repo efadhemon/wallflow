@@ -102,6 +102,28 @@ tests/gnome-headless/run.sh [VIDEO]                          # needs gnome-shell
 MONITORS="1920x1080 1280x720" tests/gnome-headless/run.sh    # two monitors
 ```
 
+## Windows and macOS
+
+There the app starts the engine itself (`--background --events`), and the
+engine places its windows (`src/platform/`):
+
+- **Windows:** each window becomes a child of Explorer's desktop, under the
+  icons. The layout is read from the window tree, not the Windows version:
+  classic (Windows 10, 11 up to 23H2: a top-level `WorkerW` behind the icons,
+  after message `0x052C` to `Progman`) or raised (11 24H2+: a layered child of
+  `Progman` directly under `SHELLDLL_DefView`). Every second the windows are put
+  back if Explorer rebuilt its desktop, and checked for being covered: a
+  maximized or full-screen window on that monitor (not on another virtual
+  desktop), the lock screen, a full-screen Direct3D game or presentation mode.
+  If Explorer restarts, the window goes with it and the app starts the engine
+  again. FFmpeg uses D3D11VA when it can.
+- **macOS:** one borderless window per screen at the desktop window level, on
+  every Space, ignoring the mouse, with no Dock icon. AppKit's occlusion
+  changes say when a window is covered. FFmpeg uses VideoToolbox when it can.
+
+A covered window is not drawn; when every window is covered, decoding stops and
+the app sees `{"event":"state","paused":true,"reason":"covered"}`.
+
 ## Old vs new, measured
 
 `SCRIPT=bench.sh tests/gnome-headless/run.sh VIDEO` runs both players in the
@@ -138,13 +160,13 @@ there, and hardware decoding wins on it.
 
 The Wallflow app bundles the engine as a Tauri sidecar (`src-tauri/build.rs`
 builds it for the target) and drives it from `src-tauri/src/live/`: a video
-library prepared with `prepare`, start/stop through the shim, and a supervisor
+library prepared with `prepare`, start/stop through the shim (GNOME) or as a
+child process (`direct.rs`: Windows, macOS), and a supervisor
 that keeps the chosen video playing across login, lock and engine restarts.
 The shim stays loaded on the lock screen (`session-modes`) and pauses there.
 
 ## Next
 
 - Per-monitor videos (all monitors currently show the same video, decoded once).
-- Shims for Windows (WorkerW), macOS (desktop-level `NSWindow`), wlroots/KDE
-  (`wlr-layer-shell`) and X11 (`_NET_WM_WINDOW_TYPE_DESKTOP`).
+- wlroots/KDE (`wlr-layer-shell`) and X11 (`_NET_WM_WINDOW_TYPE_DESKTOP`).
 - Zero-copy decode → texture (DMA-BUF / D3D11 shared handles / IOSurface).

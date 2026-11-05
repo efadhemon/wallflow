@@ -1,30 +1,36 @@
 import { open } from "@tauri-apps/plugin-dialog";
-import { Clapperboard, Film, LoaderCircle, Pause, Play, Plus, Square, Trash2, TriangleAlert } from "lucide-react";
+import { openUrl } from "@tauri-apps/plugin-opener";
+import { cn } from "cn";
+import {
+  Clapperboard,
+  ExternalLink,
+  Film,
+  LoaderCircle,
+  Pause,
+  Play,
+  Plus,
+  Square,
+  Trash2,
+  TriangleAlert,
+} from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Thumbnail } from "../components/Thumbnail";
 import { Banner, Button, Card, EmptyState, SectionTitle } from "../components/ui";
 import { api, onLiveImport } from "../lib/api";
+import { isMacDesktop, isWindowsDesktop } from "../lib/platform";
 import type { LiveImportProgress, LiveStatus, LiveVideo } from "../lib/types";
-import { cn } from "../lib/utils";
+import { describeVideo } from "../lib/utils";
 import { useApp } from "../state/AppContext";
 
 const VIDEO_EXTENSIONS = ["mp4", "mkv", "webm", "mov", "m4v", "avi"];
 
+const NEW_ISSUE_URL = "https://github.com/efadhemon/wallflow/issues/new";
+
+/** Live wallpapers are new on these systems (1.1.0): ask for reports. */
+const NEW_ON = isWindowsDesktop() ? "Windows" : isMacDesktop() ? "macOS" : null;
+
 /** How often the page re-reads the engine state (playing / paused by a covered desktop). */
 const STATUS_POLL_MS = 3000;
-
-/** 75 → "1:15". */
-function formatLength(seconds: number | null): string | null {
-  if (seconds == null || !Number.isFinite(seconds)) return null;
-  const total = Math.round(seconds);
-  return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, "0")}`;
-}
-
-function describe(video: LiveVideo): string {
-  return [`${video.width}×${video.height}`, `${Math.round(video.fps)} fps`, formatLength(video.duration)]
-    .filter(Boolean)
-    .join(" · ");
-}
 
 export function Live() {
   const { status, notify } = useApp();
@@ -135,7 +141,7 @@ export function Live() {
                 ) : live?.running ? (
                   <>
                     <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-500" />
-                    Playing · {describe(active)}
+                    Playing · {describeVideo(active)}
                   </>
                 ) : (
                   <>
@@ -199,6 +205,21 @@ export function Live() {
         While a live wallpaper plays, the image rotation waits and the video's first frame is your static wallpaper
         (lock screen, login). Picking an image in the Library or pressing Next ends it.
       </p>
+
+      {NEW_ON && (
+        <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs leading-relaxed text-ink-muted">
+          Live wallpapers are new on {NEW_ON}. If the video shows over your windows, not behind the icons, or does not
+          pause, please tell us.
+          <button
+            type="button"
+            onClick={() => void openUrl(NEW_ISSUE_URL)}
+            className="focus-ring inline-flex cursor-pointer items-center gap-1 rounded font-medium text-brand hover:underline"
+          >
+            Report a problem
+            <ExternalLink size={12} />
+          </button>
+        </p>
+      )}
     </div>
   );
 }
@@ -266,7 +287,7 @@ function VideoTile({
 
       <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 to-transparent px-2.5 pt-8 pb-2">
         <p className="truncate text-xs font-medium text-white">{video.name}</p>
-        <p className="truncate text-[10px] text-white/70">{describe(video)}</p>
+        <p className="truncate text-[10px] text-white/70">{describeVideo(video)}</p>
       </div>
 
       {active ? (

@@ -1,6 +1,6 @@
+import { cn } from "cn";
 import { Clapperboard, Images, Info, LayoutDashboard, LayoutGrid, Settings2 } from "lucide-react";
 import type { ComponentType } from "react";
-import { cn } from "../lib/utils";
 import { useApp } from "../state/AppContext";
 
 export type Route = "dashboard" | "library" | "gallery" | "live" | "settings" | "about";

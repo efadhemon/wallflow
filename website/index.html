@@ -6,7 +6,7 @@
     <title>Wallflow — rotate your desktop wallpaper on a schedule</title>
     <meta
       name="description"
-      content="Wallflow rotates your desktop background through folders you choose, files you add, or Wallhaven’s Gallery, on a schedule — and on GNOME it can play a video as a live wallpaper. A small tray app for Linux, Windows and macOS."
+      content="Wallflow rotates your desktop background through folders you choose, files you add, or Wallhaven’s Gallery, on a schedule — and plays a video as a live wallpaper. A small tray app for Linux, Windows and macOS."
     />
     <meta
       name="keywords"
@@ -25,12 +25,12 @@
     <meta property="og:title" content="Wallflow — rotate your desktop wallpaper on a schedule" />
     <meta
       property="og:description"
-      content="Watch folders, add files, or search Wallhaven from the Gallery — or play a video as a live wallpaper on GNOME. A small tray app for Linux, Windows and macOS."
+      content="Watch folders, add files, or search Wallhaven from the Gallery — or play a video as a live wallpaper. A small tray app for Linux, Windows and macOS."
     />
     <meta property="og:image" content="https://efadhemon.github.io/wallflow/assets/screenshots/dashboard.png" />
     <meta property="og:image:type" content="image/png" />
-    <meta property="og:image:width" content="1183" />
-    <meta property="og:image:height" content="827" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="860" />
     <meta
       property="og:image:alt"
       content="Wallflow Dashboard showing the current wallpaper, countdown, and pause controls"
@@ -40,7 +40,7 @@
     <meta name="twitter:title" content="Wallflow — rotate your desktop wallpaper on a schedule" />
     <meta
       name="twitter:description"
-      content="Watch folders, add files, or search Wallhaven from the Gallery — or play a video as a live wallpaper on GNOME. A small tray app for Linux, Windows and macOS."
+      content="Watch folders, add files, or search Wallhaven from the Gallery — or play a video as a live wallpaper. A small tray app for Linux, Windows and macOS."
     />
     <meta name="twitter:image" content="https://efadhemon.github.io/wallflow/assets/screenshots/dashboard.png" />
     <meta
@@ -61,7 +61,7 @@
         "@type": "SoftwareApplication",
         "name": "Wallflow",
         "url": "https://efadhemon.github.io/wallflow/",
-        "description": "Wallflow rotates your desktop background through folders you choose, files you add, or Wallhaven’s Gallery, on a schedule, and on GNOME plays a video as a live wallpaper.",
+        "description": "Wallflow rotates your desktop background through folders you choose, files you add, or Wallhaven’s Gallery, on a schedule, and plays a video as a live wallpaper.",
         "applicationCategory": "UtilitiesApplication",
         "operatingSystem": "Linux, Windows, macOS",
         "softwareVersion": "1.1.0",
@@ -121,8 +121,8 @@
             <p class="eyebrow">Desktop app for Linux, Windows and macOS</p>
             <h1>Rotate your wallpaper through your own images, on a schedule you choose.</h1>
             <p class="lede">
-              Watch folders, add files, or search Wallhaven from the Gallery. On GNOME, play a video as a live
-              wallpaper. Wallflow lives in the tray, starts with your session, and stays out of the way.
+              Watch folders, add files, or search Wallhaven from the Gallery, or play a video as a live wallpaper.
+              Wallflow lives in the tray, starts with your session, and stays out of the way.
             </p>
             <div class="hero-actions">
               <a class="btn btn-primary" href="#download">Download</a>
@@ -238,8 +238,8 @@
                 <h3>Live wallpapers</h3>
                 <p>
                   Play a video behind your desktop. Each video is prepared once for your screen, plays on every monitor,
-                  and pauses on its own while the desktop is covered. Linux with GNOME on Wayland for now; Windows and
-                  macOS are coming.
+                  and pauses on its own while the desktop is covered. On Windows 10 / 11, macOS, and Linux with GNOME on
+                  Wayland.
                 </p>
               </li>
               <li>
@@ -368,10 +368,11 @@
                 <p>
                   Open <strong>Live</strong> and click <strong>Add videos</strong> (MP4, MKV, WebM, MOV, M4V or AVI).
                   Each one is prepared once for your screen, then hover it and press <strong>Play</strong>. The first
-                  time, GNOME needs a small helper: click <strong>Set up</strong> and log out and back in once. The
-                  video pauses on its own while windows cover the desktop. While it plays, the image rotation waits;
-                  <strong>Stop</strong>, picking an image in Library, or pressing Next ends it. Needs GNOME on Wayland
-                  (Ubuntu’s default) and FFmpeg; Windows and macOS are coming.
+                  time on GNOME, a small helper is needed: click <strong>Set up</strong> and log out and back in once
+                  (Windows and macOS need nothing). The video pauses on its own while windows cover the desktop. While
+                  it plays, the image rotation waits; <strong>Stop</strong>, picking an image in Library, or pressing
+                  Next ends it. On Linux it needs GNOME on Wayland (Ubuntu’s default) and FFmpeg; Windows and macOS
+                  include FFmpeg.
                 </p>
               </div>
               <figure>
@@ -408,18 +409,18 @@
                 <span class="step-num">5</span>
                 <h3>Watch it on the Dashboard</h3>
                 <p>
-                  The Dashboard shows the current wallpaper, its filename, and how long until the next change. Use
-                  <strong>Previous</strong>, <strong>Pause</strong>, and <strong>Next</strong> there. The cards below
-                  list how many images are in rotation, how many were found on disk, and which desktop Wallflow
-                  detected.
+                  The Dashboard shows what is on your desktop now: the current wallpaper, its filename, and how long
+                  until the next change, with <strong>Previous</strong>, <strong>Pause</strong>, and
+                  <strong>Next</strong>. Below it, play one of your live wallpapers in one click. While a video plays,
+                  the Dashboard shows it instead, with <strong>Back to images</strong> to return to the rotation.
                 </p>
               </div>
               <figure>
                 <img
                   src="assets/screenshots/dashboard.png"
-                  alt="Wallflow Dashboard: current wallpaper preview, countdown to the next change, and Previous, Pause, Next controls"
-                  width="1280"
-                  height="800"
+                  alt="Wallflow Dashboard: current wallpaper preview, countdown to the next change, Previous, Pause, Next controls, and live wallpapers to play in one click"
+                  width="1200"
+                  height="860"
                 />
               </figure>
             </li>

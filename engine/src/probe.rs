@@ -1,7 +1,6 @@
 use anyhow::{Context, Result, bail};
 use serde::Deserialize;
 use std::path::Path;
-use std::process::Command;
 
 /// What the renderer needs to know about a video before the first frame arrives.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -39,7 +38,7 @@ struct Stream {
 }
 
 pub fn probe(ffprobe: &str, path: &Path) -> Result<VideoInfo> {
-    let output = Command::new(ffprobe)
+    let output = crate::process::command(ffprobe)
         .args([
             "-v",
             "error",

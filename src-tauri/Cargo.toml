@@ -18,13 +18,13 @@ percent-encoding = "2.3.2"
 rand = "0.10.2"
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.151"
-tauri = { version = "2.11.5", features = ["tray-icon", "image-png", "protocol-asset"] }
-tauri-plugin-aptabase = { git = "https://github.com/aptabase/tauri-plugin-aptabase", tag = "1.2.0", default-features = false, features = ["rustls-tls"] }
-tauri-plugin-autostart = "2.5.1"
-tauri-plugin-dialog = "2.7.2"
-tauri-plugin-log = "2.9.0"
-tauri-plugin-opener = "2.5.4"
-tauri-plugin-single-instance = "2.4.3"
+tauri = { version = "2.12.5", features = ["tray-icon", "image-png", "protocol-asset"] }
+tauri-plugin-aptabase = { git = "https://github.com/aptabase/tauri-plugin-aptabase", tag = "1.3.0", default-features = false, features = ["rustls-tls"] }
+tauri-plugin-autostart = "2.7.0"
+tauri-plugin-dialog = "2.8.4"
+tauri-plugin-log = "2.10.1"
+tauri-plugin-opener = "2.7.2"
+tauri-plugin-single-instance = "2.5.5"
 tokio = { version = "1.53.1", features = ["rt-multi-thread", "sync", "time", "macros", "fs", "io-util", "process"] }
 walkdir = "2.5.0"
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "stream"] }
@@ -32,7 +32,7 @@ futures-util = { version = "0.3", default-features = false, features = ["std"] }
 sha2 = "0.10"
 
 [build-dependencies]
-tauri-build = { version = "2.6.3", features = [] }
+tauri-build = { version = "2.7.4", features = [] }
 
 
 [profile.dev]
