@@ -4,23 +4,25 @@ import semver from "semver";
 import { api } from "./api";
 import { useApp } from "../state/AppContext";
 
+/** Drafts and pre-releases (such as the FFmpeg builds) are not "latest". */
+const LATEST_RELEASE_API = "https://api.github.com/repos/efadhemon/wallflow/releases/latest";
+
 /** Returns the newer available version string, or null when up to date / offline / dismissed. */
 export function useUpdateCheck(): { version: string; dismiss: () => void } | null {
   const { environment } = useApp();
   const [available, setAvailable] = useState<string | null>(null);
   const [dismissed, setDismissed] = useState(false);
-  const versionApiUrl = import.meta.env.VITE_VERSION_API_URL;
 
   useEffect(() => {
     const current = environment?.appVersion;
-    if (!current || !versionApiUrl) return;
+    if (!current) return;
 
     let cancelled = false;
 
     (async () => {
       try {
         // Rust-side HTTP avoids webview CSP/CORS restrictions.
-        const raw = await api.fetchLatestVersion(versionApiUrl);
+        const raw = await api.fetchLatestVersion(LATEST_RELEASE_API);
         if (!raw) return;
 
         const latest = raw.startsWith("v") ? raw.slice(1) : raw;
@@ -38,7 +40,7 @@ export function useUpdateCheck(): { version: string; dismiss: () => void } | nul
     return () => {
       cancelled = true;
     };
-  }, [environment?.appVersion, versionApiUrl]);
+  }, [environment?.appVersion]);
 
   // Closing the window only hides it, so React state survives. Bring the banner
   // back the next time the window is shown from the tray.

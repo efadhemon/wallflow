@@ -5,7 +5,10 @@
 // Usage:
 //   node scripts/sync-version.mjs            # rewrite Cargo.toml + Cargo.lock + website
 //   node scripts/sync-version.mjs --check    # exit non-zero if Cargo.toml/lock drifts
-//   node scripts/sync-version.mjs --website   # only rewrite the website (deploy step)
+//   node scripts/sync-version.mjs --website --version X.Y.Z
+//       only rewrite the website, for version X.Y.Z: the Pages deploy passes the
+//       latest published release, so download links never point at a release
+//       that is still being built.
 
 import { readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -13,21 +16,22 @@ import { dirname, join } from "node:path";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 
-const pkg = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
-const version = pkg.version;
-if (!version || !/^\d+\.\d+\.\d+/.test(version)) {
-  console.error(`package.json has an invalid version: ${JSON.stringify(version)}`);
-  process.exit(1);
-}
-
-const args = new Set(process.argv.slice(2));
+const argv = process.argv.slice(2);
+const args = new Set(argv);
 const checkOnly = args.has("--check");
 const websiteOnly = args.has("--website");
+const versionArg = argv.includes("--version") ? argv[argv.indexOf("--version") + 1] : undefined;
+
+const pkg = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
+const version = versionArg ?? pkg.version;
+if (!version || !/^\d+\.\d+\.\d+/.test(version)) {
+  console.error(`invalid version: ${JSON.stringify(version)}`);
+  process.exit(1);
+}
 
 const cargoPath = join(root, "src-tauri", "Cargo.toml");
 const cargoLockPath = join(root, "src-tauri", "Cargo.lock");
 const websitePath = join(root, "website", "index.html");
-const versionJsonPath = join(root, "website", "api", "version.json");
 
 let drift = false;
 
@@ -80,6 +84,7 @@ function syncWebsite() {
   const replacements = [
     [/(Download Wallflow )\d+\.\d+\.\d+/g, `$1${version}`],
     [/(Wallflow_)\d+\.\d+\.\d+(_)/g, `$1${version}$2`],
+    [/(\/releases\/download\/v)\d+\.\d+\.\d+(\/)/g, `$1${version}$2`],
     [/(Version )\d+\.\d+\.\d+/g, `$1${version}`],
   ];
   let updated = original;
@@ -91,33 +96,12 @@ function syncWebsite() {
   console.log(`Updated website/index.html -> ${version}`);
 }
 
-// --- website/api/version.json: the version field ---
-function syncVersionJson() {
-  const original = readFileSync(versionJsonPath, "utf8");
-  let current;
-  try {
-    current = JSON.parse(original).version;
-  } catch {
-    current = undefined;
-  }
-  if (current === version) return;
-  drift = true;
-  if (checkOnly) {
-    console.error(`version.json (${current}) does not match package.json (${version}).`);
-    return;
-  }
-  writeFileSync(versionJsonPath, `${JSON.stringify({ version }, null, 2)}\n`);
-  console.log(`Updated website/api/version.json -> ${version}`);
-}
-
 if (websiteOnly) {
   syncWebsite();
-  syncVersionJson();
 } else {
   syncCargo();
   syncCargoLock();
   if (!checkOnly) syncWebsite();
-  syncVersionJson();
 }
 
 if (checkOnly && drift) {
