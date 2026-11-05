@@ -62,6 +62,18 @@ every platform without slowing the desktop.
 
 ## Sessions
 
+### 2026-11-05 — README for live wallpapers (host EMON)
+
+- `README.md`: intro and feature list mention live wallpapers; new section
+  "Live wallpapers" (how it works, support table: GNOME on Wayland yes,
+  Windows / macOS coming, KDE / X11 not yet; GNOME one-time helper setup;
+  FFmpeg for `.deb` vs AppImage); `live/` row in the storage table; building
+  from source: engine built by `build.rs`, `node scripts/fetch-ffmpeg.mjs` on
+  Windows / macOS; bundled FFmpeg license note; limitation "GNOME on Wayland,
+  same video on every monitor".
+- `scripts/fetch-ffmpeg.mjs`: comments no longer say the repo is private
+  (the token is optional).
+
 ### 2026-11-05 — website for 1.1.0 (live wallpaper) on `live-engine` (host EMON)
 
 - Vercel project and secrets deleted by you (only `APTABASE_APP_KEY` left).

@@ -3,7 +3,7 @@
 // src-tauri/binaries/{ffmpeg,ffprobe}-<triple>[.exe], plus its license and
 // build notes. The archive comes from the `ffmpeg-<tag>-wf<n>` release made by
 // .github/workflows/ffmpeg.yml and must match scripts/ffmpeg/SHA256SUMS.
-// Needs a GitHub token (the repository is private).
+// A GitHub token is optional (it only raises the API rate limit).
 //
 //   node scripts/fetch-ffmpeg.mjs [target-triple]   (default: this machine)
 import { createHash } from "node:crypto";
@@ -56,7 +56,7 @@ if (existsSync(stamp) && readFileSync(stamp, "utf8").trim() === expected) {
 }
 
 const tag = `ffmpeg-${env.FFMPEG_TAG}-wf${env.WALLFLOW_FFMPEG_BUILD}`;
-// The repository is private: release files come through the API, with a token
+// Release files come through the API, with a token when one is around
 // (GH_TOKEN / GITHUB_TOKEN in CI, else the GitHub CLI's login).
 const token =
   process.env.GH_TOKEN ??

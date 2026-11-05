@@ -1,8 +1,9 @@
 # Wallflow
 
 A small desktop app that rotates your wallpaper through your own images — folders
-you watch, or files you add one by one — on a schedule you choose. It lives in the
-system tray, starts with your session, and runs on Linux, Windows and macOS.
+you watch, or files you add one by one — on a schedule you choose. On GNOME it can
+also play a video as a live wallpaper. It lives in the system tray, starts with your
+session, and runs on Linux, Windows and macOS.
 
 Built with [Tauri 2](https://v2.tauri.app) — the installers are a few megabytes and
 there is no bundled browser runtime.
@@ -19,7 +20,10 @@ there is no bundled browser runtime.
 - Browse the whole library as thumbnails; click one to apply it immediately, or
   exclude images you would rather not see. Filter the gallery to added copies only.
 - Search the Gallery for landscape wallpapers from [Wallhaven](https://wallhaven.cc)
-  (SFW only, no API key). Add one to the library, or set it as the wallpaper now.
+  (SFW only, no API key). Open one full screen to look closer, add it to the library,
+  or set it as the wallpaper now.
+- Play a video as a live wallpaper (GNOME on Wayland for now; see
+  [Live wallpapers](#live-wallpapers)).
 - Skip forwards and backwards, or pause, from the window or the tray menu.
 - New images dropped into a watched folder join the rotation without a restart.
 - A different image per monitor on Windows and macOS.
@@ -51,6 +55,37 @@ wallpapers possible, and falls back to `SystemParametersInfoW` if that is unavai
 
 macOS uses `NSWorkspace setDesktopImageURL:forScreen:options:`, which also supports
 a different image per display.
+
+## Live wallpapers
+
+Open **Live**, add videos (MP4, MKV, WebM, MOV, M4V or AVI) and press **Play**.
+
+- Each video is prepared once when you add it: scaled down to your screen, capped
+  at 30 fps, with a poster frame. Playback then needs little work.
+- The video runs in its own process, `wallflow-live`, decoded by FFmpeg (hardware
+  decoding when available) and drawn with the GPU. The desktop shell only places its
+  window behind the desktop, so the shell stays smooth.
+- It plays on every monitor and pauses on its own while the desktop is covered
+  (a maximized or fullscreen window, the overview, the lock screen).
+- While it plays, the image rotation waits, and the video's first frame is set as
+  the static wallpaper (lock screen, login). **Stop**, picking an image in Library,
+  or **Next** ends it.
+
+| System           | Live wallpapers                                                        |
+| ---------------- | ---------------------------------------------------------------------- |
+| GNOME on Wayland | Yes. Needs FFmpeg and a small helper extension (one-time setup, below) |
+| Windows, macOS   | Coming soon; FFmpeg already ships in the installer                     |
+| KDE, X11, others | Not yet                                                                |
+
+**One-time setup on GNOME.** The first time, the Live page offers **Set up**: it
+installs a small GNOME Shell extension (`wallflow-live@com.efadhemon.wallflow`) that
+places the video window behind the desktop. It does no video work itself. GNOME on
+Wayland loads new extensions only at login, so log out and back in once.
+
+The `.deb` pulls in FFmpeg. With the AppImage, install it yourself
+(`sudo apt install ffmpeg` on Ubuntu); the Live page says so if it is missing.
+
+The engine is documented in [engine/README.md](engine/README.md).
 
 ## Install
 
@@ -91,9 +126,11 @@ confirm _Open_ again.
 | Added images | `~/.local/share/com.efadhemon.wallflow/images/`           | `%APPDATA%\com.efadhemon.wallflow\images\`           | `~/Library/Application Support/com.efadhemon.wallflow/images/`     |
 | Log          | `~/.local/share/com.efadhemon.wallflow/logs/wallflow.log` | `%APPDATA%\com.efadhemon.wallflow\logs\wallflow.log` | `~/Library/Logs/com.efadhemon.wallflow/wallflow.log`               |
 | Thumbnails   | `~/.cache/com.efadhemon.wallflow/`                        | `%LOCALAPPDATA%\com.efadhemon.wallflow\`             | `~/Library/Caches/com.efadhemon.wallflow/`                         |
+| Live videos  | `~/.local/share/com.efadhemon.wallflow/live/`             | `%APPDATA%\com.efadhemon.wallflow\live\`             | `~/Library/Application Support/com.efadhemon.wallflow/live/`       |
 
 The About screen links to settings, logs and the thumbnail cache. Added images are
-copies; deleting one in Library removes Wallflow’s file, not the original.
+copies; deleting one in Library removes Wallflow’s file, not the original. Live
+videos are prepared copies too; removing one on the Live page deletes the copy only.
 
 ## Building from source
 
@@ -107,6 +144,14 @@ sudo apt install libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev
 ```
 
 On macOS, install the Xcode Command Line Tools (`xcode-select --install`).
+
+The live wallpaper engine in `engine/` is built automatically by `src-tauri/build.rs`.
+To try live wallpapers on Linux, install `ffmpeg`. Windows and macOS bundle FFmpeg;
+fetch it once before building there:
+
+```bash
+node scripts/fetch-ffmpeg.mjs
+```
 
 Then:
 
@@ -122,6 +167,12 @@ is the oldest base that ships WebKitGTK 4.1, which keeps the glibc requirement l
 enough to run on 24.04 and 26.04. macOS artifacts are unsigned disk images for
 Apple Silicon (`aarch64-apple-darwin`) and Intel (`x86_64-apple-darwin`).
 
+The bundled FFmpeg (Windows, macOS) is a trimmed LGPL build of `ffmpeg` and
+`ffprobe` (FFmpeg n9.0.2, unmodified upstream source), made by
+[.github/workflows/ffmpeg.yml](.github/workflows/ffmpeg.yml) and published as the
+[`ffmpeg-n9.0.2-wf1`](../../releases/tag/ffmpeg-n9.0.2-wf1) release. Its license and
+build notes (source commit and `configure` options) ship with the app.
+
 ## Notes and limitations
 
 - WebP images are transcoded to PNG in the thumbnail cache before being applied,
@@ -132,6 +183,7 @@ Apple Silicon (`aarch64-apple-darwin`) and Intel (`x86_64-apple-darwin`).
   personal data. Debug builds and builds without `APTABASE_APP_KEY` send nothing.
 - Per-monitor wallpapers are available on Windows and macOS; the Linux backends
   set every monitor to the same image.
+- Live wallpapers need GNOME on Wayland for now. Every monitor plays the same video.
 - macOS has no wallpaper tile mode, so _Tile_ is applied as _Center_.
 - Xfce only exposes its wallpaper properties after the Desktop Settings dialog has
   been opened once on a fresh install.
