@@ -6,6 +6,7 @@
 //! A 1440p60 clip on a 1080p monitor otherwise costs four times the decoding and
 //! upload work on every frame, for detail nobody can see.
 
+use crate::encoder::{self, Encoder};
 use crate::probe::{self, VideoInfo};
 use anyhow::{Context, Result, bail};
 use serde::Serialize;
@@ -75,6 +76,8 @@ fn report(event: &Report) {
 
 pub fn run(args: &Args) -> Result<()> {
     let info = probe::probe(&args.ffprobe, &args.input)?;
+    let encoder = encoder::detect(&args.ffmpeg)?;
+    log::info!("encoding with {}", encoder.name());
     let plan = plan((info.width, info.height), info.fps, args.screen, MAX_FPS);
     let (width, height) = plan.size.unwrap_or((info.width, info.height));
     report(&Report::Started {
@@ -85,7 +88,7 @@ pub fn run(args: &Args) -> Result<()> {
     });
 
     let part = with_suffix(&args.output, ".part.mp4");
-    encode(args, &info, &plan, &part)?;
+    encode(args, &info, &plan, encoder, &part)?;
     std::fs::rename(&part, &args.output)
         .with_context(|| format!("saving {}", args.output.display()))?;
 
@@ -107,7 +110,7 @@ fn with_suffix(path: &Path, suffix: &str) -> PathBuf {
     PathBuf::from(name)
 }
 
-fn encode(args: &Args, info: &VideoInfo, plan: &Plan, out: &Path) -> Result<()> {
+fn encode(args: &Args, info: &VideoInfo, plan: &Plan, encoder: Encoder, out: &Path) -> Result<()> {
     let mut filters = Vec::new();
     if let Some((w, h)) = plan.size {
         filters.push(format!("scale={w}:{h}:flags=lanczos"));
@@ -115,8 +118,10 @@ fn encode(args: &Args, info: &VideoInfo, plan: &Plan, out: &Path) -> Result<()> 
     if let Some(fps) = plan.fps {
         filters.push(format!("fps={fps}"));
     }
-    filters.push("format=yuv420p".into());
-    let gop = (plan.fps.unwrap_or(info.fps) * 2.0).round().max(1.0) as u32;
+    filters.push(format!("format={}", encoder.pix_fmt()));
+    let fps = plan.fps.unwrap_or(info.fps);
+    let gop = (fps * 2.0).round().max(1.0) as u32;
+    let size = plan.size.unwrap_or((info.width, info.height));
 
     let mut child = Command::new(&args.ffmpeg)
         .args(["-hide_banner", "-loglevel", "error", "-nostdin", "-y", "-i"])
@@ -131,9 +136,8 @@ fn encode(args: &Args, info: &VideoInfo, plan: &Plan, out: &Path) -> Result<()> 
             &filters.join(","),
         ])
         // Half the cores at most: importing a wallpaper must not make the
-        // desktop itself stutter. `faster` at CRF 20 still looks clean.
-        .args(["-c:v", "libx264", "-preset", "faster", "-crf", "20"])
-        .args(["-threads", &encode_threads().to_string()])
+        // desktop itself stutter.
+        .args(encoder.args(size, fps, encode_threads()))
         .args(["-g", &gop.to_string(), "-movflags", "+faststart"])
         .args(["-progress", "pipe:1", "-nostats", "-f", "mp4"])
         .arg(out)

@@ -7,6 +7,7 @@
 //! app.
 
 mod decoder;
+mod encoder;
 mod fit;
 mod prepare;
 mod probe;
