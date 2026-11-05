@@ -19,13 +19,18 @@ Hand-off log between machines. Read this after `git pull`, before changing anyth
 - CI is green on all three OSes for `main` and `live-engine`.
 
 **Next session, in order**
-1. Release **1.0.6** from `main`: optional rehearsal (Actions → Release → Run
-   workflow = draft release; test; delete the draft), then
-   `git tag v1.0.6 56c878c && git push origin v1.0.6`. Check the release
-   assets, the website's download buttons, and the update banner in 1.0.5.
+1. Release **1.0.6** from `main`: rehearsal done, a **draft** `v1.0.6` exists
+   (see Sessions). Left: install-test the draft on Ubuntu if wanted, delete
+   the draft, then `git tag v1.0.6 56c878c && git push origin v1.0.6`. Check
+   the release assets and that the website says 1.0.6 with working links.
+   No work for 1.0.5's update banner / old domain: all 1.0.5 users were
+   internal.
 2. Delete the Vercel project and the secrets `VERCEL_TOKEN`, `VERCEL_ORG_ID`,
-   `VERCEL_PROJECT_ID`, `VITE_VERSION_API_URL` (no longer used).
-3. **1.1.0 (live wallpaper on Linux/GNOME):** PR `live-engine` → `dev`,
+   `VERCEL_PROJECT_ID`, `VITE_VERSION_API_URL` (no longer used), any time.
+3. **1.1.0 (live wallpaper on Linux/GNOME):** update the website on
+   `live-engine` first (Live feature card + screenshot, how-to step, meta
+   descriptions, "GNOME only, Windows/macOS coming soon", `.deb` now needs
+   `ffmpeg`); it goes live with the merge to `main`. Then PR `live-engine` → `dev`,
    rehearsal release (draft) from `dev`/`main`, test `.deb` + AppImage on
    Ubuntu and that Windows / macOS install fine; measure installer sizes
    (Plan 2.7); then `dev` → `main`, tag `v1.1.0`. Details: Release plan.
@@ -64,6 +69,19 @@ every platform without slowing the desktop.
   (old player, kept as tag `archive/live-wall` → 14f72eb).
 
 ## Sessions
+
+### 2026-11-05 — 1.0.6 rehearsal: draft release (host EMON)
+
+- Release workflow run by hand on `main` 56c878c (run 42017083330): all four
+  builds green, website job skipped, draft `Wallflow v1.0.6` with
+  `Wallflow_1.0.6_amd64.deb` (5.7 MB), `_amd64.AppImage` (84 MB),
+  `_x64-setup.exe` (4.1 MB), `_aarch64.dmg` (7.5 MB), `_x64.dmg` (7.8 MB):
+  the names the website links to.
+- `.deb` checked without installing: version 1.0.6, depends
+  appindicator / webkit2gtk-4.1 / gtk3, needs GLIBC 2.34, links to the Pages
+  URL, no old domain. AppImage runs (`--appimage-version`).
+- Not installed here: the machine runs the `live-engine` build.
+- Website for live wallpaper: decided to ship it with 1.1.0, not 1.0.6.
 
 ### 2026-11-05 — gallery preview "Could not load the full image" fixed (host EMON)
 
