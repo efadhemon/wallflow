@@ -1,18 +1,22 @@
+import { convertFileSrc } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import {
   Check,
+  Eye,
   EyeOff,
   FolderOpen,
   FolderPlus,
   ImageIcon,
   ImagePlus,
   Images,
+  Maximize2,
   RefreshCw,
   Trash2,
   TriangleAlert,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ImagePreview, ViewerAction } from "../components/ImagePreview";
 import { Thumbnail } from "../components/Thumbnail";
 import { Button, Card, Divider, EmptyState, SectionTitle, Switch } from "../components/ui";
 import { api } from "../lib/api";
@@ -32,6 +36,7 @@ export function Library() {
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [busy, setBusy] = useState(false);
   const [managedOnly, setManagedOnly] = useState(false);
+  const [previewPath, setPreviewPath] = useState<string | null>(null);
   const sentinel = useRef<HTMLDivElement>(null);
 
   const reload = useCallback(async () => {
@@ -124,6 +129,9 @@ export function Library() {
   };
 
   const visible = gallery.slice(0, visibleCount);
+  // Tracked by path so a rescan that reorders or drops images keeps (or closes) the right one.
+  const previewIndex = previewPath ? gallery.findIndex(image => image.path === previewPath) : -1;
+  const previewImage = previewIndex >= 0 ? gallery[previewIndex] : null;
 
   return (
     <div className="mx-auto flex max-w-4xl flex-col gap-6 px-8 py-8">
@@ -251,11 +259,11 @@ export function Library() {
                   image={image}
                   disabled={busy}
                   onApply={() => runAndReload(() => api.applyImage(image.path))}
+                  onPreview={() => setPreviewPath(image.path)}
                   onToggleExclude={() => runAndReload(() => api.toggleExclude(image.path).then(refresh))}
                   onRemove={
                     image.managed ? () => runAndReload(() => api.removeImage(image.path).then(refresh)) : undefined
                   }
-                  onReveal={() => void revealItemInDir(image.path)}
                 />
               ))}
             </div>
@@ -263,7 +271,121 @@ export function Library() {
           </>
         )}
       </section>
+
+      {previewImage && (
+        <LibraryPreview
+          image={previewImage}
+          position={`${previewIndex + 1} / ${gallery.length}`}
+          busy={busy}
+          onPrev={previewIndex > 0 ? () => setPreviewPath(gallery[previewIndex - 1].path) : undefined}
+          onNext={previewIndex < gallery.length - 1 ? () => setPreviewPath(gallery[previewIndex + 1].path) : undefined}
+          onClose={() => setPreviewPath(null)}
+          onApply={() => runAndReload(() => api.applyImage(previewImage.path))}
+          onToggleExclude={() => runAndReload(() => api.toggleExclude(previewImage.path).then(refresh))}
+          onRemove={
+            previewImage.managed
+              ? () => {
+                  setPreviewPath(null);
+                  void runAndReload(() => api.removeImage(previewImage.path).then(refresh));
+                }
+              : undefined
+          }
+          onReveal={() => void revealItemInDir(previewImage.path)}
+        />
+      )}
     </div>
+  );
+}
+
+/** Loads the cached thumbnail and a screen-sized copy for one library image. */
+function useLibraryPreview(path: string) {
+  const [thumb, setThumb] = useState<string | null>(null);
+  const [full, setFull] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    setThumb(null);
+    setFull(null);
+    api
+      .getThumbnail(path)
+      .then(file => !cancelled && setThumb(convertFileSrc(file)))
+      .catch(() => {});
+    api
+      .getPreview(path)
+      .then(file => !cancelled && setFull(convertFileSrc(file)))
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [path]);
+
+  return { thumb, full };
+}
+
+function LibraryPreview({
+  image,
+  position,
+  busy,
+  onPrev,
+  onNext,
+  onClose,
+  onApply,
+  onToggleExclude,
+  onRemove,
+  onReveal,
+}: {
+  image: ImageEntry;
+  position: string;
+  busy: boolean;
+  onPrev?: () => void;
+  onNext?: () => void;
+  onClose: () => void;
+  onApply: () => void;
+  onToggleExclude: () => void;
+  onRemove?: () => void;
+  onReveal: () => void;
+}) {
+  const { thumb, full } = useLibraryPreview(image.path);
+
+  return (
+    <ImagePreview
+      src={full}
+      placeholder={thumb}
+      title={image.name}
+      position={position}
+      onPrev={onPrev}
+      onNext={onNext}
+      onClose={onClose}
+      meta={
+        <>
+          <span className="truncate">{image.path}</span>
+          {image.isCurrent && <span className="text-white">Current wallpaper</span>}
+          {image.excluded && <span>Excluded from rotation</span>}
+        </>
+      }
+      actions={
+        <>
+          <ViewerAction onClick={onReveal}>
+            <FolderOpen size={14} />
+            Show in folder
+          </ViewerAction>
+          <ViewerAction onClick={onToggleExclude} disabled={busy}>
+            {image.excluded ? <Eye size={14} /> : <EyeOff size={14} />}
+            {image.excluded ? "Include in rotation" : "Exclude"}
+          </ViewerAction>
+          {onRemove && (
+            <ViewerAction onClick={onRemove} disabled={busy}>
+              <Trash2 size={14} />
+              Remove
+            </ViewerAction>
+          )}
+          <ViewerAction primary onClick={onApply} disabled={busy || image.isCurrent}>
+            <Check size={14} />
+            {image.isCurrent ? "In use" : "Use now"}
+          </ViewerAction>
+        </>
+      }
+    />
   );
 }
 
@@ -273,14 +395,14 @@ function ImageTile({
   onApply,
   onToggleExclude,
   onRemove,
-  onReveal,
+  onPreview,
 }: {
   image: ImageEntry;
   disabled: boolean;
   onApply: () => void;
   onToggleExclude: () => void;
   onRemove?: () => void;
-  onReveal: () => void;
+  onPreview: () => void;
 }) {
   return (
     <div
@@ -291,11 +413,9 @@ function ImageTile({
     >
       <button
         type="button"
-        disabled={disabled}
-        onClick={onApply}
-        onDoubleClick={onReveal}
-        title={`${image.name}\nClick to apply now`}
-        className="focus-ring block w-full cursor-pointer"
+        onClick={onPreview}
+        title={`${image.name}\nClick to preview`}
+        className="focus-ring block w-full cursor-zoom-in"
       >
         <Thumbnail
           path={image.path}
@@ -314,7 +434,28 @@ function ImageTile({
         </span>
       )}
 
+      {!image.isCurrent && (
+        <Button
+          size="sm"
+          variant="primary"
+          disabled={disabled}
+          onClick={onApply}
+          className="absolute right-2 bottom-7 h-6 px-2 text-[11px] opacity-0 transition group-hover:opacity-100"
+        >
+          Use now
+        </Button>
+      )}
+
       <div className="absolute top-2 right-2 flex gap-1">
+        <button
+          type="button"
+          onClick={onPreview}
+          title="Preview full screen"
+          aria-label={`Preview ${image.name}`}
+          className="focus-ring flex h-6 w-6 cursor-pointer items-center justify-center rounded-md bg-black/55 text-white opacity-0 transition group-hover:opacity-100"
+        >
+          <Maximize2 size={13} />
+        </button>
         {onRemove && (
           <button
             type="button"

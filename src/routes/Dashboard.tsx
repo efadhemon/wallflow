@@ -19,7 +19,15 @@ function useNow(active: boolean): number {
   return now;
 }
 
-export function Dashboard({ onBrowse, onGallery }: { onBrowse: () => void; onGallery: () => void }) {
+export function Dashboard({
+  onBrowse,
+  onGallery,
+  onLive,
+}: {
+  onBrowse: () => void;
+  onGallery: () => void;
+  onLive: () => void;
+}) {
   const { status, environment, notify } = useApp();
   const now = useNow(Boolean(status?.nextChangeAt) && !status?.paused);
 
@@ -55,6 +63,19 @@ export function Dashboard({ onBrowse, onGallery }: { onBrowse: () => void; onGal
 
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-5 px-8 py-8">
+      {status.live && (
+        <Banner
+          title="A live wallpaper is playing"
+          actions={
+            <Button size="sm" onClick={onLive}>
+              Open Live
+            </Button>
+          }
+        >
+          The image rotation waits until you stop it. Next and Previous switch back to images.
+        </Banner>
+      )}
+
       {lastError && (
         <Banner tone="error" title="Could not change the wallpaper">
           {lastError}

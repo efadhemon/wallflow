@@ -67,6 +67,9 @@ pub struct Config {
     pub autostart: bool,
     pub start_minimized: bool,
     pub theme: Theme,
+    /// Id of the live wallpaper playing, if any. While set, the image rotation
+    /// is suspended; it is started again after login.
+    pub live_video: Option<String>,
 }
 
 impl Default for Config {
@@ -83,6 +86,7 @@ impl Default for Config {
             autostart: true,
             start_minimized: true,
             theme: Theme::System,
+            live_video: None,
         }
     }
 }

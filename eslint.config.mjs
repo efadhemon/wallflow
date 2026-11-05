@@ -25,7 +25,16 @@ const tsLanguageOptions = {
 };
 
 export default defineConfig([
-  globalIgnores(["dist/**", "dist-ssr/**", "node_modules/**", "src-tauri/target/**", "src-tauri/gen/**"]),
+  // engine/ is Rust plus GNOME Shell (GJS) code, which runs in a different JS environment.
+  globalIgnores([
+    "dist/**",
+    "dist-ssr/**",
+    "node_modules/**",
+    "src-tauri/target/**",
+    "src-tauri/gen/**",
+    "src-tauri/binaries/**",
+    "engine/**",
+  ]),
   {
     files: ["**/*.{ts,tsx}"],
     extends: [js.configs.recommended],

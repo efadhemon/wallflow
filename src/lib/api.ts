@@ -8,11 +8,15 @@ import type {
   FolderEntry,
   GalleryPage,
   ImageEntry,
+  LiveImportProgress,
+  LiveStatus,
+  LiveVideo,
   Status,
 } from "./types";
 
 export const STATUS_EVENT = "wallpaper://status";
 export const DOWNLOAD_PROGRESS_EVENT = "wallpaper://download-progress";
+export const LIVE_IMPORT_EVENT = "live://import";
 
 export const api = {
   getStatus: () => invoke<Status>("get_status"),
@@ -28,6 +32,7 @@ export const api = {
   addImages: (paths: string[]) => invoke<number>("add_images", { paths }),
   removeImage: (path: string) => invoke<void>("remove_image", { path }),
   getThumbnail: (path: string) => invoke<string>("get_thumbnail", { path }),
+  getPreview: (path: string) => invoke<string>("get_preview", { path }),
   applyImage: (path: string) => invoke<void>("apply_image", { path }),
   toggleExclude: (path: string) => invoke<boolean>("toggle_exclude", { path }),
 
@@ -46,10 +51,20 @@ export const api = {
     sorting?: string | null;
     page: number;
     atleast?: string | null;
+    topRange?: string | null;
+    colors?: string | null;
   }) => invoke<GalleryPage>("search_gallery", args),
   addRemoteImage: (url: string, expectedSize?: number) =>
     // Tauri maps camelCase keys onto the command's snake_case arguments.
     invoke<AddRemoteResult>("add_remote_image", { url, expectedSize: expectedSize ?? null }),
+
+  liveStatus: () => invoke<LiveStatus>("live_status"),
+  liveList: () => invoke<LiveVideo[]>("live_list"),
+  liveImport: (paths: string[]) => invoke<LiveVideo[]>("live_import", { paths }),
+  liveRemove: (id: string) => invoke<void>("live_remove", { id }),
+  livePlay: (id: string) => invoke<void>("live_play", { id }),
+  liveStop: () => invoke<void>("live_stop"),
+  liveInstallHelper: () => invoke<LiveStatus>("live_install_helper"),
 };
 
 export function onStatus(handler: (status: Status) => void): Promise<UnlistenFn> {
@@ -58,4 +73,8 @@ export function onStatus(handler: (status: Status) => void): Promise<UnlistenFn>
 
 export function onDownloadProgress(handler: (progress: DownloadProgress) => void): Promise<UnlistenFn> {
   return listen<DownloadProgress>(DOWNLOAD_PROGRESS_EVENT, event => handler(event.payload));
+}
+
+export function onLiveImport(handler: (progress: LiveImportProgress) => void): Promise<UnlistenFn> {
+  return listen<LiveImportProgress>(LIVE_IMPORT_EVENT, event => handler(event.payload));
 }

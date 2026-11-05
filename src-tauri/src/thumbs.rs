@@ -7,8 +7,11 @@ use std::path::{Path, PathBuf};
 /// Wide enough to stay sharp as the dashboard preview, small enough that a grid of
 /// them decodes instantly.
 const THUMB_MAX_EDGE: u32 = 800;
+/// Sharp on a 1440p screen without caching full 8K originals a second time.
+const PREVIEW_MAX_EDGE: u32 = 2560;
 
 pub const THUMBS_DIR: &str = "thumbnails";
+pub const PREVIEWS_DIR: &str = "previews";
 pub const CONVERTED_DIR: &str = "converted";
 
 /// Identifies a file by path, size and mtime so an edited image gets a new cache
@@ -68,7 +71,16 @@ pub fn prepare_for_wallpaper(
 
 /// Cached, downscaled JPEG preview used everywhere in the UI.
 pub fn thumbnail(cache_dir: &Path, source: &Path) -> Result<PathBuf> {
-    let dir = cache_dir.join(THUMBS_DIR);
+    resized(cache_dir, THUMBS_DIR, THUMB_MAX_EDGE, source)
+}
+
+/// Large JPEG for the full-screen preview.
+pub fn preview(cache_dir: &Path, source: &Path) -> Result<PathBuf> {
+    resized(cache_dir, PREVIEWS_DIR, PREVIEW_MAX_EDGE, source)
+}
+
+fn resized(cache_dir: &Path, sub: &str, max_edge: u32, source: &Path) -> Result<PathBuf> {
+    let dir = cache_dir.join(sub);
     fs::create_dir_all(&dir).with_context(|| format!("creating {}", dir.display()))?;
 
     let target = dir.join(format!("{}.jpg", cache_key(source)?));
@@ -78,7 +90,7 @@ pub fn thumbnail(cache_dir: &Path, source: &Path) -> Result<PathBuf> {
 
     let preview = open_upright(source)
         .with_context(|| format!("decoding {}", source.display()))?
-        .thumbnail(THUMB_MAX_EDGE, THUMB_MAX_EDGE)
+        .thumbnail(max_edge, max_edge)
         .to_rgb8();
     crate::config::write_atomic(&target, |temp| {
         preview
@@ -112,7 +124,7 @@ pub fn prune(cache_dir: &Path, keep: &[PathBuf]) {
         .filter_map(|path| cache_key(path).ok())
         .collect();
 
-    for sub in [THUMBS_DIR, CONVERTED_DIR] {
+    for sub in [THUMBS_DIR, PREVIEWS_DIR, CONVERTED_DIR] {
         let dir = cache_dir.join(sub);
         let Ok(entries) = fs::read_dir(&dir) else {
             continue;

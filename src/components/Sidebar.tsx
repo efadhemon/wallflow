@@ -1,14 +1,15 @@
-import { Images, Info, LayoutDashboard, LayoutGrid, Settings2 } from "lucide-react";
+import { Clapperboard, Images, Info, LayoutDashboard, LayoutGrid, Settings2 } from "lucide-react";
 import type { ComponentType } from "react";
 import { cn } from "../lib/utils";
 import { useApp } from "../state/AppContext";
 
-export type Route = "dashboard" | "library" | "gallery" | "settings" | "about";
+export type Route = "dashboard" | "library" | "gallery" | "live" | "settings" | "about";
 
 const NAV: { id: Route; label: string; icon: ComponentType<{ size?: number }> }[] = [
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
   { id: "library", label: "Library", icon: Images },
   { id: "gallery", label: "Gallery", icon: LayoutGrid },
+  { id: "live", label: "Live", icon: Clapperboard },
   { id: "settings", label: "Settings", icon: Settings2 },
   { id: "about", label: "About", icon: Info },
 ];
@@ -46,10 +47,16 @@ export function Sidebar({ active, onNavigate }: { active: Route; onNavigate: (ro
           <span
             className={cn(
               "h-2 w-2 rounded-full",
-              status?.lastError ? "bg-danger" : status?.paused ? "bg-ink-muted" : "bg-emerald-500",
+              status?.lastError
+                ? "bg-danger"
+                : status?.live
+                  ? "bg-brand"
+                  : status?.paused
+                    ? "bg-ink-muted"
+                    : "bg-emerald-500",
             )}
           />
-          {status?.lastError ? "Error" : status?.paused ? "Paused" : "Rotating"}
+          {status?.lastError ? "Error" : status?.live ? "Live wallpaper" : status?.paused ? "Paused" : "Rotating"}
         </span>
       </div>
     </nav>

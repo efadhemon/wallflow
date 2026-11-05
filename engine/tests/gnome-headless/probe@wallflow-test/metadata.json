@@ -1,0 +1,1 @@
+{"uuid": "probe@wallflow-test", "name": "probe", "description": "test only", "shell-version": ["50"], "session-modes": ["user", "unlock-dialog"]}

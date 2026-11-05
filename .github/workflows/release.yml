@@ -80,7 +80,9 @@ jobs:
 
       - uses: swatinem/rust-cache@v2
         with:
-          workspaces: ./src-tauri -> target
+          workspaces: |
+            ./src-tauri -> target
+            ./engine -> target
           key: ${{ matrix.target }}
 
       - uses: actions/setup-node@v5
@@ -103,6 +105,12 @@ jobs:
             exit 1
           fi
           echo "Aptabase app key is set."
+
+      # Windows / macOS bundle FFmpeg as sidecars; Linux depends on the package.
+      - name: Fetch the bundled FFmpeg
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/fetch-ffmpeg.mjs ${{ matrix.target }}
 
       - uses: tauri-apps/tauri-action@v0
         env:
