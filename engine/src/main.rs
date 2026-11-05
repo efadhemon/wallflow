@@ -10,8 +10,10 @@ mod decoder;
 mod encoder;
 mod events;
 mod fit;
+mod platform;
 mod prepare;
 mod probe;
+mod process;
 mod render;
 
 use anyhow::{Context, Result, bail};
@@ -107,6 +109,8 @@ enum Control {
 enum UserEvent {
     Control(Control),
     StdinClosed,
+    /// Time for [`platform::check`] (Windows).
+    Check,
 }
 
 /// Maps frame numbers to wall-clock times at the video's own rate.
@@ -150,6 +154,10 @@ struct Stats {
 struct Screen {
     window: Arc<Window>,
     target: Target,
+    /// The monitor it covers, in background mode.
+    rect: Option<platform::Rect>,
+    /// A maximized or full-screen window (or the lock screen) hides it.
+    covered: bool,
 }
 
 struct App {
@@ -183,12 +191,23 @@ impl App {
                 seen.push(position);
                 // The title carries the monitor's origin, which is how the
                 // desktop shim knows where to put each window.
+                let size = monitor.size();
                 let attrs = Window::default_attributes()
                     .with_title(format!("Wallflow Live @{},{}", position.x, position.y))
                     .with_decorations(false)
                     .with_position(position)
-                    .with_inner_size(monitor.size());
-                self.open_screen(event_loop, attrs)?;
+                    .with_inner_size(size);
+                let rect = platform::Rect {
+                    x: position.x,
+                    y: position.y,
+                    width: size.width,
+                    height: size.height,
+                };
+                self.open_screen(
+                    event_loop,
+                    platform::background_attributes(attrs),
+                    Some(rect),
+                )?;
             }
         }
         if self.screens.is_empty() {
@@ -196,7 +215,7 @@ impl App {
                 .with_title("Wallflow Live")
                 .with_decorations(!self.opts.background)
                 .with_inner_size(winit::dpi::LogicalSize::new(960.0, 540.0));
-            self.open_screen(event_loop, attrs)?;
+            self.open_screen(event_loop, attrs, None)?;
         }
         log::info!("drawing on {} window(s)", self.screens.len());
         events::emit(&Event::Ready {
@@ -210,6 +229,7 @@ impl App {
         &mut self,
         event_loop: &ActiveEventLoop,
         attrs: winit::window::WindowAttributes,
+        rect: Option<platform::Rect>,
     ) -> Result<()> {
         #[cfg(target_os = "linux")]
         let attrs = {
@@ -220,11 +240,15 @@ impl App {
         };
 
         let window = Arc::new(event_loop.create_window(attrs)?);
-        if self.opts.background {
+        if self.opts.background && platform::CLICK_THROUGH {
             // Clicks go through to the desktop (icons, context menu) underneath.
             if let Err(err) = window.set_cursor_hittest(false) {
                 log::warn!("could not make the window click-through: {err}");
             }
+        }
+        if let Some(rect) = rect {
+            // A window that is not behind the desktop would cover the screen.
+            platform::attach(&window, rect).context("putting the window behind the desktop")?;
         }
         let target = match &self.gpu {
             Some(gpu) => gpu.add_target(&self.instance, window.clone(), self.opts.fill)?,
@@ -235,7 +259,12 @@ impl App {
                 target
             }
         };
-        self.screens.push(Screen { window, target });
+        self.screens.push(Screen {
+            window,
+            target,
+            rect,
+            covered: false,
+        });
         Ok(())
     }
 
@@ -276,7 +305,7 @@ impl App {
             }
             self.decoder.give_back(frame);
             self.awaiting_draw = true;
-            for screen in &self.screens {
+            for screen in self.screens.iter().filter(|screen| !screen.covered) {
                 screen.window.request_redraw();
             }
         }
@@ -340,7 +369,56 @@ impl App {
         if !paused {
             self.clock.restart();
         }
-        events::emit(&Event::State { paused, reason });
+        events::emit(&Event::State {
+            paused: paused || self.hidden(),
+            reason,
+        });
+    }
+
+    /// Every window is covered: there is nothing to decode for.
+    fn hidden(&self) -> bool {
+        !self.screens.is_empty() && self.screens.iter().all(|screen| screen.covered)
+    }
+
+    fn set_covered(&mut self, index: usize, covered: bool) {
+        let was_hidden = self.hidden();
+        let screen = &mut self.screens[index];
+        if screen.covered == covered {
+            return;
+        }
+        screen.covered = covered;
+        log::info!(
+            "window {index} {}",
+            if covered { "covered" } else { "visible again" }
+        );
+        if !covered {
+            screen.window.request_redraw();
+        }
+        let hidden = self.hidden();
+        if hidden != was_hidden && !self.paused {
+            if !hidden {
+                self.clock.restart();
+            }
+            events::emit(&Event::State {
+                paused: hidden,
+                reason: "covered",
+            });
+        }
+    }
+
+    fn check_platform(&mut self) {
+        let windows: Vec<_> = self
+            .screens
+            .iter()
+            .filter_map(|screen| screen.rect.map(|rect| (screen.window.as_ref(), rect)))
+            .collect();
+        if windows.len() != self.screens.len() {
+            return;
+        }
+        let covered = platform::check(&windows);
+        for (index, covered) in covered.into_iter().enumerate() {
+            self.set_covered(index, covered);
+        }
     }
 
     fn control(&mut self, event_loop: &ActiveEventLoop, control: Control) {
@@ -381,6 +459,7 @@ impl ApplicationHandler<UserEvent> for App {
                 log::info!("the app went away, exiting");
                 event_loop.exit();
             }
+            UserEvent::Check => self.check_platform(),
         }
     }
 
@@ -390,6 +469,15 @@ impl ApplicationHandler<UserEvent> for App {
         };
         match event {
             WindowEvent::CloseRequested => event_loop.exit(),
+            // Windows: Explorer restarted and took its desktop, and our window
+            // with it. The app starts the engine again.
+            WindowEvent::Destroyed if cfg!(windows) && self.screens[index].rect.is_some() => {
+                fail("the wallpaper window was closed by the desktop")
+            }
+            // macOS: AppKit says whether any part of the window can be seen.
+            WindowEvent::Occluded(occluded) if self.screens[index].rect.is_some() => {
+                self.set_covered(index, occluded);
+            }
             WindowEvent::Resized(size) => {
                 if let Some(gpu) = &self.gpu {
                     let screen = &mut self.screens[index];
@@ -410,7 +498,7 @@ impl ApplicationHandler<UserEvent> for App {
     }
 
     fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
-        if self.paused || self.gpu.is_none() {
+        if self.paused || self.hidden() || self.gpu.is_none() {
             event_loop.set_control_flow(ControlFlow::Wait);
             return;
         }
@@ -453,6 +541,19 @@ fn listen_stdin(proxy: EventLoopProxy<UserEvent>) {
             let _ = proxy.send_event(UserEvent::StdinClosed);
         })
         .expect("spawning the control thread");
+}
+
+/// Asks the event loop for [`platform::check`] every second, even while it
+/// waits for nothing else (paused, or every window covered).
+fn tick(proxy: EventLoopProxy<UserEvent>) {
+    std::thread::Builder::new()
+        .name("wallflow-check".into())
+        .spawn(move || {
+            while proxy.send_event(UserEvent::Check).is_ok() {
+                std::thread::sleep(platform::CHECK_EVERY);
+            }
+        })
+        .expect("spawning the check thread");
 }
 
 fn parse_prepare(mut args: impl Iterator<Item = String>) -> Result<prepare::Args> {
@@ -522,8 +623,15 @@ fn play(opts: Opts) -> Result<()> {
     );
     let decoder = Decoder::spawn(&opts.ffmpeg, &opts.video, &info, &opts.hwaccel)?;
 
-    let event_loop = EventLoop::<UserEvent>::with_user_event().build()?;
+    let mut builder = EventLoop::<UserEvent>::with_user_event();
+    if opts.background {
+        platform::configure_event_loop(&mut builder);
+    }
+    let event_loop = builder.build()?;
     listen_stdin(event_loop.create_proxy());
+    if opts.background && platform::NEEDS_CHECKS {
+        tick(event_loop.create_proxy());
+    }
 
     let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_with_display_handle(
         Box::new(event_loop.owned_display_handle()),

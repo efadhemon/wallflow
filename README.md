@@ -1,8 +1,8 @@
 # Wallflow
 
 A small desktop app that rotates your wallpaper through your own images — folders
-you watch, or files you add one by one — on a schedule you choose. On GNOME it can
-also play a video as a live wallpaper. It lives in the system tray, starts with your
+you watch, or files you add one by one — on a schedule you choose. It can also play
+a video as a live wallpaper. It lives in the system tray, starts with your
 session, and runs on Linux, Windows and macOS.
 
 Built with [Tauri 2](https://v2.tauri.app) — the installers are a few megabytes and
@@ -22,7 +22,7 @@ there is no bundled browser runtime.
 - Search the Gallery for landscape wallpapers from [Wallhaven](https://wallhaven.cc)
   (SFW only, no API key). Open one full screen to look closer, add it to the library,
   or set it as the wallpaper now.
-- Play a video as a live wallpaper (GNOME on Wayland for now; see
+- Play a video as a live wallpaper on GNOME, Windows and macOS (see
   [Live wallpapers](#live-wallpapers)).
 - Skip forwards and backwards, or pause, from the window or the tray menu.
 - New images dropped into a watched folder join the rotation without a restart.
@@ -63,10 +63,11 @@ Open **Live**, add videos (MP4, MKV, WebM, MOV, M4V or AVI) and press **Play**.
 - Each video is prepared once when you add it: scaled down to your screen, capped
   at 30 fps, with a poster frame. Playback then needs little work.
 - The video runs in its own process, `wallflow-live`, decoded by FFmpeg (hardware
-  decoding when available) and drawn with the GPU. The desktop shell only places its
-  window behind the desktop, so the shell stays smooth.
+  decoding when available) and drawn with the GPU, in windows placed behind the
+  desktop icons. The desktop shell does no video work, so it stays smooth.
 - It plays on every monitor and pauses on its own while the desktop is covered
-  (a maximized or fullscreen window, the overview, the lock screen).
+  (a maximized or full-screen window, the overview or Mission Control, the lock
+  screen).
 - While it plays, the image rotation waits, and the video's first frame is set as
   the static wallpaper (lock screen, login). **Stop**, picking an image in Library,
   or **Next** ends it.
@@ -74,8 +75,14 @@ Open **Live**, add videos (MP4, MKV, WebM, MOV, M4V or AVI) and press **Play**.
 | System           | Live wallpapers                                                        |
 | ---------------- | ---------------------------------------------------------------------- |
 | GNOME on Wayland | Yes. Needs FFmpeg and a small helper extension (one-time setup, below) |
-| Windows, macOS   | Coming soon; FFmpeg already ships in the installer                     |
+| Windows 10 / 11  | Yes, new in 1.1.0. FFmpeg ships in the installer, nothing to set up    |
+| macOS 11+        | Yes, new in 1.1.0. FFmpeg ships in the app, nothing to set up          |
 | KDE, X11, others | Not yet                                                                |
+
+Live wallpapers on Windows and macOS are new: if something looks wrong (the video
+over your windows, not behind the icons, or not pausing), please
+[open an issue](../../issues) with your system version and the Recent log from
+About.
 
 **One-time setup on GNOME.** The first time, the Live page offers **Set up**: it
 installs a small GNOME Shell extension (`wallflow-live@com.efadhemon.wallflow`) that
@@ -202,7 +209,8 @@ Every change follows the same path. No pull request skips a step.
   personal data. Debug builds and builds without `APTABASE_APP_KEY` send nothing.
 - Per-monitor wallpapers are available on Windows and macOS; the Linux backends
   set every monitor to the same image.
-- Live wallpapers need GNOME on Wayland for now. Every monitor plays the same video.
+- Live wallpapers need GNOME on Wayland on Linux (KDE and X11 not yet). Every
+  monitor plays the same video.
 - macOS has no wallpaper tile mode, so _Tile_ is applied as _Center_.
 - Xfce only exposes its wallpaper properties after the Desktop Settings dialog has
   been opened once on a fresh install.

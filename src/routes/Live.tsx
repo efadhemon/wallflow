@@ -1,15 +1,33 @@
 import { open } from "@tauri-apps/plugin-dialog";
+import { openUrl } from "@tauri-apps/plugin-opener";
 import { cn } from "cn";
-import { Clapperboard, Film, LoaderCircle, Pause, Play, Plus, Square, Trash2, TriangleAlert } from "lucide-react";
+import {
+  Clapperboard,
+  ExternalLink,
+  Film,
+  LoaderCircle,
+  Pause,
+  Play,
+  Plus,
+  Square,
+  Trash2,
+  TriangleAlert,
+} from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Thumbnail } from "../components/Thumbnail";
 import { Banner, Button, Card, EmptyState, SectionTitle } from "../components/ui";
 import { api, onLiveImport } from "../lib/api";
+import { isMacDesktop, isWindowsDesktop } from "../lib/platform";
 import type { LiveImportProgress, LiveStatus, LiveVideo } from "../lib/types";
 import { describeVideo } from "../lib/utils";
 import { useApp } from "../state/AppContext";
 
 const VIDEO_EXTENSIONS = ["mp4", "mkv", "webm", "mov", "m4v", "avi"];
+
+const NEW_ISSUE_URL = "https://github.com/efadhemon/wallflow/issues/new";
+
+/** Live wallpapers are new on these systems (1.1.0): ask for reports. */
+const NEW_ON = isWindowsDesktop() ? "Windows" : isMacDesktop() ? "macOS" : null;
 
 /** How often the page re-reads the engine state (playing / paused by a covered desktop). */
 const STATUS_POLL_MS = 3000;
@@ -187,6 +205,21 @@ export function Live() {
         While a live wallpaper plays, the image rotation waits and the video's first frame is your static wallpaper
         (lock screen, login). Picking an image in the Library or pressing Next ends it.
       </p>
+
+      {NEW_ON && (
+        <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs leading-relaxed text-ink-muted">
+          Live wallpapers are new on {NEW_ON}. If the video shows over your windows, not behind the icons, or does not
+          pause, please tell us.
+          <button
+            type="button"
+            onClick={() => void openUrl(NEW_ISSUE_URL)}
+            className="focus-ring inline-flex cursor-pointer items-center gap-1 rounded font-medium text-brand hover:underline"
+          >
+            Report a problem
+            <ExternalLink size={12} />
+          </button>
+        </p>
+      )}
     </div>
   );
 }

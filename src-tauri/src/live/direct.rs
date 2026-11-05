@@ -1,5 +1,5 @@
 //! The app runs the engine itself, as a child process: how Windows and macOS
-//! will work (the engine places its own windows behind the desktop there), and
+//! work (the engine places its own windows behind the desktop there), and
 //! on Linux with `WALLFLOW_LIVE_BACKEND=direct` for testing, where it opens
 //! plain windows. The engine reports what it does with `--events`, and exits by
 //! itself when its stdin closes, so it never outlives the app.
@@ -8,7 +8,7 @@ use anyhow::{Context, Result};
 use std::ffi::OsString;
 use std::io::{BufRead, BufReader, Write};
 use std::path::Path;
-use std::process::{Child, ChildStdin, Command, Stdio};
+use std::process::{Child, ChildStdin, Stdio};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
@@ -54,7 +54,7 @@ pub fn state() -> State {
 /// Starts `engine` with `args` (plus `--events`), replacing one that runs.
 pub fn start(engine: &Path, args: &[OsString]) -> Result<()> {
     stop()?;
-    let mut child = Command::new(engine)
+    let mut child = super::quiet_command(engine)
         .args(args)
         .arg("--events")
         .stdin(Stdio::piped())
