@@ -18,9 +18,9 @@
     "prettier": "prettier --check --ignore-path .prettierignore .",
     "prettier:fix": "prettier --write --ignore-path .prettierignore .",
     "version:sync": "node scripts/sync-version.mjs",
-    "version:patch": "node scripts/bump-version.js patch && yarn version:sync",
-    "version:minor": "node scripts/bump-version.js minor && yarn version:sync",
-    "version:major": "node scripts/bump-version.js major && yarn version:sync"
+    "version:patch": "node scripts/bump-version.mjs patch && yarn version:sync",
+    "version:minor": "node scripts/bump-version.mjs minor && yarn version:sync",
+    "version:major": "node scripts/bump-version.mjs major && yarn version:sync"
   },
   "dependencies": {
     "@tanstack/react-virtual": "3.14.26",
