@@ -64,6 +64,19 @@ every platform without slowing the desktop.
 
 ## Sessions
 
+### 2026-11-06 — website: new Dashboard screenshot (host EMON)
+
+- `website/assets/screenshots/dashboard.png` replaced with the new Dashboard
+  (image rotation + live wallpaper picks + stats), 1200×860, no OS window
+  frame, dark theme. Taken with headless Chrome from `yarn dev` (browser
+  mock) filled with your real images: `~/Pictures/wallpapers` (astronaut
+  sunset) and three of your live video posters. No personal photos.
+- `website/index.html`: step 5 text describes the combined Dashboard (live
+  wallpapers in one click, Back to images); `alt`, `width`/`height` and
+  `og:image:width`/`height` set to 1200×860.
+- Checked in the browser pane: desktop and 375 px phone width, no horizontal
+  scroll. The live Pages site changes once this reaches `main`.
+
 ### 2026-11-06 — Dashboard: one view for images and live (host EMON)
 
 - On `deps-update`. `src/routes/Dashboard.tsx` redesigned: the big card always
