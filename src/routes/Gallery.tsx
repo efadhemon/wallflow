@@ -1,5 +1,6 @@
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { openUrl } from "@tauri-apps/plugin-opener";
+import { cn } from "cn";
 import { Download, ExternalLink, Eye, Heart, ImageIcon, LoaderCircle, Maximize2, Search, Sparkles } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { ImagePreview, ViewerAction } from "../components/ImagePreview";
@@ -28,7 +29,7 @@ import type {
   GallerySorting,
   GalleryTopRange,
 } from "../lib/types";
-import { cn, formatBytes } from "../lib/utils";
+import { formatBytes } from "../lib/utils";
 import { useApp } from "../state/AppContext";
 
 const COL_MIN_WIDTH = 180;

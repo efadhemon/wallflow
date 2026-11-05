@@ -1,8 +1,8 @@
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { cn } from "cn";
 import { ChevronLeft, ChevronRight, LoaderCircle, Maximize, Minimize, Scan, ScanEye, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { cn } from "../lib/utils";
 
 /**
  * Full-window image viewer shared by the gallery and the library. It shows the

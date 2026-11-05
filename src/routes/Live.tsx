@@ -1,11 +1,11 @@
 import { open } from "@tauri-apps/plugin-dialog";
+import { cn } from "cn";
 import { Clapperboard, Film, LoaderCircle, Pause, Play, Plus, Square, Trash2, TriangleAlert } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Thumbnail } from "../components/Thumbnail";
 import { Banner, Button, Card, EmptyState, SectionTitle } from "../components/ui";
 import { api, onLiveImport } from "../lib/api";
 import type { LiveImportProgress, LiveStatus, LiveVideo } from "../lib/types";
-import { cn } from "../lib/utils";
 import { useApp } from "../state/AppContext";
 
 const VIDEO_EXTENSIONS = ["mp4", "mkv", "webm", "mov", "m4v", "avi"];
