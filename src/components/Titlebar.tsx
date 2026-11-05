@@ -49,15 +49,15 @@ export function Titlebar() {
   };
 
   return (
-    <div className="flex h-10 shrink-0 items-center border-b border-line bg-surface">
-      <div
-        className="flex h-full min-w-0 flex-1 cursor-default items-center justify-center"
-        onMouseDown={onTitleMouseDown}
-      >
-        <span className="pointer-events-none text-xs text-ink-muted">Wallflow</span>
+    <div
+      className="relative flex h-10 shrink-0 cursor-default items-center justify-end border-b border-line bg-surface pr-2.5"
+      onMouseDown={onTitleMouseDown}
+    >
+      <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+        <span className="text-xs text-ink-muted">Wallflow</span>
       </div>
 
-      <div className="flex items-center gap-1.5 pr-2.5">
+      <div className="relative z-10 flex items-center gap-1.5">
         <WindowButton label="Minimize" onClick={() => void getCurrentWindow().minimize()}>
           <Minus size={12} strokeWidth={2.4} />
         </WindowButton>
