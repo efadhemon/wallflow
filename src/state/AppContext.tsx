@@ -67,20 +67,26 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const forgetToast = useCallback((id: number) => {
-    clearTimer(id);
-    for (const [key, value] of toastKeys.current) {
-      if (value === id) toastKeys.current.delete(key);
-    }
-  }, [clearTimer]);
+  const forgetToast = useCallback(
+    (id: number) => {
+      clearTimer(id);
+      for (const [key, value] of toastKeys.current) {
+        if (value === id) toastKeys.current.delete(key);
+      }
+    },
+    [clearTimer],
+  );
 
   const scheduleDismiss = useCallback(
     (id: number, tone: "info" | "error") => {
       clearTimer(id);
-      const handle = window.setTimeout(() => {
-        forgetToast(id);
-        setToasts(current => current.filter(toast => toast.id !== id));
-      }, tone === "error" ? 7000 : 3500);
+      const handle = window.setTimeout(
+        () => {
+          forgetToast(id);
+          setToasts(current => current.filter(toast => toast.id !== id));
+        },
+        tone === "error" ? 7000 : 3500,
+      );
       toastTimers.current.set(id, handle);
     },
     [clearTimer, forgetToast],
