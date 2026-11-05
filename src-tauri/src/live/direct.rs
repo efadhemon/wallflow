@@ -59,11 +59,12 @@ pub fn start(engine: &Path, args: &[OsString]) -> Result<()> {
         .arg("--events")
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
-        .stderr(Stdio::inherit())
+        .stderr(Stdio::piped())
         .spawn()
         .with_context(|| format!("starting {}", engine.display()))?;
     let stdin = child.stdin.take().context("the engine has no stdin")?;
     let stdout = child.stdout.take().context("the engine has no stdout")?;
+    let stderr = child.stderr.take().context("the engine has no stderr")?;
 
     let paused = Arc::new(AtomicBool::new(false));
     let seen = paused.clone();
@@ -72,6 +73,17 @@ pub fn start(engine: &Path, args: &[OsString]) -> Result<()> {
         .spawn(move || {
             for line in BufReader::new(stdout).lines().map_while(Result::ok) {
                 apply_event(&line, &seen);
+            }
+        })?;
+
+    // The engine logs to stderr, which a release app on Windows / macOS has
+    // nowhere to show. In the app's log it reaches bug reports (About → Recent
+    // log): which desktop layout it found, why it could not attach.
+    std::thread::Builder::new()
+        .name("wallflow-live-log".into())
+        .spawn(move || {
+            for line in BufReader::new(stderr).lines().map_while(Result::ok) {
+                log::info!("engine: {line}");
             }
         })?;
 
