@@ -9,26 +9,29 @@ Hand-off log between machines. Read this after `git pull`, before changing anyth
 - Repository is **public**. Website: **https://efadhemon.github.io/wallflow/**
   (GitHub Pages, `pages.yml`; no custom domain any more). Downloads and the
   in-app update check come from GitHub releases.
-- `main` = 9cef6fe, `dev` = 57e962c: PR #9 (`live-engine` → `dev`) and PR #10
-  (`dev` → `main`) merged. Version is **1.1.0** in the code, but **1.1.0 is
-  not released yet** (no tag). Latest release is still 1.0.6.
-- `deps-update` (from `dev`, pushed, no PR yet): Tauri update, `cn` package,
-  clean-up. Waiting for you to check the app locally (`yarn tauri dev`).
+- `dev` = 2125747 (PR #11 `deps-update` merged: Tauri 2.12, `cn`, npm /
+  ESLint 10, new Dashboard, README branch flow). `main` = 9cef6fe. Version is
+  **1.1.0** in the code, **not released yet**; latest release is 1.0.6.
+- **PR #12 `dev` → `main`** "Release 1.1.0" open
+  (https://github.com/efadhemon/wallflow/pull/12), CI running.
 - Live wallpapers work on GNOME (Ubuntu); Windows / macOS build, Live page
   says "coming soon".
+- **Decided 2026-11-06 (you): 1.1.0 ships live wallpapers on all three OSes**
+  (Ubuntu / GNOME, Windows, macOS). Then collect issues and feedback and fix
+  them in patch releases 1.1.1, 1.1.2, … New features → minor (1.2.0, …),
+  big changes → major. Policy in README "Versions". **Do not merge PR #12
+  until Windows and macOS live are in `dev`** (it follows `dev` by itself).
 
 **Next session, in order**
 
-1. **PR #11 `deps-update` → `dev`** (https://github.com/efadhemon/wallflow/pull/11; checked by you in `yarn tauri dev`
-   2026-11-06, incl. the new Dashboard): CI on all three OSes (first build
-   of Tauri 2.12 / wry 0.57 on Windows / macOS), merge, then `dev` → `main`.
-2. **Release 1.1.0 (live wallpaper on Linux/GNOME):** rehearsal release
-   (draft) from `main`; test `.deb` (helper setup, logout, play) + AppImage
-   (FFmpeg banner) on Ubuntu and that Windows / macOS install and say "coming
-   soon"; measure installer sizes (Plan 2.7); then tag `v1.1.0`. This machine
-   runs the 1.0.6 `.deb`: install the 1.1.0 draft to get live wallpapers back.
-3. **1.2.0 Windows** (Plan step 4, with 3.3), needs a Windows PC.
-4. **1.3.0 macOS** (Plan step 5), needs a Mac. Later: KDE / X11 / zero-copy.
+1. **PR #15 `live-windows-macos` → `dev`** (Windows + macOS live wallpapers,
+   docs, Live page "Report a problem"): CI green on all three OSes → merge.
+   PR #14 (macos-15) is merged.
+2. **Release 1.1.0:** PR #12 `dev` → `main` (CI again) → merge; rehearsal
+   draft; test what can be tested here (Ubuntu `.deb` / AppImage) and the
+   Windows / macOS installers on whatever machine is at hand; tag `v1.1.0`.
+3. **After release:** issues and feedback → fixes in 1.1.1, 1.1.2, …
+   (patch). KDE / wlroots, X11, zero-copy are later minor versions.
 
 **Branch flow (rule for every PR, written in README "Branches and pull
 requests"):** feature branch from `dev` → PR into `dev` → PR `dev` → `main` →
@@ -50,9 +53,9 @@ every platform without slowing the desktop.
 | 4   | Multi-monitor (one window per monitor, decoded once)                                                                | **done**, verified headless (2 monitors)         |
 | 5   | `prepare` import step (downscale, ≤30 fps, poster)                                                                  | **done**                                         |
 | 6   | Integrate into the app: bundle engine as Tauri sidecar, Live page, prepare progress UI, start/stop through the shim | **done** (GNOME), checked by you in the real app |
-| 7   | Shims for other desktops: Windows (WorkerW), macOS (desktop-level NSWindow), KDE/wlroots (wlr-layer-shell), X11     | planned                                          |
+| 7   | Shims for other desktops: Windows (WorkerW), macOS (desktop-level NSWindow) → **1.1.0**; KDE/wlroots, X11 → later   | **next** (Windows, macOS)                        |
 | 8   | Zero-copy decode → texture (DMA-BUF / D3D11 / IOSurface)                                                            | planned                                          |
-| 9   | Merge `live-engine` → `dev` → `main`, release                                                                       | merged; **release 1.1.0 next**                   |
+| 9   | Release 1.1.0 with live wallpapers on GNOME, Windows and macOS                                                      | after step 7 (Windows, macOS)                    |
 
 ## Branches
 
@@ -65,6 +68,80 @@ every platform without slowing the desktop.
   (old player, kept as tag `archive/live-wall` → 14f72eb).
 
 ## Sessions
+
+### 2026-11-06 — Windows and macOS live wallpapers, PR #15 (host EMON)
+
+- You asked: merge the open PRs, then do Windows, macOS and the rest one
+  after another, and get 1.1.0 ready (release allowed).
+- PR #14 merged (88aba1f) after its Linux job was re-run twice: the Azure
+  Ubuntu mirror was crawling (2 s per small package), not our code.
+- Branch `live-windows-macos` → PR #15. Engine `src/platform/`:
+  - Windows: video windows become children of Explorer's desktop under the
+    icons. Layout from the window tree: classic (top-level `WorkerW` after
+    `0x052C`) or raised (24H2+: `WS_EX_LAYERED` child of Progman right under
+    `SHELLDLL_DefView`). Every second: placed again if Explorer rebuilt the
+    desktop (z-order checked between icons and Explorer's `WorkerW`, any
+    order for several monitors) and checked for covered (maximized /
+    full-screen window on that monitor, not cloaked / tool / click-through;
+    lock screen; full-screen D3D; presentation mode). Explorer restart
+    destroys the window → engine exits → supervisor restarts it. Shown only
+    once placed; a failed placement exits instead of covering the screen.
+  - macOS: borderless windows at `kCGDesktopWindowLevel`, all Spaces,
+    stationary, ignore cycle and mouse, `Accessory` policy (no Dock icon);
+    covered from AppKit occlusion (`WindowEvent::Occluded`).
+  - Covered windows are not drawn; all covered → decoding stops, the app
+    sees `paused` (reason `covered`). FFmpeg / ffprobe / the engine start
+    with `CREATE_NO_WINDOW` (engine and app).
+  - App: Windows / macOS use the `direct` backend; `Backend::None` and
+    "coming soon" removed. Live page on Windows / macOS: "new here, Report a
+    problem" (new GitHub issue).
+  - README / engine README / website: live wallpapers on all three OSes;
+    Windows / macOS "new in 1.1.0, please report problems".
+- Checked: engine clippy `-D warnings` on Linux, `x86_64-pc-windows-msvc`
+  and `aarch64-apple-darwin` (cross `cargo check` works here; the app itself
+  does not cross-compile: `ring` / `aws-lc-sys` need C toolchains); 16 engine
+  - 32 app tests; headless GNOME end-to-end test, all checks pass; tsc,
+    eslint, Prettier.
+- **Not tested on real Windows / macOS** (no machines here). Known risk:
+  Explorer internals (WorkerW layout) change between builds; the engine logs
+  the layout it found for bug reports.
+
+### 2026-11-06 — plan: 1.1.0 with live wallpapers on all OSes (host EMON)
+
+- You decided: 1.1.0 ships live wallpapers on Ubuntu (GNOME), Windows and
+  macOS, then 1.1.x patches from issues / feedback, minor for new features,
+  major for big changes. Written in README "Versions" and in Summary,
+  Roadmap, Release plan here.
+- PR #12 (`dev` → `main`) stays open until Windows and macOS live are in
+  `dev`.
+- Open: label Windows / macOS live as "beta" in the app and release notes,
+  since they cannot be tested on real machines here?
+
+### 2026-11-06 — macOS CI broken: macos-14 runner retired (host EMON)
+
+- `check-macos` on PR #12 failed in 1 s: "The configuration
+  'macos-14-arm64-us-default' is not supported". GitHub retired the
+  `macos-14` image on 2026-11-02 (it still ran at 19:22 for PR #11, failed
+  from 19:27). The same label was in `release.yml` (both dmg builds) and
+  `ffmpeg.yml`, so the 1.1.0 release would have failed too.
+- PR #14 `ci-macos-15` → `dev`: all three workflows on `macos-15` (pinned,
+  arm64 like before). Minimum macOS unchanged (`minimumSystemVersion` 10.15,
+  FFmpeg `-mmacosx-version-min=11.0`). The FFmpeg workflow runs on this
+  change but publishes nothing (`ffmpeg-n9.0.2-wf1` exists).
+- Later: `macos-15` will retire too; GitHub's other choice is `macos-26`
+  (`macos-latest`).
+
+### 2026-11-06 — PR #11 merged, release PR #12 (host EMON)
+
+- You merged PR #11 into `dev` (2125747). Its CI at 0b5a6b2 (all code): Linux,
+  Windows, macOS green — first Windows / macOS build of Tauri 2.12 / wry 0.57.
+  The re-run at afb7a27 (docs only) had macOS cancelled after 1 s; Linux and
+  Windows green.
+- PR #12 `dev` → `main` "Release 1.1.0: live wallpapers on GNOME, Tauri 2.12,
+  new Dashboard" opened, with the rehearsal / test / tag steps in it.
+- This log update goes through `release-1.1.0-notes` → `dev` (README flow).
+- Merged feature branches still on GitHub: `deps-update`, `live-engine`
+  (README step 6: delete them).
 
 ### 2026-11-06 — branch flow in README, PR #11 (host EMON)
 
@@ -531,22 +608,32 @@ update banner, so their users update by hand once.
 - Merge → tag `v1.0.6`. Proves the new pipeline: release assets, Pages
   refresh, 1.0.6 asks GitHub for updates.
 
-**1.1.0 — live wallpapers on Linux (GNOME) (`live-engine`)**
+**Versions (decided 2026-11-06, also in README "Versions")**
 
-- Merge `main` into `live-engine` (workflow conflicts: keep the FFmpeg fetch
-  steps from `live-engine`, the Pages / no-Vercel changes from `main`).
-- Rehearsal: manual release run → draft. Check on real machines: `.deb` on
-  Ubuntu 24.04 (helper install from the Live page, log out / in, play), the
-  AppImage (FFmpeg banner when the system has none), Windows and macOS install
-  and run with the Live page saying "coming soon", and their installer sizes
-  (step 2.7).
-- Release notes: GNOME only; KDE, X11, Windows, macOS later; FFmpeg LGPL
-  (source: release `ffmpeg-n9.0.2-wf1`, public now).
-- `live-engine` → `dev` → `main`, tag `v1.1.0`; drop `live-wall`.
+- **Patch** `x.y.Z`: bug fixes and changes from issues / feedback only.
+- **Minor** `x.Y.0`: a new feature (one feature or a group of them), then its
+  own patches.
+- **Major** `X.0.0`: big changes, breaking changes (config format, dropped
+  systems, a new way of working).
 
-**1.2.0 — Windows live wallpaper** (Plan step 4, needs a Windows PC)
-**1.3.0 — macOS live wallpaper** (Plan step 5, needs a Mac)
-**Later — KDE / wlroots, X11, zero-copy** (Plan step 6)
+**1.1.0 — live wallpapers on all three OSes** (Ubuntu / GNOME, Windows, macOS)
+
+- Done: engine, GNOME shim, `direct` backend, Live page, bundled FFmpeg on
+  Windows / macOS, combined Dashboard, Tauri 2.12 (PR #9, #10, #11).
+- To do: Windows (Plan step 4.1–4.5) and macOS (5.1–5.5), each on its own
+  feature branch → `dev`. Docs and website say all three OSes.
+- Tests on real Windows / macOS machines (4.6, 5.6) are not possible on host
+  EMON: only CI builds and checks them. What is not tested there is fixed
+  from user reports in 1.1.x.
+- Release notes: live wallpapers on GNOME (Wayland), Windows 10 / 11 and
+  macOS; KDE / X11 not yet; FFmpeg LGPL (source: release
+  `ffmpeg-n9.0.2-wf1`); please report problems as GitHub issues.
+- Release PR #12 `dev` → `main`, rehearsal draft, tag `v1.1.0`.
+
+**1.1.x — fixes from issues and feedback** (patches, from `dev` → `main`).
+
+**1.2.0 and later — new features**, e.g. KDE / wlroots and X11 live
+wallpapers, zero-copy decode (Plan step 6). Each feature set is a minor.
 
 ## Plan (steps 1–6)
 
@@ -650,7 +737,8 @@ both binaries are entirely LGPL code, so static linking is fine for the license.
 - 6.3 Native playback / zero-copy (old step 8).
 - 6.4 Merge `live-engine` → `dev` → `main`, release 1.1.0, drop `live-wall`.
 
-Needs from you: a Windows PC for 4.6 and a Mac for 5.6.
+Needs from you: a Windows PC for 4.6 and a Mac for 5.6. Without them, 4.6 / 5.6
+are covered by CI builds and user reports after 1.1.0 (decided 2026-11-06).
 
 ## Testing
 
