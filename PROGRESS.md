@@ -47,6 +47,8 @@ every platform without slowing the desktop.
 - 2.6: About → "Third-party software": FFmpeg, LGPL, link to FFmpeg's own
   source at the pinned commit (users cannot open the private release).
 - 3.4 `direct` backend (4fca41d), see the commit; 3.3 moved into W1.
+- CI run 41983441060 (3bf6457): green on all three; the Windows and macOS jobs
+  fetched FFmpeg from the release with the token.
 
 ### 2026-11-05 — plan for steps 1–6; release build; W0 and FFmpeg started (host EMON)
 
@@ -245,11 +247,9 @@ every platform without slowing the desktop.
 
 ## Next step
 
-1. CI on `live-engine` with the FFmpeg sidecars wired in (2.4): Windows / macOS
-   jobs must fetch FFmpeg and stay green.
-2. **You decide** where the FFmpeg source is offered publicly (Open / not
+1. **You decide** where the FFmpeg source is offered publicly (Open / not
    verified → LGPL source).
-3. Step 4 (W1, Windows) together with 3.3: engine attaches behind the desktop,
+2. Step 4 (W1, Windows) together with 3.3: engine attaches behind the desktop,
    cover detection; then the `direct` backend becomes the default on Windows.
    Needs a Windows PC for 4.6.
 
