@@ -62,6 +62,24 @@ every platform without slowing the desktop.
 
 ## Sessions
 
+### 2026-11-06 — other npm updates, ESLint 10 (host EMON)
+
+- On `deps-update`. Updated after checking peer dependencies: React /
+  react-dom 19.3.1 (+ `@types/react(-dom)` 19.3.0), lucide-react 1.69.0,
+  `@tanstack/react-virtual` 3.14.26 (still pinned exact), semver 7.8.6, Vite
+  8.3.6, `@vitejs/plugin-react` 6.2.1, Tailwind 4.3.4, Babel 8.1.0 /
+  eslint-parser 8.0.7, `@types/node` 26.6.6, globals 17.14.0, prettier 3.9.10,
+  eslint-plugin-react-refresh 0.5.7.
+- **ESLint 9 → 10** (`eslint` 10.14.0, `@eslint/js` 10.0.1): every plugin
+  supports 10 and the config was already flat config, so no config change. Lint
+  still covers all 31 files (checked with a probe file).
+- Fixed `src/components/icons.tsx`: `stroke-width` etc. → `strokeWidth`
+  (React warned "Invalid DOM property" on the About page).
+- Checked: `yarn build`, lint, frozen install, `cargo check`; every page in the
+  browser dev mock. Known, not from this change: the Gallery page crashes in
+  the browser mock only (`src/dev/browserMock.ts` has no `search_gallery`);
+  in the real app the call goes to Rust.
+
 ### 2026-11-05 — Tauri update, `cn` package, clean-up (host EMON)
 
 - Branch `deps-update` from `dev`. Local clean-up first: deleted local
