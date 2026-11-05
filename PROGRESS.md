@@ -19,13 +19,14 @@ Hand-off log between machines. Read this after `git pull`, before changing anyth
 - CI is green on all three OSes for `main` and `live-engine`.
 
 **Next session, in order**
-1. **1.1.0 (live wallpaper on Linux/GNOME):** website is ready on
-   `live-engine` (goes live with the merge to `main`). Next: bump to 1.1.0,
-   PR `live-engine` → `dev`, rehearsal release (draft), test `.deb` +
-   AppImage on Ubuntu and that Windows / macOS install fine; measure
-   installer sizes (Plan 2.7); then `dev` → `main`, tag `v1.1.0`. Details:
-   Release plan. This machine now runs the 1.0.6 `.deb` (you installed it):
-   reinstall a `live-engine` build to use live wallpapers again.
+1. **1.1.0 (live wallpaper on Linux/GNOME):** version bumped (326bb86), PR #9
+   `live-engine` → `dev` open (https://github.com/efadhemon/wallflow/pull/9).
+   Next: CI green → merge #9; rehearsal release (draft) from `dev` or `main`;
+   test `.deb` (helper setup, logout, play) + AppImage (FFmpeg banner) on
+   Ubuntu and that Windows / macOS install and say "coming soon"; measure
+   installer sizes (Plan 2.7); then PR `dev` → `main`, tag `v1.1.0`. This
+   machine runs the 1.0.6 `.deb` (you installed it): install the 1.1.0 draft
+   to get live wallpapers back.
 2. **1.2.0 Windows** (Plan step 4, with 3.3), needs a Windows PC.
 3. **1.3.0 macOS** (Plan step 5), needs a Mac. Later: KDE / X11 / zero-copy.
 
@@ -61,6 +62,14 @@ every platform without slowing the desktop.
   (old player, kept as tag `archive/live-wall` → 14f72eb).
 
 ## Sessions
+
+### 2026-11-05 — 1.1.0 bumped, PR #9 into `dev` (host EMON)
+
+- `yarn version:minor` → 1.1.0 (package.json, Cargo.toml / .lock, website)
+  (326bb86). Checked: `yarn build`, eslint, fmt, clippy `-D warnings`, 32 app +
+  15 engine tests.
+- PR #9 `live-engine` → `dev` "Release 1.1.0: live wallpapers on GNOME"
+  (44 commits), mergeable; CI starting.
 
 ### 2026-11-05 — README for live wallpapers (host EMON)
 
