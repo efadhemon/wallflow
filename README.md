@@ -173,6 +173,25 @@ The bundled FFmpeg (Windows, macOS) is a trimmed LGPL build of `ffmpeg` and
 [`ffmpeg-n9.0.2-wf1`](../../releases/tag/ffmpeg-n9.0.2-wf1) release. Its license and
 build notes (source commit and `configure` options) ship with the app.
 
+## Branches and pull requests
+
+Every change follows the same path. No pull request skips a step.
+
+| Branch      | What it is                                                      |
+| ----------- | --------------------------------------------------------------- |
+| `main`      | Released code. Release tags `vX.Y.Z` are made here only.        |
+| `dev`       | Integration. Everything lands here first.                       |
+| `<feature>` | One branch per change, started from `dev` (e.g. `live-engine`). |
+
+1. Start a feature branch from an up-to-date `dev`.
+2. Open a pull request from the feature branch into **`dev`**. Never into `main`.
+3. Merge it once CI is green on Linux, Windows and macOS.
+4. To release, open a pull request from **`dev` into `main`**. This is the only
+   pull request that targets `main`.
+5. Tag `vX.Y.Z` on `main` to build the release. Bump the version before that with
+   `yarn version:patch`, `version:minor` or `version:major`.
+6. Delete the feature branch once it is merged.
+
 ## Notes and limitations
 
 - WebP images are transcoded to PNG in the thumbnail cache before being applied,
