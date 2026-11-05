@@ -19,7 +19,8 @@ Hand-off log between machines. Read this after `git pull`, before changing anyth
 
 **Next session, in order**
 
-1. **PR #12 `dev` → `main`:** CI green on all three OSes → merge.
+1. **PR #14 `ci-macos-15` → `dev`** (macos-14 runner retired): CI green on
+   all three OSes → merge. Then **PR #12 `dev` → `main`**: CI again → merge.
 2. **Release 1.1.0:** run the Release workflow by hand on `main` → draft
    `Wallflow v1.1.0`. Test: `.deb` on Ubuntu (helper setup from the Live page,
    log out / in, play), AppImage (FFmpeg banner without system FFmpeg),
@@ -66,6 +67,20 @@ every platform without slowing the desktop.
   (old player, kept as tag `archive/live-wall` → 14f72eb).
 
 ## Sessions
+
+### 2026-11-06 — macOS CI broken: macos-14 runner retired (host EMON)
+
+- `check-macos` on PR #12 failed in 1 s: "The configuration
+  'macos-14-arm64-us-default' is not supported". GitHub retired the
+  `macos-14` image on 2026-11-02 (it still ran at 19:22 for PR #11, failed
+  from 19:27). The same label was in `release.yml` (both dmg builds) and
+  `ffmpeg.yml`, so the 1.1.0 release would have failed too.
+- PR #14 `ci-macos-15` → `dev`: all three workflows on `macos-15` (pinned,
+  arm64 like before). Minimum macOS unchanged (`minimumSystemVersion` 10.15,
+  FFmpeg `-mmacosx-version-min=11.0`). The FFmpeg workflow runs on this
+  change but publishes nothing (`ffmpeg-n9.0.2-wf1` exists).
+- Later: `macos-15` will retire too; GitHub's other choice is `macos-26`
+  (`macos-latest`).
 
 ### 2026-11-06 — PR #11 merged, release PR #12 (host EMON)
 
