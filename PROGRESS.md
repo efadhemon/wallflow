@@ -71,7 +71,7 @@ every platform without slowing the desktop.
   CSP from `tauri.conf.json`. The preview (9d7fa5a) added `w.wallhaven.cc` to
   `tauri.conf.json` only, so the meta still refused every full image (only
   `th.wallhaven.cc` thumbnails were allowed). Added `w.wallhaven.cc` to the
-  meta's `img-src`. Only on `live-engine` (`main`/`dev` have no preview yet).
+  meta's `img-src` (030e86d). Only on `live-engine` (`main`/`dev` have no preview yet).
 - Checked in the real dev app through WebKit's remote inspector: before, the
   console said "Refused to load https://w.wallhaven.cc/full/… img-src"; after,
   the full image loads (200, no CSP error).
