@@ -453,6 +453,15 @@ every platform without slowing the desktop.
 - The shim reloads only at login on Wayland: after changing `engine/gnome-shim/`,
   log out and in (or use `engine/tests/gnome-headless/run.sh`).
 - `fetch_latest_version` CSP still lists `http://127.0.0.1:5500` (dev leftover?).
+- **Later: ESLint with `typescript-eslint` instead of Babel.** Now
+  `@babel/eslint-parser` (+ its peer `@babel/core`) parses TS/TSX in
+  `eslint.config.mjs`, only because `typescript-eslint` does not support
+  TypeScript 7 yet (8.72.1 needs `typescript <6.1.0`, we use 7.0.2). Babel has
+  no types, so `no-undef`, `no-unused-vars`, `no-redeclare` are off (`tsc`
+  `noUnusedLocals` / `noUnusedParameters` cover unused code). When
+  `typescript-eslint` supports TS 7 (check `npm view typescript-eslint
+peerDependencies`): add it, remove both Babel packages, turn on its
+  recommended (type-aware) rules.
 
 ## Next step
 
