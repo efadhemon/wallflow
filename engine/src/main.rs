@@ -8,6 +8,7 @@
 
 mod decoder;
 mod encoder;
+mod events;
 mod fit;
 mod prepare;
 mod probe;
@@ -15,6 +16,7 @@ mod render;
 
 use anyhow::{Context, Result, bail};
 use decoder::{Decoder, Frame};
+use events::Event;
 use fit::FillMode;
 use probe::VideoInfo;
 use render::{Gpu, Target};
@@ -48,6 +50,7 @@ struct Opts {
     ffmpeg: String,
     ffprobe: String,
     background: bool,
+    events: bool,
 }
 
 fn parse_args() -> Result<Opts> {
@@ -60,6 +63,7 @@ fn parse_args() -> Result<Opts> {
         ffmpeg: "ffmpeg".into(),
         ffprobe: "ffprobe".into(),
         background: false,
+        events: false,
     };
     while let Some(arg) = args.next() {
         let mut value = |name: &str| args.next().with_context(|| format!("{name} needs a value"));
@@ -73,10 +77,11 @@ fn parse_args() -> Result<Opts> {
             "--ffmpeg" => opts.ffmpeg = value("--ffmpeg")?,
             "--ffprobe" => opts.ffprobe = value("--ffprobe")?,
             "--background" => opts.background = true,
+            "--events" => opts.events = true,
             "-h" | "--help" => {
                 println!(
                     "usage: wallflow-live VIDEO [--fill fill|fit|stretch] [--hwaccel auto|none|vaapi|cuda|...]\n\
-                     \x20                    [--background] [--ffmpeg PATH] [--ffprobe PATH]"
+                     \x20                    [--background] [--events] [--ffmpeg PATH] [--ffprobe PATH]"
                 );
                 std::process::exit(0);
             }
@@ -194,6 +199,9 @@ impl App {
             self.open_screen(event_loop, attrs)?;
         }
         log::info!("drawing on {} window(s)", self.screens.len());
+        events::emit(&Event::Ready {
+            screens: self.screens.len(),
+        });
         self.clock.restart();
         Ok(())
     }
@@ -280,8 +288,7 @@ impl App {
     fn restart_decoder(&mut self) {
         self.decoder_restarts += 1;
         if self.decoder_restarts > MAX_DECODER_RESTARTS {
-            log::error!("the decoder keeps stopping, giving up");
-            std::process::exit(2);
+            fail("the decoder keeps stopping, giving up");
         }
         if !self.decoded_any && self.opts.hwaccel != "none" {
             log::warn!(
@@ -300,8 +307,7 @@ impl App {
         ) {
             Ok(decoder) => self.decoder = decoder,
             Err(err) => {
-                log::error!("could not restart the decoder: {err:#}");
-                std::process::exit(2);
+                fail(&format!("could not restart the decoder: {err:#}"));
             }
         }
         self.clock.restart();
@@ -326,14 +332,22 @@ impl App {
         };
     }
 
+    fn set_paused(&mut self, paused: bool, reason: &str) {
+        if self.paused == paused {
+            return;
+        }
+        self.paused = paused;
+        if !paused {
+            self.clock.restart();
+        }
+        events::emit(&Event::State { paused, reason });
+    }
+
     fn control(&mut self, event_loop: &ActiveEventLoop, control: Control) {
         log::info!("command: {control:?}");
         match control {
-            Control::Pause => self.paused = true,
-            Control::Resume => {
-                self.paused = false;
-                self.clock.restart();
-            }
+            Control::Pause => self.set_paused(true, "app"),
+            Control::Resume => self.set_paused(false, "app"),
             Control::Fill { mode } => {
                 self.opts.fill = mode;
                 if let Some(gpu) = &self.gpu {
@@ -353,7 +367,9 @@ impl ApplicationHandler<UserEvent> for App {
         if self.screens.is_empty()
             && let Err(err) = self.create_windows(event_loop)
         {
-            log::error!("could not open the wallpaper window: {err:#}");
+            let message = format!("could not open the wallpaper window: {err:#}");
+            log::error!("{message}");
+            events::emit(&Event::Error { message: &message });
             event_loop.exit();
         }
     }
@@ -478,7 +494,24 @@ fn main() -> Result<()> {
         return prepare::run(&parse_prepare(std::env::args().skip(2))?);
     }
     let opts = parse_args()?;
+    if opts.events {
+        events::enable();
+    }
+    play(opts).inspect_err(|err| {
+        events::emit(&Event::Error {
+            message: &format!("{err:#}"),
+        })
+    })
+}
 
+/// Logs the reason, tells the app, and exits with status 2.
+fn fail(message: &str) -> ! {
+    log::error!("{message}");
+    events::emit(&Event::Error { message });
+    std::process::exit(2);
+}
+
+fn play(opts: Opts) -> Result<()> {
     let info = probe::probe(&opts.ffprobe, &opts.video)?;
     log::info!(
         "{}: {}x{} @ {:.2} fps",
