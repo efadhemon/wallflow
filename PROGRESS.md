@@ -29,6 +29,17 @@ every platform without slowing the desktop.
 
 ## Sessions
 
+### 2026-11-05 — no custom domain; 1.0.6 prepared (host EMON)
+
+- You dropped `wallflow.efadhemon.dev`: the site is
+  `https://efadhemon.github.io/wallflow/` (58b871d): meta / canonical /
+  structured-data URLs, About and update-banner links, opener allowlist;
+  `404.html` has `<base href="/wallflow/">`; dev CSP leftovers gone; repo
+  website field set to the Pages URL. `api/version.json` removed again (only
+  1.0.5 apps read it, from the old domain).
+- 1.0.6 prepared on `github-pages` (PR #8 retitled "Release 1.0.6"): `dev` and
+  `review-fixes` merged in cleanly, `yarn version:patch` (e06534c).
+
 ### 2026-11-05 — repository public: website to GitHub Pages, release plan (host EMON)
 
 - Branch `github-pages` (from `main`, worktree `.worktrees/pages`), PR #8:
@@ -263,31 +274,32 @@ every platform without slowing the desktop.
 
 ## Next step
 
-1. **You:** review and merge PR #8 (`github-pages` → `main`). Then in
-   Settings → Pages set the custom domain `wallflow.efadhemon.dev` and point
-   its DNS at GitHub Pages (CNAME `efadhemon.github.io`); then delete the
-   Vercel project and the secrets `VERCEL_TOKEN`, `VERCEL_ORG_ID`,
-   `VERCEL_PROJECT_ID`, `VITE_VERSION_API_URL`.
-2. Release 1.0.6 (Release plan below).
-3. Merge `main` into `live-engine`, then release 1.1.0.
+1. **You:** review and merge PR #8 (now "Release 1.0.6"). Optional rehearsal:
+   run Release by hand → draft `v1.0.6`, test, delete the draft. Then
+   `git tag v1.0.6 <merge commit> && git push origin v1.0.6`.
+2. **You:** delete the Vercel project and the secrets `VERCEL_TOKEN`,
+   `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`, `VITE_VERSION_API_URL`.
+3. Merge `main` into `live-engine` (take the Pages URL, no Vercel, no
+   `api/version.json`; keep the FFmpeg fetch steps), then the 1.1.0 rehearsal.
 
 ## Release plan
 
-The repository is public (2026-11-05). Website: GitHub Pages
-(`.github/workflows/pages.yml`), download buttons and the in-app update check
+The repository is public (2026-11-05). Website: GitHub Pages at
+**https://efadhemon.github.io/wallflow/** (no custom domain;
+`.github/workflows/pages.yml`), download buttons and the in-app update check
 read GitHub releases. A **manual** run of `release.yml` makes a **draft**
 release (rehearsal: test the installers, then publish the draft by hand and run
 the Website workflow, or delete it and push the tag); a **tag push** publishes
-and refreshes the website. Apps up to 1.0.5 still read
-`wallflow.efadhemon.dev/api/version.json`, which every deploy rewrites, so the
-custom domain must keep pointing at the site.
+and refreshes the website. Apps up to 1.0.5 look for updates at
+`wallflow.efadhemon.dev/api/version.json`; with that domain gone they show no
+update banner, so their users update by hand once.
 
-**1.0.6 — the public, low-risk release (from `main`)**
-- PR #8, `dev` (2 commits: titlebar, gallery virtualization) and
-  `review-fixes` (4193a7a) into `main`. No live wallpaper.
-- `yarn version:patch` → PR → merge → tag `v1.0.6`.
-- Proves the new pipeline: release assets, Pages refresh, 1.0.5 apps show the
-  update banner (via `api/version.json`), 1.0.6 asks GitHub.
+**1.0.6 — the public, low-risk release (from `main`)** — prepared in PR #8
+- Branch `github-pages`: Pages move, `dev` (titlebar, gallery virtualization)
+  and `review-fixes` (4193a7a) merged in, version bumped (e06534c). No live
+  wallpaper. Checked: tsc, eslint, `yarn build`, fmt, clippy, 25 tests.
+- Merge → tag `v1.0.6`. Proves the new pipeline: release assets, Pages
+  refresh, 1.0.6 asks GitHub for updates.
 
 **1.1.0 — live wallpapers on Linux (GNOME) (`live-engine`)**
 - Merge `main` into `live-engine` (workflow conflicts: keep the FFmpeg fetch
