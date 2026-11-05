@@ -204,6 +204,7 @@ impl Live {
             let mut child = tokio::process::Command::new(engine)
                 .arg("prepare")
                 .arg(source)
+                .args(ffmpeg_args())
                 .arg("--out")
                 .arg(staging.join(VIDEO_FILE))
                 .arg("--poster")
@@ -316,7 +317,34 @@ pub fn engine_path() -> Result<PathBuf> {
     Ok(path)
 }
 
-/// FFmpeg decodes and prepares the videos; it is a package dependency on Linux.
+/// FFmpeg and ffprobe, as the engine should run them: the copies bundled next
+/// to the app (Windows, macOS) if present, else whatever `PATH` finds (Linux,
+/// where FFmpeg is a package dependency, and development builds).
+pub fn ffmpeg_tools() -> [PathBuf; 2] {
+    let beside = std::env::current_exe()
+        .ok()
+        .and_then(|exe| exe.parent().map(Path::to_path_buf));
+    ["ffmpeg", "ffprobe"].map(|tool| {
+        let name = format!("{tool}{}", std::env::consts::EXE_SUFFIX);
+        beside
+            .as_ref()
+            .map(|dir| dir.join(&name))
+            .filter(|path| path.is_file())
+            .unwrap_or_else(|| PathBuf::from(tool))
+    })
+}
+
+/// `--ffmpeg PATH --ffprobe PATH` for the engine.
+fn ffmpeg_args() -> Vec<std::ffi::OsString> {
+    let [ffmpeg, ffprobe] = ffmpeg_tools();
+    vec![
+        "--ffmpeg".into(),
+        ffmpeg.into(),
+        "--ffprobe".into(),
+        ffprobe.into(),
+    ]
+}
+
 /// A success is remembered (the Live page asks every few seconds); a failure is
 /// checked again, so installing FFmpeg takes effect without a restart.
 pub fn ffmpeg_available() -> bool {
@@ -325,7 +353,7 @@ pub fn ffmpeg_available() -> bool {
     if FOUND.load(Ordering::Relaxed) {
         return true;
     }
-    let found = ["ffmpeg", "ffprobe"].iter().all(|tool| {
+    let found = ffmpeg_tools().iter().all(|tool| {
         std::process::Command::new(tool)
             .arg("-version")
             .stdout(std::process::Stdio::null())
@@ -412,13 +440,19 @@ pub fn start(video: &LiveVideo, fill: crate::config::FillMode) -> Result<()> {
     {
         gnome::ensure_ready()?;
         let engine = engine_path()?;
-        gnome::start(&[
+        let mut argv = vec![
             engine.to_string_lossy().into_owned(),
             video.video_path.to_string_lossy().into_owned(),
             "--background".into(),
             "--fill".into(),
             engine_fill(fill).into(),
-        ])
+        ];
+        argv.extend(
+            ffmpeg_args()
+                .into_iter()
+                .map(|arg| arg.to_string_lossy().into_owned()),
+        );
+        gnome::start(&argv)
     }
     #[cfg(not(target_os = "linux"))]
     {
