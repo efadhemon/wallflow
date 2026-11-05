@@ -8,6 +8,7 @@
 //! static wallpaper, so the lock screen and the moments before the engine is up
 //! show the same picture.
 
+pub mod direct;
 #[cfg(target_os = "linux")]
 pub mod gnome;
 
@@ -378,7 +379,6 @@ pub fn screen_size(app: &AppHandle) -> (u32, u32) {
     (width.max(1), height.max(1))
 }
 
-#[cfg_attr(not(target_os = "linux"), allow(dead_code))]
 pub fn engine_fill(mode: crate::config::FillMode) -> &'static str {
     use crate::config::FillMode;
     match mode {
@@ -407,8 +407,56 @@ struct Shim {
     paused: bool,
 }
 
-#[cfg(target_os = "linux")]
+/// How live wallpapers are played on this system.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Backend {
+    /// GNOME: the shim extension starts the engine inside the shell.
+    #[cfg(target_os = "linux")]
+    Gnome,
+    /// The app starts the engine itself (`direct.rs`).
+    Direct,
+    /// Not yet: Windows / macOS until the engine can place its windows behind
+    /// the desktop there.
+    None,
+}
+
+/// `WALLFLOW_LIVE_BACKEND=direct` picks the direct backend anywhere (on Linux it
+/// opens plain windows: for testing the Windows / macOS path).
+fn backend() -> Backend {
+    if std::env::var_os("WALLFLOW_LIVE_BACKEND").is_some_and(|value| value == "direct") {
+        return Backend::Direct;
+    }
+    #[cfg(target_os = "linux")]
+    return Backend::Gnome;
+    #[cfg(not(target_os = "linux"))]
+    return Backend::None;
+}
+
 fn platform_support() -> (Support, Option<String>, Shim) {
+    match backend() {
+        #[cfg(target_os = "linux")]
+        Backend::Gnome => gnome_support(),
+        Backend::Direct => {
+            let state = direct::state();
+            (
+                Support::Ready,
+                None,
+                Shim {
+                    running: state.running,
+                    paused: state.paused,
+                },
+            )
+        }
+        Backend::None => (
+            Support::Unsupported,
+            Some("Live wallpapers are coming to this system soon.".into()),
+            Shim::default(),
+        ),
+    }
+}
+
+#[cfg(target_os = "linux")]
+fn gnome_support() -> (Support, Option<String>, Shim) {
     if let Err(reason) = gnome::session_supported() {
         return (Support::Unsupported, Some(reason), Shim::default());
     }
@@ -426,59 +474,66 @@ fn platform_support() -> (Support, Option<String>, Shim) {
     }
 }
 
-#[cfg(not(target_os = "linux"))]
-fn platform_support() -> (Support, Option<String>, Shim) {
-    (
-        Support::Unsupported,
-        Some("Live wallpapers are coming to this system soon.".into()),
-        Shim::default(),
-    )
-}
-
 pub fn start(video: &LiveVideo, fill: crate::config::FillMode) -> Result<()> {
-    #[cfg(target_os = "linux")]
-    {
-        gnome::ensure_ready()?;
-        let engine = engine_path()?;
-        let mut argv = vec![
-            engine.to_string_lossy().into_owned(),
-            video.video_path.to_string_lossy().into_owned(),
-            "--background".into(),
-            "--fill".into(),
-            engine_fill(fill).into(),
-        ];
-        argv.extend(
-            ffmpeg_args()
-                .into_iter()
-                .map(|arg| arg.to_string_lossy().into_owned()),
-        );
-        gnome::start(&argv)
+    let backend = backend();
+    if backend == Backend::None {
+        bail!("Live wallpapers are not available on this system yet.");
     }
-    #[cfg(not(target_os = "linux"))]
-    {
-        let _ = (video, fill);
-        bail!("Live wallpapers are not available on this system yet.")
+    let engine = engine_path()?;
+    let mut args: Vec<std::ffi::OsString> = vec![
+        video.video_path.clone().into(),
+        "--fill".into(),
+        engine_fill(fill).into(),
+    ];
+    args.extend(ffmpeg_args());
+    match backend {
+        #[cfg(target_os = "linux")]
+        Backend::Gnome => {
+            gnome::ensure_ready()?;
+            let argv: Vec<String> = std::iter::once(engine.into_os_string())
+                .chain(args)
+                .chain(["--background".into()])
+                .map(|arg| arg.to_string_lossy().into_owned())
+                .collect();
+            gnome::start(&argv)
+        }
+        Backend::Direct => {
+            // On Linux the direct backend is for testing: plain windows, not
+            // monitor-sized click-through ones over everything.
+            if cfg!(not(target_os = "linux")) {
+                args.push("--background".into());
+            }
+            direct::start(&engine, &args)
+        }
+        Backend::None => unreachable!("checked above"),
     }
 }
 
 pub fn stop() -> Result<()> {
-    #[cfg(target_os = "linux")]
-    if gnome::state().is_some_and(|state| state.running) {
-        return gnome::stop();
+    match backend() {
+        #[cfg(target_os = "linux")]
+        Backend::Gnome => {
+            if gnome::state().is_some_and(|state| state.running) {
+                return gnome::stop();
+            }
+            Ok(())
+        }
+        Backend::Direct => direct::stop(),
+        Backend::None => Ok(()),
     }
-    Ok(())
 }
 
 pub fn set_fill(fill: crate::config::FillMode) {
-    #[cfg(target_os = "linux")]
-    {
-        let line = format!(r#"{{"cmd":"fill","mode":"{}"}}"#, engine_fill(fill));
-        if let Err(err) = gnome::send(&line) {
-            log::warn!("could not change the live wallpaper's fill mode: {err:#}");
-        }
+    let line = format!(r#"{{"cmd":"fill","mode":"{}"}}"#, engine_fill(fill));
+    let sent = match backend() {
+        #[cfg(target_os = "linux")]
+        Backend::Gnome => gnome::send(&line),
+        Backend::Direct if direct::state().running => direct::send(&line),
+        Backend::Direct | Backend::None => Ok(()),
+    };
+    if let Err(err) = sent {
+        log::warn!("could not change the live wallpaper's fill mode: {err:#}");
     }
-    #[cfg(not(target_os = "linux"))]
-    let _ = fill;
 }
 
 pub fn install_helper() -> Result<()> {
@@ -668,5 +723,30 @@ mod end_to_end {
         gnome::stop().unwrap();
         std::thread::sleep(std::time::Duration::from_secs(1));
         assert!(gnome::state().is_some_and(|state| !state.running));
+    }
+
+    /// The Windows / macOS path, on Linux in a plain window.
+    #[test]
+    #[ignore]
+    fn plays_pauses_and_stops_directly() {
+        use std::time::Duration;
+        let mut args: Vec<std::ffi::OsString> =
+            vec![sample().into(), "--fill".into(), "fit".into()];
+        args.extend(ffmpeg_args());
+        direct::start(&sidecar(), &args).expect("start failed");
+        std::thread::sleep(Duration::from_secs(3));
+        assert_eq!(
+            direct::state(),
+            direct::State {
+                running: true,
+                paused: false
+            }
+        );
+        direct::send(r#"{"cmd":"pause"}"#).unwrap();
+        std::thread::sleep(Duration::from_millis(500));
+        assert!(direct::state().paused, "the engine reported the pause");
+        direct::stop().unwrap();
+        assert!(!direct::state().running);
+        assert!(direct::send(r#"{"cmd":"resume"}"#).is_err());
     }
 }
