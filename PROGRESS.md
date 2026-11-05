@@ -10,7 +10,7 @@ Hand-off log between machines. Read this after `git pull`, before changing anyth
   in-app update check come from GitHub releases.
 - `main` = `dev` = 56c878c (PR #8 merged: Pages move, app fixes from
   `review-fixes`, `dev`'s gallery/titlebar work, version **1.0.6**).
-  **1.0.6 is not tagged / released yet.** Latest release: v1.0.5.
+  **1.0.6 released** (tag `v1.0.6` → 56c878c, Latest), website shows 1.0.6.
 - `live-engine` = `main` + the live wallpaper work (35 commits ahead):
   Rust engine `engine/`, GNOME shim, Live page, `direct` backend, bundled
   LGPL FFmpeg for Windows / macOS (`ffmpeg-n9.0.2-wf1` pre-release). Works on
@@ -19,23 +19,17 @@ Hand-off log between machines. Read this after `git pull`, before changing anyth
 - CI is green on all three OSes for `main` and `live-engine`.
 
 **Next session, in order**
-1. Release **1.0.6** from `main`: rehearsal done, a **draft** `v1.0.6` exists
-   (see Sessions). Left: install-test the draft on Ubuntu if wanted, delete
-   the draft, then `git tag v1.0.6 56c878c && git push origin v1.0.6`. Check
-   the release assets and that the website says 1.0.6 with working links.
-   No work for 1.0.5's update banner / old domain: all 1.0.5 users were
-   internal.
-2. Delete the Vercel project and the secrets `VERCEL_TOKEN`, `VERCEL_ORG_ID`,
+1. Delete the Vercel project and the secrets `VERCEL_TOKEN`, `VERCEL_ORG_ID`,
    `VERCEL_PROJECT_ID`, `VITE_VERSION_API_URL` (no longer used), any time.
-3. **1.1.0 (live wallpaper on Linux/GNOME):** update the website on
+2. **1.1.0 (live wallpaper on Linux/GNOME):** update the website on
    `live-engine` first (Live feature card + screenshot, how-to step, meta
    descriptions, "GNOME only, Windows/macOS coming soon", `.deb` now needs
    `ffmpeg`); it goes live with the merge to `main`. Then PR `live-engine` → `dev`,
    rehearsal release (draft) from `dev`/`main`, test `.deb` + AppImage on
    Ubuntu and that Windows / macOS install fine; measure installer sizes
    (Plan 2.7); then `dev` → `main`, tag `v1.1.0`. Details: Release plan.
-4. **1.2.0 Windows** (Plan step 4, with 3.3), needs a Windows PC.
-5. **1.3.0 macOS** (Plan step 5), needs a Mac. Later: KDE / X11 / zero-copy.
+3. **1.2.0 Windows** (Plan step 4, with 3.3), needs a Windows PC.
+4. **1.3.0 macOS** (Plan step 5), needs a Mac. Later: KDE / X11 / zero-copy.
 
 **Branch flow:** feature branch → PR into `dev` → PR `dev` → `main` → tag
 `vX.Y.Z` on `main` releases. Keep only `main`, `dev` and active feature
@@ -69,6 +63,14 @@ every platform without slowing the desktop.
   (old player, kept as tag `archive/live-wall` → 14f72eb).
 
 ## Sessions
+
+### 2026-11-05 — 1.0.6 released (host EMON)
+
+- Draft deleted, `v1.0.6` tagged on 56c878c and pushed. Release run
+  42024407592: all builds green, release published as Latest with the same 5
+  files; the website job started Pages (workflow_dispatch, green).
+- Checked: GitHub latest-release API returns v1.0.6; the site says
+  "Download Wallflow 1.0.6" and all 5 download links redirect (302).
 
 ### 2026-11-05 — 1.0.6 rehearsal: draft release (host EMON)
 
@@ -370,7 +372,7 @@ and refreshes the website. Apps up to 1.0.5 look for updates at
 `wallflow.efadhemon.dev/api/version.json`; with that domain gone they show no
 update banner, so their users update by hand once.
 
-**1.0.6 — the public, low-risk release (from `main`)** — prepared in PR #8
+**1.0.6 — the public, low-risk release (from `main`)** — **released 2026-11-05** (tag `v1.0.6`), prepared in PR #8
 - Branch `github-pages`: Pages move, `dev` (titlebar, gallery virtualization)
   and `review-fixes` (4193a7a) merged in, version bumped (e06534c). No live
   wallpaper. Checked: tsc, eslint, `yarn build`, fmt, clippy, 25 tests.
