@@ -19,9 +19,9 @@ Hand-off log between machines. Read this after `git pull`, before changing anyth
 
 **Next session, in order**
 
-1. **Check `deps-update` locally** (`yarn tauri dev`: wallpapers, gallery,
-   library, live page, tray, autostart, dialogs, update banner). If good: PR
-   `deps-update` → `dev`, merge, then `dev` → `main`.
+1. **PR `deps-update` → `dev`** (checked by you in `yarn tauri dev`
+   2026-11-06, incl. the new Dashboard): CI on all three OSes (first build
+   of Tauri 2.12 / wry 0.57 on Windows / macOS), merge, then `dev` → `main`.
 2. **Release 1.1.0 (live wallpaper on Linux/GNOME):** rehearsal release
    (draft) from `main`; test `.deb` (helper setup, logout, play) + AppImage
    (FFmpeg banner) on Ubuntu and that Windows / macOS install and say "coming
@@ -63,6 +63,26 @@ every platform without slowing the desktop.
   (old player, kept as tag `archive/live-wall` → 14f72eb).
 
 ## Sessions
+
+### 2026-11-06 — Dashboard: one view for images and live (host EMON)
+
+- On `deps-update`. `src/routes/Dashboard.tsx` redesigned: the big card always
+  shows what is on the desktop now, same shape for both modes.
+  - Image rotation: "Image rotation" badge, position, countdown, Previous /
+    Pause / Next; below it "Live wallpapers" with 3 posters to play in one
+    click ("All N" → Live page), or one line for setup / no FFmpeg / no
+    videos; hidden where live is unsupported (Windows / macOS).
+  - Live: poster, "Live wallpaper" badge, name and specs, Playing / Paused
+    while covered / Starting (polled every 3 s), Change → Live page, Back to
+    images (`liveStop`); below it "Image rotation is on hold" with the image
+    that comes back. A live video with an empty image library now shows the
+    video (it used to show only "No wallpapers yet").
+  - Stats row gets a "Live wallpapers" count.
+- `describeVideo` moved from `Live.tsx` to `src/lib/utils.ts` (both use it).
+- Poster, not a playing `<video>`: CSP has no `media-src` and the asset scope
+  is the cache dir only; a moving preview would need both changed.
+- Checked in the browser mock (all states, dark + light), build, lint,
+  Prettier; you checked it in the real app.
 
 ### 2026-11-06 — version scripts, Prettier (host EMON)
 
