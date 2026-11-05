@@ -2,36 +2,43 @@
 
 Hand-off log between machines. Read this after `git pull`, before changing anything.
 
-## Summary — start here (2026-11-05)
+## Summary — start here (2026-11-06)
 
 **Where things are**
 
 - Repository is **public**. Website: **https://efadhemon.github.io/wallflow/**
   (GitHub Pages, `pages.yml`; no custom domain any more). Downloads and the
   in-app update check come from GitHub releases.
-- `dev` = 2125747 (PR #11 `deps-update` merged: Tauri 2.12, `cn`, npm /
-  ESLint 10, new Dashboard, README branch flow). `main` = 9cef6fe. Version is
-  **1.1.0** in the code, **not released yet**; latest release is 1.0.6.
-- **PR #12 `dev` → `main`** "Release 1.1.0" open
-  (https://github.com/efadhemon/wallflow/pull/12), CI running.
-- Live wallpapers work on GNOME (Ubuntu); Windows / macOS build, Live page
-  says "coming soon".
-- **Decided 2026-11-06 (you): 1.1.0 ships live wallpapers on all three OSes**
-  (Ubuntu / GNOME, Windows, macOS). Then collect issues and feedback and fix
-  them in patch releases 1.1.1, 1.1.2, … New features → minor (1.2.0, …),
-  big changes → major. Policy in README "Versions". **Do not merge PR #12
-  until Windows and macOS live are in `dev`** (it follows `dev` by itself).
+- **1.1.0 released 2026-11-06** (tag `v1.1.0` → `main` 86e47bc, Latest):
+  live wallpapers on GNOME (Wayland), **Windows 10 / 11 and macOS 11+
+  (new, not tested on real hardware)**, combined Dashboard, Tauri 2.12.
+  https://github.com/efadhemon/wallflow/releases/tag/v1.1.0 — 5 files
+  (`.deb` 9.4 MB, AppImage 83.8 MB, `setup.exe` 11.7 MB, `aarch64.dmg`
+  14.9 MB, `x64.dmg` 16.3 MB). Website shows 1.1.0, all download links work.
+- `main` = 86e47bc, `dev` = 65c1de3 (+ this log). Versioning (README
+  "Versions"): fixes from issues / feedback → 1.1.1, 1.1.2, …; new features →
+  1.2.0; big changes → 2.0.0.
+- Live wallpapers on Windows / macOS ask users to report problems (Live page
+  link, README, release notes).
 
 **Next session, in order**
 
-1. **PR #15 `live-windows-macos` → `dev`** (Windows + macOS live wallpapers,
-   docs, Live page "Report a problem"): CI green on all three OSes → merge.
-   PR #14 (macos-15) is merged.
-2. **Release 1.1.0:** PR #12 `dev` → `main` (CI again) → merge; rehearsal
-   draft; test what can be tested here (Ubuntu `.deb` / AppImage) and the
-   Windows / macOS installers on whatever machine is at hand; tag `v1.1.0`.
-3. **After release:** issues and feedback → fixes in 1.1.1, 1.1.2, …
-   (patch). KDE / wlroots, X11, zero-copy are later minor versions.
+1. **1.1.1:** PR #16 `engine-log` → `dev` (the engine's log on Windows /
+   macOS reaches the app log, so About → Recent log in bug reports shows the
+   desktop layout it found; in 1.1.0 it is lost). Merge, then with the first
+   user reports: `dev` → `main`, `yarn version:patch`, tag `v1.1.1`.
+2. **Collect feedback on 1.1.0**, above all Windows / macOS live
+   wallpapers (GitHub issues). Things to look for in reports: the video over
+   the windows or invisible (Explorer layout: the engine logs "classic" or
+   "raised (24H2+)"), not pausing, icons not clickable, Spaces / Mission
+   Control on macOS. Each fix: feature branch from `dev` → PR into `dev` →
+   `dev` → `main` → `yarn version:patch` → tag `v1.1.x`.
+3. **Delete the merged branches on GitHub** (README step 6): `deps-update`,
+   `live-engine`, `ci-macos-15`, `live-windows-macos`,
+   `release-1.1.0-notes`, `docs-1.1.0-released`, `engine-log` once merged
+   (Claude was not allowed to delete them).
+4. **Next features (1.2.0+):** KDE / wlroots and X11 live wallpapers,
+   zero-copy decode (Plan step 6).
 
 **Branch flow (rule for every PR, written in README "Branches and pull
 requests"):** feature branch from `dev` → PR into `dev` → PR `dev` → `main` →
@@ -55,7 +62,7 @@ every platform without slowing the desktop.
 | 6   | Integrate into the app: bundle engine as Tauri sidecar, Live page, prepare progress UI, start/stop through the shim | **done** (GNOME), checked by you in the real app |
 | 7   | Shims for other desktops: Windows (WorkerW), macOS (desktop-level NSWindow) → **1.1.0**; KDE/wlroots, X11 → later   | **next** (Windows, macOS)                        |
 | 8   | Zero-copy decode → texture (DMA-BUF / D3D11 / IOSurface)                                                            | planned                                          |
-| 9   | Release 1.1.0 with live wallpapers on GNOME, Windows and macOS                                                      | after step 7 (Windows, macOS)                    |
+| 9   | Release 1.1.0 with live wallpapers on GNOME, Windows and macOS                                                      | **released** 2026-11-06 (`v1.1.0`)               |
 
 ## Branches
 
@@ -68,6 +75,33 @@ every platform without slowing the desktop.
   (old player, kept as tag `archive/live-wall` → 14f72eb).
 
 ## Sessions
+
+### 2026-11-06 — 1.1.0 released (host EMON)
+
+- Merged into `dev`: PR #14 (macos-15), #15 (Windows / macOS live), #13
+  (plan, versions, log), each after CI green on all three OSes. Release PR
+  #12 `dev` → `main` green → merged (86e47bc).
+- Rehearsal: Release workflow by hand on `main` (run 42108076304), all four
+  builds green, draft with the 5 files the website links to. `.deb` checked:
+  1.1.0, `Depends: ffmpeg, …`, `/usr/bin/wallflow` + `/usr/bin/wallflow-live`.
+  `setup.exe` / `.dmg` not unpacked (no 7z here); engine + FFmpeg are in them
+  (Tauri fails without an `externalBin`; FFmpeg fetched in both logs; each
+  ≈7.5 MB bigger than 1.0.6). Installer sizes (Plan 2.7): `setup.exe`
+  11.7 MB, `aarch64.dmg` 14.9 MB, `x64.dmg` 16.3 MB.
+- Draft deleted, lightweight tag `v1.1.0` on 86e47bc pushed (like `v1.0.6`).
+  Release run 42113633408: all green, published as Latest, website job ran
+  Pages. Checked: latest-release API returns v1.1.0; the site says "Download
+  Wallflow 1.1.0", all 5 links redirect (302).
+- Release notes written (live wallpapers on all OSes with a support table,
+  Windows / macOS new → please report, Dashboard, downloads, unsigned macOS,
+  FFmpeg LGPL source); the generated PR list trimmed to #9–#15 and the
+  changelog link fixed to `v1.0.6...v1.1.0`.
+- Found after the release: on Windows / macOS the engine's stderr went
+  nowhere (release app, no console), so its log was missing from the app log
+  that bug reports use. Fixed in PR #16 (for 1.1.1).
+- Not done: deleting merged branches on GitHub (blocked by the permission
+  check; see Next session 2). Auto-fix could not be turned on for PR #15
+  (also blocked).
 
 ### 2026-11-06 — Windows and macOS live wallpapers, PR #15 (host EMON)
 
@@ -574,6 +608,8 @@ every platform without slowing the desktop.
 - The shim reloads only at login on Wayland: after changing `engine/gnome-shim/`,
   log out and in (or use `engine/tests/gnome-headless/run.sh`).
 - `fetch_latest_version` CSP still lists `http://127.0.0.1:5500` (dev leftover?).
+- **Windows / macOS live wallpapers untested on real machines** (1.1.0): see
+  Next session 1.
 - **Later: ESLint with `typescript-eslint` instead of Babel.** Now
   `@babel/eslint-parser` (+ its peer `@babel/core`) parses TS/TSX in
   `eslint.config.mjs`, only because `typescript-eslint` does not support
@@ -616,7 +652,7 @@ update banner, so their users update by hand once.
 - **Major** `X.0.0`: big changes, breaking changes (config format, dropped
   systems, a new way of working).
 
-**1.1.0 — live wallpapers on all three OSes** (Ubuntu / GNOME, Windows, macOS)
+**1.1.0 — live wallpapers on all three OSes** (Ubuntu / GNOME, Windows, macOS) — **released 2026-11-06** (tag `v1.1.0`, PR #12)
 
 - Done: engine, GNOME shim, `direct` backend, Live page, bundled FFmpeg on
   Windows / macOS, combined Dashboard, Tauri 2.12 (PR #9, #10, #11).
