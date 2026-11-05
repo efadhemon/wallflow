@@ -2,9 +2,16 @@ name: FFmpeg
 
 # Builds the trimmed LGPL FFmpeg bundled on Windows and macOS
 # (scripts/ffmpeg/build.sh) and publishes it as the release
-# ffmpeg-<tag>-wf<build>. Run by hand after changing scripts/ffmpeg/, then
-# copy the release's SHA256SUMS into scripts/ffmpeg/SHA256SUMS.
+# ffmpeg-<tag>-wf<build>. Runs when scripts/ffmpeg/ or this file changes (a
+# manual run needs the file on the default branch); a release that already
+# exists is left alone, so bump WALLFLOW_FFMPEG_BUILD to publish a new build.
+# Then copy the release's SHA256SUMS into scripts/ffmpeg/SHA256SUMS.
 on:
+  push:
+    paths:
+      - "scripts/ffmpeg/build.sh"
+      - "scripts/ffmpeg/version.env"
+      - ".github/workflows/ffmpeg.yml"
   workflow_dispatch:
 
 permissions:
@@ -68,6 +75,10 @@ jobs:
         run: |
           source scripts/ffmpeg/version.env
           tag="ffmpeg-$FFMPEG_TAG-wf$WALLFLOW_FFMPEG_BUILD"
+          if gh release view "$tag" --repo "${{ github.repository }}" >/dev/null 2>&1; then
+            echo "$tag already exists; bump WALLFLOW_FFMPEG_BUILD to publish a new build."
+            exit 0
+          fi
           cd dist
           sha256sum ffmpeg-*.tar.gz > SHA256SUMS
           cat SHA256SUMS
