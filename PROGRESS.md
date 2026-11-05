@@ -48,8 +48,14 @@ every platform without slowing the desktop.
   are not guaranteed stable.
 - **2.5** (e56a117): bundled FFmpeg first, then PATH; passed to the engine
   for playback and prepare. Headless GNOME `app.sh`: all 6 checks pass.
-- Git over SSH from this machine: `Permission denied (publickey)` on push and
-  fetch, though `ssh -T git@github.com` authenticates. Pushed over HTTPS.
+- Git over SSH failed for a while (`Permission denied (publickey)`): a GitHub
+  issue, works again. Pushed over HTTPS meanwhile.
+- You installed the `.deb`: `/usr/bin/wallflow` runs from autostart and plays
+  the live wallpaper through `/usr/bin/wallflow-live`. (That package was built
+  before e56a117, so it still runs FFmpeg from PATH.) apt's note "couldn't be
+  accessed by user '_apt'" is harmless: `/home/efadh` is `drwxr-x---`, so apt
+  read the local `.deb` as root instead of its sandbox user.
+- CI run 41975083253 (b24c87d): green on Linux, macOS and Windows.
 
 ### 2026-11-04 — real-app test passed on host EMON (live-engine)
 
@@ -197,9 +203,7 @@ every platform without slowing the desktop.
   lag, icons, overview, moving windows between workspaces — OK.
 - Release CI builds the engine for every target via `build.rs`; it has only been
   compiled on Linux. The macOS / Windows release jobs may need fixes.
-- Autostart on host EMON points at `/usr/bin/wallflow`, which is **not
-  installed** (no `wallflow` package): login starts nothing until the new
-  `.deb` is installed.
+- Autostart on host EMON: `/usr/bin/wallflow` from the new `.deb` (2026-11-05).
 - **Size (Linux):** 1.0.5 `.deb` was 5.4 MB. The engine sidecar adds 14.2 MB
   as built now (≈4.5 MB compressed): `engine/Cargo.toml` has no release
   profile. With strip + LTO it is 6.3 MB (≈2.1–2.7 MB compressed). FFmpeg
@@ -217,15 +221,12 @@ every platform without slowing the desktop.
 
 ## Next step
 
-1. **You:** install the new `.deb`
-   (`sudo apt install ./src-tauri/target/release/bundle/deb/Wallflow_1.0.5_amd64.deb`),
-   log out and in, check the live wallpaper comes back by itself.
-2. **You approve, then run** the FFmpeg workflow (creates a pre-release in the
+1. **You approve, then run** the FFmpeg workflow (creates a pre-release in the
    repo): `gh workflow run ffmpeg.yml --ref live-engine`. Then copy the
    release's `SHA256SUMS` into `scripts/ffmpeg/SHA256SUMS` and do 2.4
    (externalBin + fetch step in CI / release) — needs the release first, or the
    Windows / macOS CI jobs fail.
-3. Meanwhile: 3.3 (engine `platform` module) and 3.4 (`direct` backend).
+2. Meanwhile: 3.3 (engine `platform` module) and 3.4 (`direct` backend).
 
 ## Plan (steps 1–6)
 
@@ -234,7 +235,7 @@ trimmed **static LGPL** build of `ffmpeg` + `ffprobe`. Static, not shared
 libraries: two `externalBin` sidecars, nothing to place or sign separately;
 both binaries are entirely LGPL code, so static linking is fine for the license.
 
-### Step 1 — Linux release (1.1 done f306fc4; 1.2 built, you install)
+### Step 1 — Linux release (done: f306fc4, `.deb` installed and playing)
 - 1.1 Engine release profile (strip, LTO, 1 codegen unit; opt-level 3 because
   the render loop is hot; panic stays unwind so a decoder-thread panic does not
   kill playback). Measure the size.
