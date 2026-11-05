@@ -38,7 +38,7 @@ use windows::Win32::UI::WindowsAndMessaging::{
     IsWindowVisible, IsZoomed, LWA_ALPHA, SMTO_NORMAL, SWP_FRAMECHANGED, SWP_NOACTIVATE,
     SWP_NOMOVE, SWP_NOSIZE, SWP_SHOWWINDOW, SendMessageTimeoutW, SetLayeredWindowAttributes,
     SetParent, SetWindowLongPtrW, SetWindowPos, WS_CHILD, WS_EX_LAYERED, WS_EX_NOREDIRECTIONBITMAP,
-    WS_EX_TOOLWINDOW, WS_POPUP,
+    WS_EX_TOOLWINDOW, WS_EX_TRANSPARENT, WS_POPUP,
 };
 use windows::core::{BOOL, PCWSTR, w};
 use winit::platform::windows::WindowAttributesExtWindows;
@@ -230,7 +230,7 @@ fn keep_placed(hwnd: HWND, desktop: Desktop, rect: Rect) -> Result<()> {
     }
     // Raised: Explorer can put its own wallpaper back on top of ours.
     if let Some(icons) = desktop.icons
-        && unsafe { GetWindow(icons, GW_HWNDNEXT) }.ok() != Some(hwnd)
+        && !above_wallpaper(icons, hwnd)
     {
         unsafe {
             SetWindowPos(
@@ -246,6 +246,29 @@ fn keep_placed(hwnd: HWND, desktop: Desktop, rect: Rect) -> Result<()> {
         .context("putting the window back under the icons")?;
     }
     Ok(())
+}
+
+/// Raised layout: whether `hwnd` is still between the icons and Explorer's own
+/// wallpaper `WorkerW` (with several monitors, the other video windows are
+/// there too, in any order).
+fn above_wallpaper(icons: HWND, hwnd: HWND) -> bool {
+    let mut next = unsafe { GetWindow(icons, GW_HWNDNEXT) }.ok();
+    while let Some(sibling) = next {
+        if sibling == hwnd {
+            return true;
+        }
+        if class_name(sibling) == "WorkerW" {
+            return false;
+        }
+        next = unsafe { GetWindow(sibling, GW_HWNDNEXT) }.ok();
+    }
+    false
+}
+
+fn class_name(hwnd: HWND) -> String {
+    let mut class = [0u16; 64];
+    let len = unsafe { GetClassNameW(hwnd, &mut class) } as usize;
+    String::from_utf16_lossy(&class[..len.min(class.len())])
 }
 
 /// The lock screen, a full-screen Direct3D game or presentation mode hide
@@ -320,7 +343,10 @@ fn covering_area(top: HWND) -> Option<Rect> {
         if !IsWindowVisible(top).as_bool() || IsIconic(top).as_bool() {
             return None;
         }
-        if GetWindowLongPtrW(top, GWL_EXSTYLE) & WS_EX_TOOLWINDOW.0 as isize != 0 {
+        // Tool windows, and click-through overlays (GPU or recording overlays
+        // can span the whole screen without hiding anything).
+        let ex_style = GetWindowLongPtrW(top, GWL_EXSTYLE);
+        if ex_style & (WS_EX_TOOLWINDOW.0 | WS_EX_TRANSPARENT.0) as isize != 0 {
             return None;
         }
         let mut cloaked = 0u32;
@@ -335,11 +361,8 @@ fn covering_area(top: HWND) -> Option<Rect> {
         {
             return None;
         }
-        let mut class = [0u16; 64];
-        let len = GetClassNameW(top, &mut class) as usize;
-        let class = String::from_utf16_lossy(&class[..len.min(class.len())]);
         if matches!(
-            class.as_str(),
+            class_name(top).as_str(),
             "Progman" | "WorkerW" | "Shell_TrayWnd" | "Shell_SecondaryTrayWnd"
         ) {
             return None;
