@@ -60,7 +60,7 @@ pub struct ImportProgress {
 }
 
 /// Can this desktop play live wallpapers, and if not, what is missing.
-// Only GNOME has a shim yet; the Windows / macOS ones will construct these too.
+// Only GNOME needs setup or can be unsupported (KDE, X11); Windows and macOS are always ready.
 #[cfg_attr(not(target_os = "linux"), allow(dead_code))]
 #[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
@@ -202,7 +202,7 @@ impl Live {
         std::fs::create_dir_all(&staging)?;
 
         let outcome = async {
-            let mut child = tokio::process::Command::new(engine)
+            let mut child = tokio::process::Command::from(quiet_command(engine))
                 .arg("prepare")
                 .arg(source)
                 .args(ffmpeg_args())
@@ -355,7 +355,7 @@ pub fn ffmpeg_available() -> bool {
         return true;
     }
     let found = ffmpeg_tools().iter().all(|tool| {
-        std::process::Command::new(tool)
+        quiet_command(tool)
             .arg("-version")
             .stdout(std::process::Stdio::null())
             .stderr(std::process::Stdio::null())
@@ -367,6 +367,20 @@ pub fn ffmpeg_available() -> bool {
 }
 
 /// The largest monitor, which the import prepares videos for.
+/// A child process without a console window popping up on Windows (the app
+/// itself has none in release builds).
+pub fn quiet_command(program: impl AsRef<std::ffi::OsStr>) -> std::process::Command {
+    #[allow(unused_mut)]
+    let mut command = std::process::Command::new(program);
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+        command.creation_flags(CREATE_NO_WINDOW);
+    }
+    command
+}
+
 pub fn screen_size(app: &AppHandle) -> (u32, u32) {
     let sizes: Vec<(u32, u32)> = app
         .available_monitors()
@@ -413,23 +427,19 @@ enum Backend {
     /// GNOME: the shim extension starts the engine inside the shell.
     #[cfg(target_os = "linux")]
     Gnome,
-    /// The app starts the engine itself (`direct.rs`).
+    /// The app starts the engine itself (`direct.rs`), which puts its windows
+    /// behind the desktop: Windows and macOS.
     Direct,
-    /// Not yet: Windows / macOS until the engine can place its windows behind
-    /// the desktop there.
-    None,
 }
 
-/// `WALLFLOW_LIVE_BACKEND=direct` picks the direct backend anywhere (on Linux it
-/// opens plain windows: for testing the Windows / macOS path).
+/// `WALLFLOW_LIVE_BACKEND=direct` picks the direct backend on Linux too, where
+/// it opens plain windows: for testing the Windows / macOS path.
 fn backend() -> Backend {
-    if std::env::var_os("WALLFLOW_LIVE_BACKEND").is_some_and(|value| value == "direct") {
-        return Backend::Direct;
-    }
     #[cfg(target_os = "linux")]
-    return Backend::Gnome;
-    #[cfg(not(target_os = "linux"))]
-    return Backend::None;
+    if std::env::var_os("WALLFLOW_LIVE_BACKEND").is_none_or(|value| value != "direct") {
+        return Backend::Gnome;
+    }
+    Backend::Direct
 }
 
 fn platform_support() -> (Support, Option<String>, Shim) {
@@ -447,11 +457,6 @@ fn platform_support() -> (Support, Option<String>, Shim) {
                 },
             )
         }
-        Backend::None => (
-            Support::Unsupported,
-            Some("Live wallpapers are coming to this system soon.".into()),
-            Shim::default(),
-        ),
     }
 }
 
@@ -476,9 +481,6 @@ fn gnome_support() -> (Support, Option<String>, Shim) {
 
 pub fn start(video: &LiveVideo, fill: crate::config::FillMode) -> Result<()> {
     let backend = backend();
-    if backend == Backend::None {
-        bail!("Live wallpapers are not available on this system yet.");
-    }
     let engine = engine_path()?;
     let mut args: Vec<std::ffi::OsString> = vec![
         video.video_path.clone().into(),
@@ -505,7 +507,6 @@ pub fn start(video: &LiveVideo, fill: crate::config::FillMode) -> Result<()> {
             }
             direct::start(&engine, &args)
         }
-        Backend::None => unreachable!("checked above"),
     }
 }
 
@@ -519,7 +520,6 @@ pub fn stop() -> Result<()> {
             Ok(())
         }
         Backend::Direct => direct::stop(),
-        Backend::None => Ok(()),
     }
 }
 
@@ -529,7 +529,7 @@ pub fn set_fill(fill: crate::config::FillMode) {
         #[cfg(target_os = "linux")]
         Backend::Gnome => gnome::send(&line),
         Backend::Direct if direct::state().running => direct::send(&line),
-        Backend::Direct | Backend::None => Ok(()),
+        Backend::Direct => Ok(()),
     };
     if let Err(err) = sent {
         log::warn!("could not change the live wallpaper's fill mode: {err:#}");

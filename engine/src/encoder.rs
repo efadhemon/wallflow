@@ -3,7 +3,7 @@
 //! `libx264` (it is GPL), so there the system's own encoder does the work.
 
 use anyhow::{Context, Result, bail};
-use std::process::{Command, Stdio};
+use std::process::Stdio;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Encoder {
@@ -96,7 +96,7 @@ pub fn pick(encoders: &str) -> Option<Encoder> {
 }
 
 pub fn detect(ffmpeg: &str) -> Result<Encoder> {
-    let output = Command::new(ffmpeg)
+    let output = crate::process::command(ffmpeg)
         .args(["-hide_banner", "-encoders"])
         .stdin(Stdio::null())
         .stderr(Stdio::null())

@@ -12,7 +12,7 @@ use anyhow::{Context, Result, bail};
 use serde::Serialize;
 use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
-use std::process::{Command, Stdio};
+use std::process::Stdio;
 
 /// Desktop motion looks smooth at 30 fps; more only burns power.
 pub const MAX_FPS: f64 = 30.0;
@@ -123,7 +123,7 @@ fn encode(args: &Args, info: &VideoInfo, plan: &Plan, encoder: Encoder, out: &Pa
     let gop = (fps * 2.0).round().max(1.0) as u32;
     let size = plan.size.unwrap_or((info.width, info.height));
 
-    let mut child = Command::new(&args.ffmpeg)
+    let mut child = crate::process::command(&args.ffmpeg)
         .args(["-hide_banner", "-loglevel", "error", "-nostdin", "-y", "-i"])
         .arg(&args.input)
         .args([
@@ -183,7 +183,7 @@ fn encode_threads() -> usize {
 /// do not become the poster.
 fn poster(ffmpeg: &str, video: &Path, out: &Path, duration: Option<f64>) -> Result<()> {
     let at = duration.map_or(1.0, |secs| (secs / 2.0).min(1.0));
-    let status = Command::new(ffmpeg)
+    let status = crate::process::command(ffmpeg)
         .args(["-hide_banner", "-loglevel", "error", "-nostdin", "-y"])
         .args(["-ss", &format!("{at:.2}"), "-i"])
         .arg(video)
