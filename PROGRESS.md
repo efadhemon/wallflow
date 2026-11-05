@@ -24,17 +24,13 @@ Hand-off log between machines. Read this after `git pull`, before changing anyth
 
 **Next session, in order**
 
-1. **PR #14 `ci-macos-15` → `dev`** (macos-14 runner retired): CI green on
-   all three OSes → merge.
-2. **Windows live wallpaper** (Plan step 4, 4.1–4.5): feature branch
-   `live-windows` from `dev` → PR into `dev`.
-3. **macOS live wallpaper** (Plan step 5, 5.1–5.5): feature branch
-   `live-macos` from `dev` → PR into `dev`.
-4. README / website / Live page: Windows and macOS no longer "coming soon".
-5. **Release 1.1.0:** PR #12 `dev` → `main` (CI again) → merge; rehearsal
+1. **PR #15 `live-windows-macos` → `dev`** (Windows + macOS live wallpapers,
+   docs, Live page "Report a problem"): CI green on all three OSes → merge.
+   PR #14 (macos-15) is merged.
+2. **Release 1.1.0:** PR #12 `dev` → `main` (CI again) → merge; rehearsal
    draft; test what can be tested here (Ubuntu `.deb` / AppImage) and the
    Windows / macOS installers on whatever machine is at hand; tag `v1.1.0`.
-6. **After release:** issues and feedback → fixes in 1.1.1, 1.1.2, …
+3. **After release:** issues and feedback → fixes in 1.1.1, 1.1.2, …
    (patch). KDE / wlroots, X11, zero-copy are later minor versions.
 
 **Branch flow (rule for every PR, written in README "Branches and pull
@@ -72,6 +68,43 @@ every platform without slowing the desktop.
   (old player, kept as tag `archive/live-wall` → 14f72eb).
 
 ## Sessions
+
+### 2026-11-06 — Windows and macOS live wallpapers, PR #15 (host EMON)
+
+- You asked: merge the open PRs, then do Windows, macOS and the rest one
+  after another, and get 1.1.0 ready (release allowed).
+- PR #14 merged (88aba1f) after its Linux job was re-run twice: the Azure
+  Ubuntu mirror was crawling (2 s per small package), not our code.
+- Branch `live-windows-macos` → PR #15. Engine `src/platform/`:
+  - Windows: video windows become children of Explorer's desktop under the
+    icons. Layout from the window tree: classic (top-level `WorkerW` after
+    `0x052C`) or raised (24H2+: `WS_EX_LAYERED` child of Progman right under
+    `SHELLDLL_DefView`). Every second: placed again if Explorer rebuilt the
+    desktop (z-order checked between icons and Explorer's `WorkerW`, any
+    order for several monitors) and checked for covered (maximized /
+    full-screen window on that monitor, not cloaked / tool / click-through;
+    lock screen; full-screen D3D; presentation mode). Explorer restart
+    destroys the window → engine exits → supervisor restarts it. Shown only
+    once placed; a failed placement exits instead of covering the screen.
+  - macOS: borderless windows at `kCGDesktopWindowLevel`, all Spaces,
+    stationary, ignore cycle and mouse, `Accessory` policy (no Dock icon);
+    covered from AppKit occlusion (`WindowEvent::Occluded`).
+  - Covered windows are not drawn; all covered → decoding stops, the app
+    sees `paused` (reason `covered`). FFmpeg / ffprobe / the engine start
+    with `CREATE_NO_WINDOW` (engine and app).
+  - App: Windows / macOS use the `direct` backend; `Backend::None` and
+    "coming soon" removed. Live page on Windows / macOS: "new here, Report a
+    problem" (new GitHub issue).
+  - README / engine README / website: live wallpapers on all three OSes;
+    Windows / macOS "new in 1.1.0, please report problems".
+- Checked: engine clippy `-D warnings` on Linux, `x86_64-pc-windows-msvc`
+  and `aarch64-apple-darwin` (cross `cargo check` works here; the app itself
+  does not cross-compile: `ring` / `aws-lc-sys` need C toolchains); 16 engine
+  - 32 app tests; headless GNOME end-to-end test, all checks pass; tsc,
+    eslint, Prettier.
+- **Not tested on real Windows / macOS** (no machines here). Known risk:
+  Explorer internals (WorkerW layout) change between builds; the engine logs
+  the layout it found for bug reports.
 
 ### 2026-11-06 — plan: 1.1.0 with live wallpapers on all OSes (host EMON)
 
