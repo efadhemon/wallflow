@@ -9,24 +9,25 @@ Hand-off log between machines. Read this after `git pull`, before changing anyth
 - Repository is **public**. Website: **https://efadhemon.github.io/wallflow/**
   (GitHub Pages, `pages.yml`; no custom domain any more). Downloads and the
   in-app update check come from GitHub releases.
-- `main` = 9cef6fe, `dev` = 57e962c: PR #9 (`live-engine` → `dev`) and PR #10
-  (`dev` → `main`) merged. Version is **1.1.0** in the code, but **1.1.0 is
-  not released yet** (no tag). Latest release is still 1.0.6.
-- `deps-update` (from `dev`, pushed, no PR yet): Tauri update, `cn` package,
-  clean-up. Waiting for you to check the app locally (`yarn tauri dev`).
+- `dev` = 2125747 (PR #11 `deps-update` merged: Tauri 2.12, `cn`, npm /
+  ESLint 10, new Dashboard, README branch flow). `main` = 9cef6fe. Version is
+  **1.1.0** in the code, **not released yet**; latest release is 1.0.6.
+- **PR #12 `dev` → `main`** "Release 1.1.0" open
+  (https://github.com/efadhemon/wallflow/pull/12), CI running.
 - Live wallpapers work on GNOME (Ubuntu); Windows / macOS build, Live page
   says "coming soon".
 
 **Next session, in order**
 
-1. **PR #11 `deps-update` → `dev`** (https://github.com/efadhemon/wallflow/pull/11; checked by you in `yarn tauri dev`
-   2026-11-06, incl. the new Dashboard): CI on all three OSes (first build
-   of Tauri 2.12 / wry 0.57 on Windows / macOS), merge, then `dev` → `main`.
-2. **Release 1.1.0 (live wallpaper on Linux/GNOME):** rehearsal release
-   (draft) from `main`; test `.deb` (helper setup, logout, play) + AppImage
-   (FFmpeg banner) on Ubuntu and that Windows / macOS install and say "coming
-   soon"; measure installer sizes (Plan 2.7); then tag `v1.1.0`. This machine
-   runs the 1.0.6 `.deb`: install the 1.1.0 draft to get live wallpapers back.
+1. **PR #12 `dev` → `main`:** CI green on all three OSes → merge.
+2. **Release 1.1.0:** run the Release workflow by hand on `main` → draft
+   `Wallflow v1.1.0`. Test: `.deb` on Ubuntu (helper setup from the Live page,
+   log out / in, play), AppImage (FFmpeg banner without system FFmpeg),
+   Windows `setup.exe` and macOS `.dmg` install and say "coming soon"; note
+   installer sizes (Plan 2.7). Then delete the draft, tag `v1.1.0` on `main`
+   and push it (release goes public, website deploys). Optional: add release
+   notes (GNOME only; FFmpeg LGPL, source in `ffmpeg-n9.0.2-wf1`). This
+   machine runs the 1.0.6 `.deb`: install 1.1.0 to get live wallpapers back.
 3. **1.2.0 Windows** (Plan step 4, with 3.3), needs a Windows PC.
 4. **1.3.0 macOS** (Plan step 5), needs a Mac. Later: KDE / X11 / zero-copy.
 
@@ -65,6 +66,18 @@ every platform without slowing the desktop.
   (old player, kept as tag `archive/live-wall` → 14f72eb).
 
 ## Sessions
+
+### 2026-11-06 — PR #11 merged, release PR #12 (host EMON)
+
+- You merged PR #11 into `dev` (2125747). Its CI at 0b5a6b2 (all code): Linux,
+  Windows, macOS green — first Windows / macOS build of Tauri 2.12 / wry 0.57.
+  The re-run at afb7a27 (docs only) had macOS cancelled after 1 s; Linux and
+  Windows green.
+- PR #12 `dev` → `main` "Release 1.1.0: live wallpapers on GNOME, Tauri 2.12,
+  new Dashboard" opened, with the rehearsal / test / tag steps in it.
+- This log update goes through `release-1.1.0-notes` → `dev` (README flow).
+- Merged feature branches still on GitHub: `deps-update`, `live-engine`
+  (README step 6: delete them).
 
 ### 2026-11-06 — branch flow in README, PR #11 (host EMON)
 
