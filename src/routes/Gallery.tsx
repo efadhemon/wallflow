@@ -1,12 +1,17 @@
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { Download, ExternalLink, ImageIcon, LoaderCircle, Search } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Button, Card, EmptyState, Select } from "../components/ui";
 import { api, onDownloadProgress } from "../lib/api";
-import { composeQuery, CUSTOM_ID, MIN_RESOLUTIONS, ORIENTATIONS, PARENTS, parentById, SORTING } from "../lib/gallery";
+import { composeQuery, CUSTOM_ID, MIN_RESOLUTIONS, ORIENTATIONS, parentById, PARENTS, SORTING } from "../lib/gallery";
 import type { DownloadProgress, GalleryAtLeast, GalleryOrientation, GalleryPhoto, GallerySorting } from "../lib/types";
 import { cn, formatBytes } from "../lib/utils";
 import { useApp } from "../state/AppContext";
+
+const COL_MIN_WIDTH = 180;
+const GAP = 12;
+const ASPECT = 10 / 16; // height / width for 16:10 tiles
 
 const SEARCH_DEBOUNCE_MS = 400;
 const DOWNLOAD_TOAST = "gallery-download";
@@ -42,7 +47,8 @@ export function Gallery() {
   const [active, setActive] = useState<Map<string, ActiveJob>>(() => new Map());
   const [queued, setQueued] = useState<QueuedJob[]>([]);
   const requestId = useRef(0);
-  const sentinel = useRef<HTMLDivElement>(null);
+  const [gridNode, setGridNode] = useState<HTMLDivElement | null>(null);
+  const scrollParentRef = useRef<HTMLElement | null>(null);
   const activeRef = useRef(active);
   const queuedRef = useRef(queued);
   const batchRef = useRef({ added: 0, already: 0 });
@@ -181,8 +187,7 @@ export function Gallery() {
   }, [startDownload]);
 
   useEffect(() => {
-    let unlisten: (() => void) | undefined;
-    void onDownloadProgress(progress => {
+    const listening = onDownloadProgress(progress => {
       const current = activeRef.current;
       let found = false;
       const next = new Map(current);
@@ -196,24 +201,68 @@ export function Gallery() {
       activeRef.current = next;
       setActive(next);
       showBatchToast(next);
-    }).then(fn => {
-      unlisten = fn;
     });
-    return () => unlisten?.();
+    // Unsubscribes even when this unmounts before the listener is registered.
+    return () => void listening.then(unlisten => unlisten());
   }, [showBatchToast]);
 
-  useEffect(() => {
-    const node = sentinel.current;
-    if (!node || loading || loadingMore || page >= lastPage) return;
-
-    const observer = new IntersectionObserver(entries => {
-      if (entries.some(entry => entry.isIntersecting)) {
-        void fetchPage(page + 1, true);
-      }
-    });
-    observer.observe(node);
+  // --- Column measurement ---
+  const [columns, setColumns] = useState(4);
+  useLayoutEffect(() => {
+    if (!gridNode) return;
+    const measure = () => {
+      const width = gridNode.clientWidth;
+      setColumns(Math.max(1, Math.floor((width + GAP) / (COL_MIN_WIDTH + GAP))));
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(gridNode);
     return () => observer.disconnect();
-  }, [fetchPage, lastPage, loading, loadingMore, page, photos.length]);
+  }, [gridNode]);
+
+  // --- Resolve the scroll parent (<main>) once ---
+  useLayoutEffect(() => {
+    if (!gridNode) return;
+    let el: HTMLElement | null = gridNode.parentElement;
+    while (el) {
+      const overflow = getComputedStyle(el).overflowY;
+      if (overflow === "auto" || overflow === "scroll") {
+        scrollParentRef.current = el;
+        return;
+      }
+      el = el.parentElement;
+    }
+  }, [gridNode]);
+
+  // --- Row virtualizer ---
+  const rowCount = Math.ceil(photos.length / columns);
+  const colWidth = gridNode
+    ? (gridNode.clientWidth - (columns - 1) * GAP) / columns
+    : COL_MIN_WIDTH;
+  const estimatedRowHeight = colWidth * ASPECT + GAP;
+
+  const virtualizer = useVirtualizer({
+    count: rowCount,
+    getScrollElement: () => scrollParentRef.current,
+    estimateSize: () => estimatedRowHeight,
+    overscan: 3,
+  });
+
+  // --- Infinite scroll: fetch next page when the last virtual row is visible ---
+  const virtualItems = virtualizer.getVirtualItems();
+  const lastVirtualRow = virtualItems[virtualItems.length - 1];
+  useEffect(() => {
+    if (!lastVirtualRow) return;
+    if (lastVirtualRow?.index >= rowCount - 1 && !loading && !loadingMore && page < lastPage) {
+      void fetchPage(page + 1, true);
+    }
+  }, [lastVirtualRow, rowCount, loading, loadingMore, page, lastPage, fetchPage]);
+
+  // Re-measure when column count changes
+  useEffect(() => {
+    virtualizer.measure();
+  }, [columns, virtualizer]);
+
 
   const selectParent = (id: string) => {
     setParentId(id);
@@ -373,23 +422,50 @@ export function Gallery() {
           <p className="text-xs text-ink-muted">
             {total.toLocaleString()} wallpaper{total === 1 ? "" : "s"}
           </p>
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-3">
-            {photos.map(photo => (
-              <GalleryTile
-                key={photo.id}
-                photo={photo}
-                busy={active.has(photo.id)}
-                waiting={queued.some(job => job.photo.id === photo.id)}
-                progress={active.get(photo.id) ?? null}
-                onAdd={() => addPhoto(photo, false)}
-                onUse={() => addPhoto(photo, true)}
-                onOpen={() => void openUrl(photo.url)}
-              />
-            ))}
+          <div
+            ref={setGridNode}
+            style={{ height: virtualizer.getTotalSize(), position: "relative" }}
+          >
+            {virtualItems.map(virtualRow => {
+              const startIdx = virtualRow.index * columns;
+              const rowPhotos = photos.slice(startIdx, startIdx + columns);
+              return (
+                <div
+                  key={virtualRow.key}
+                  style={{
+                    position: "absolute",
+                    top: 0,
+                    left: 0,
+                    width: "100%",
+                    transform: `translateY(${virtualRow.start}px)`,
+                  }}
+                >
+                  <div
+                    className="grid gap-3"
+                    style={{ gridTemplateColumns: `repeat(${columns}, 1fr)` }}
+                  >
+                    {rowPhotos.map(photo => (
+                      <GalleryTile
+                        key={photo.id}
+                        photo={photo}
+                        busy={active.has(photo.id)}
+                        waiting={queued.some(job => job.photo.id === photo.id)}
+                        progress={active.get(photo.id) ?? null}
+                        onAdd={() => addPhoto(photo, false)}
+                        onUse={() => addPhoto(photo, true)}
+                        onOpen={() => void openUrl(photo.url)}
+                      />
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
           </div>
-          <div ref={sentinel} className="flex h-10 items-center justify-center">
-            {loadingMore && <LoaderCircle size={16} className="animate-spin text-ink-muted" />}
-          </div>
+          {loadingMore && (
+            <div className="flex h-10 items-center justify-center">
+              <LoaderCircle size={16} className="animate-spin text-ink-muted" />
+            </div>
+          )}
         </>
       )}
     </div>

@@ -56,7 +56,7 @@ export function About() {
           variant="ghost"
           aria-label="Open Wallflow website"
           title="Open Wallflow website"
-          onClick={() => void openUrl("https://wallflow.efadhemon.dev")}
+          onClick={() => void openUrl("https://efadhemon.github.io/wallflow/")}
         >
           <ExternalLink size={16} />
         </Button>

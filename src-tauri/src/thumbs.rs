@@ -55,9 +55,12 @@ pub fn prepare_for_wallpaper(
     }
 
     let image = image::open(source).with_context(|| format!("decoding {}", source.display()))?;
-    image
-        .save_with_format(&target, image::ImageFormat::Png)
-        .with_context(|| format!("writing {}", target.display()))?;
+    crate::config::write_atomic(&target, |temp| {
+        image
+            .save_with_format(temp, image::ImageFormat::Png)
+            .map_err(Into::into)
+    })
+    .with_context(|| format!("writing {}", target.display()))?;
 
     log::info!("converted {} to {}", source.display(), target.display());
     Ok(target)
@@ -73,14 +76,32 @@ pub fn thumbnail(cache_dir: &Path, source: &Path) -> Result<PathBuf> {
         return Ok(target);
     }
 
-    let image = image::open(source).with_context(|| format!("decoding {}", source.display()))?;
-    image
+    let preview = open_upright(source)
+        .with_context(|| format!("decoding {}", source.display()))?
         .thumbnail(THUMB_MAX_EDGE, THUMB_MAX_EDGE)
-        .to_rgb8()
-        .save_with_format(&target, image::ImageFormat::Jpeg)
-        .with_context(|| format!("writing {}", target.display()))?;
+        .to_rgb8();
+    crate::config::write_atomic(&target, |temp| {
+        preview
+            .save_with_format(temp, image::ImageFormat::Jpeg)
+            .map_err(Into::into)
+    })
+    .with_context(|| format!("writing {}", target.display()))?;
 
     Ok(target)
+}
+
+/// Decodes an image and turns it the way its EXIF orientation says, so photos
+/// straight off a phone are not shown on their side.
+fn open_upright(source: &Path) -> Result<image::DynamicImage> {
+    use image::ImageDecoder;
+
+    let mut decoder = image::ImageReader::open(source)?
+        .with_guessed_format()?
+        .into_decoder()?;
+    let orientation = decoder.orientation()?;
+    let mut image = image::DynamicImage::from_decoder(decoder)?;
+    image.apply_orientation(orientation);
+    Ok(image)
 }
 
 /// Drops cache entries whose source image is gone or has been edited, so removing a
@@ -102,7 +123,8 @@ pub fn prune(cache_dir: &Path, keep: &[PathBuf]) {
                 .file_stem()
                 .and_then(|s| s.to_str())
                 .unwrap_or_default();
-            if path.is_file() && !live.contains(stem) {
+            // Dot files are writes still in flight.
+            if path.is_file() && !stem.starts_with('.') && !live.contains(stem) {
                 let _ = fs::remove_file(path);
             }
         }

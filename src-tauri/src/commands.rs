@@ -64,35 +64,54 @@ pub fn get_config(state: State<'_, Arc<AppState>>) -> Config {
     state.config()
 }
 
-/// Persists the whole settings object, then tells the scheduler to rebuild.
+/// Persists the whole settings object, then tells the scheduler only what it
+/// needs to redo: a full rebuild for playlist settings, a re-apply for how the
+/// image is drawn, or just a new countdown for the interval.
 #[tauri::command]
-pub fn set_config(
+pub async fn set_config(
     app: AppHandle,
     state: State<'_, Arc<AppState>>,
     mut config: Config,
 ) -> Reply<Config> {
     config.sanitize();
-    config.save(&state.config_dir).map_err(fail)?;
 
-    let folders_changed = {
+    let (folders_changed, playlist_changed, look_changed, interval_changed, autostart_changed) = {
         let mut inner = state.inner.lock().expect("state poisoned");
-        let changed = inner.config.folders != config.folders;
+        // Saved under the lock so two quick changes are written in the order they win.
+        config.save(&state.config_dir).map_err(fail)?;
+        let old = &inner.config;
+        let folders_changed = old.folders != config.folders;
+        let changes = (
+            folders_changed,
+            folders_changed || old.order != config.order || old.excluded != config.excluded,
+            old.fill_mode != config.fill_mode || old.per_monitor != config.per_monitor,
+            old.interval_seconds != config.interval_seconds,
+            old.autostart != config.autostart,
+        );
         inner.config = config.clone();
-        changed
+        changes
     };
 
-    apply_autostart(&app, config.autostart);
+    if autostart_changed {
+        apply_autostart(&app, config.autostart);
+    }
     if folders_changed {
         watcher::rewatch(&state);
     }
-    state.send(Command::Reload);
+    if playlist_changed {
+        state.send(Command::Reload);
+    } else if interval_changed {
+        state.send(Command::Rearm);
+    }
+    if look_changed {
+        state.send(Command::ApplyCurrent);
+    }
 
     Ok(config)
 }
 
 #[tauri::command]
-pub fn add_folder(
-    app: AppHandle,
+pub async fn add_folder(
     state: State<'_, Arc<AppState>>,
     path: PathBuf,
     recursive: bool,
@@ -101,54 +120,35 @@ pub fn add_folder(
         return Err(format!("{} is not a folder", path.display()));
     }
 
-    let config = {
-        let mut inner = state.inner.lock().expect("state poisoned");
-        if inner
-            .config
-            .folders
-            .iter()
-            .any(|folder| folder.path == path)
-        {
+    update_folders(&state, |folders| {
+        if folders.iter().any(|folder| folder.path == path) {
             return Err("That folder is already in the list.".to_string());
         }
-        inner.config.folders.push(Folder { path, recursive });
-        inner.config.clone()
-    };
-
-    persist_and_reload(&app, &state, config)
+        folders.push(Folder { path, recursive });
+        Ok(())
+    })
 }
 
 #[tauri::command]
-pub fn remove_folder(
-    app: AppHandle,
-    state: State<'_, Arc<AppState>>,
-    path: PathBuf,
-) -> Reply<Config> {
-    let config = {
-        let mut inner = state.inner.lock().expect("state poisoned");
-        inner.config.folders.retain(|folder| folder.path != path);
-        inner.config.clone()
-    };
-
-    persist_and_reload(&app, &state, config)
+pub async fn remove_folder(state: State<'_, Arc<AppState>>, path: PathBuf) -> Reply<Config> {
+    update_folders(&state, |folders| {
+        folders.retain(|folder| folder.path != path);
+        Ok(())
+    })
 }
 
 #[tauri::command]
-pub fn set_folder_recursive(
-    app: AppHandle,
+pub async fn set_folder_recursive(
     state: State<'_, Arc<AppState>>,
     path: PathBuf,
     recursive: bool,
 ) -> Reply<Config> {
-    let config = {
-        let mut inner = state.inner.lock().expect("state poisoned");
-        if let Some(folder) = inner.config.folders.iter_mut().find(|f| f.path == path) {
+    update_folders(&state, |folders| {
+        if let Some(folder) = folders.iter_mut().find(|f| f.path == path) {
             folder.recursive = recursive;
         }
-        inner.config.clone()
-    };
-
-    persist_and_reload(&app, &state, config)
+        Ok(())
+    })
 }
 
 #[tauri::command]
@@ -197,7 +197,7 @@ pub async fn add_images(state: State<'_, Arc<AppState>>, paths: Vec<PathBuf>) ->
     let added = tokio::task::spawn_blocking(move || copy_images(&images_dir, &paths))
         .await
         .map_err(fail)??;
-    state.send(Command::Reload);
+    state.send(Command::Refresh);
     Ok(added)
 }
 
@@ -212,16 +212,15 @@ pub fn remove_image(state: State<'_, Arc<AppState>>, path: PathBuf) -> Reply<()>
 
     std::fs::remove_file(&canonical).map_err(fail)?;
 
-    let config = {
+    {
         let mut inner = state.inner.lock().expect("state poisoned");
         inner
             .config
             .excluded
             .retain(|entry| entry != &path && entry != &canonical);
-        inner.config.clone()
-    };
-    config.save(&state.config_dir).map_err(fail)?;
-    state.send(Command::Reload);
+        inner.config.save(&state.config_dir).map_err(fail)?;
+    }
+    state.send(Command::Refresh);
     Ok(())
 }
 
@@ -272,7 +271,7 @@ pub fn toggle_pause(state: State<'_, Arc<AppState>>) {
 
 #[tauri::command]
 pub fn toggle_exclude(state: State<'_, Arc<AppState>>, path: PathBuf) -> Reply<bool> {
-    let (excluded, config) = {
+    let excluded = {
         let mut inner = state.inner.lock().expect("state poisoned");
         let excluded = if let Some(index) = inner
             .config
@@ -286,11 +285,12 @@ pub fn toggle_exclude(state: State<'_, Arc<AppState>>, path: PathBuf) -> Reply<b
             inner.config.excluded.push(path);
             true
         };
-        (excluded, inner.config.clone())
+        inner.config.save(&state.config_dir).map_err(fail)?;
+        excluded
     };
 
-    config.save(&state.config_dir).map_err(fail)?;
-    state.send(Command::Reload);
+    // Not a full reload: the shuffle pass and the countdown carry on.
+    state.send(Command::Refresh);
     Ok(excluded)
 }
 
@@ -326,8 +326,8 @@ pub fn read_logs(state: State<'_, Arc<AppState>>) -> Reply<String> {
     Ok(lines[start..].join("\n"))
 }
 
-/// Fetches a remote version.json (or GitHub-style release) outside the webview so
-/// CSP / CORS never block the update check.
+/// Fetches the latest GitHub release (or a `{"version": …}` file) outside the
+/// webview so CSP / CORS never block the update check.
 #[tauri::command]
 pub async fn fetch_latest_version(url: String) -> Reply<Option<String>> {
     let parsed = reqwest::Url::parse(&url).map_err(fail)?;
@@ -338,6 +338,11 @@ pub async fn fetch_latest_version(url: String) -> Reply<Option<String>> {
     let response = reqwest::Client::new()
         .get(parsed)
         .header(reqwest::header::ACCEPT, "application/json")
+        // GitHub's API rejects requests without one.
+        .header(
+            reqwest::header::USER_AGENT,
+            concat!("Wallflow/", env!("CARGO_PKG_VERSION")),
+        )
         .timeout(std::time::Duration::from_secs(8))
         .send()
         .await
@@ -394,20 +399,29 @@ pub async fn add_remote_image(
     })
     .await
     .map_err(fail)?;
-    state.send(Command::Reload);
+    state.send(Command::Refresh);
     Ok(AddRemoteResult {
         added: saved.added,
         path: saved.path,
     })
 }
 
-fn persist_and_reload(
-    app: &AppHandle,
+/// Applies a change to the folder list, saves it and rescans. The change and the
+/// save happen under one lock so concurrent edits cannot overwrite each other.
+fn update_folders(
     state: &State<'_, Arc<AppState>>,
-    config: Config,
+    change: impl FnOnce(&mut Vec<Folder>) -> Reply<()>,
 ) -> Reply<Config> {
-    config.save(&state.config_dir).map_err(fail)?;
-    apply_autostart(app, config.autostart);
+    let config = {
+        let mut inner = state.inner.lock().expect("state poisoned");
+        let mut config = inner.config.clone();
+        change(&mut config.folders)?;
+        config.sanitize();
+        config.save(&state.config_dir).map_err(fail)?;
+        inner.config = config.clone();
+        config
+    };
+
     watcher::rewatch(state);
     state.send(Command::Reload);
     Ok(config)
@@ -483,7 +497,10 @@ fn save_image_bytes(images_dir: &Path, bytes: &[u8]) -> Reply<SavedImage> {
             added: false,
         });
     }
-    std::fs::write(&dest, bytes).map_err(|err| format!("could not save the image: {err}"))?;
+    config::write_atomic(&dest, |temp| {
+        std::fs::write(temp, bytes).map_err(Into::into)
+    })
+    .map_err(|err| format!("could not save the image: {err:#}"))?;
     Ok(SavedImage {
         path: dest,
         added: true,

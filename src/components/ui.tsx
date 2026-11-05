@@ -1,5 +1,5 @@
 import { ChevronDown, ChevronUp } from "lucide-react";
-import type { ButtonHTMLAttributes, ReactNode, SelectHTMLAttributes } from "react";
+import { useState, type ButtonHTMLAttributes, type ReactNode, type SelectHTMLAttributes } from "react";
 import { cn } from "../lib/utils";
 
 type ButtonVariant = "primary" | "secondary" | "ghost" | "danger";
@@ -144,6 +144,16 @@ export function NumberInput({
   label: string;
 }) {
   const clamp = (next: number) => Math.min(max, Math.max(min, next));
+  // While typing, the text is kept as-is and only committed on blur or Enter;
+  // clamping every keystroke would turn "15" into "10" and then "105".
+  const [draft, setDraft] = useState<string | null>(null);
+
+  const commit = () => {
+    if (draft == null) return;
+    const parsed = Number.parseInt(draft, 10);
+    setDraft(null);
+    if (!Number.isNaN(parsed) && clamp(parsed) !== value) onChange(clamp(parsed));
+  };
 
   return (
     <div className="focus-ring-within flex h-9.5 w-24 items-stretch overflow-hidden rounded-lg border border-line bg-surface">
@@ -151,12 +161,14 @@ export function NumberInput({
         id={id}
         type="number"
         aria-label={label}
-        value={value}
+        value={draft ?? value}
         min={min}
         max={max}
-        onChange={event => {
-          const parsed = Number.parseInt(event.target.value, 10);
-          if (!Number.isNaN(parsed)) onChange(clamp(parsed));
+        onChange={event => setDraft(event.target.value)}
+        onBlur={commit}
+        onKeyDown={event => {
+          if (event.key === "Enter") commit();
+          if (event.key === "Escape") setDraft(null);
         }}
         className="w-full min-w-0 bg-transparent px-3 text-sm text-ink outline-none"
       />
