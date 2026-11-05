@@ -65,6 +65,18 @@ every platform without slowing the desktop.
 
 ## Sessions
 
+### 2026-11-05 — gallery preview "Could not load the full image" fixed (host EMON)
+
+- Cause: `index.html` has its own CSP `<meta>`, enforced together with the
+  CSP from `tauri.conf.json`. The preview (9d7fa5a) added `w.wallhaven.cc` to
+  `tauri.conf.json` only, so the meta still refused every full image (only
+  `th.wallhaven.cc` thumbnails were allowed). Added `w.wallhaven.cc` to the
+  meta's `img-src`. Only on `live-engine` (`main`/`dev` have no preview yet).
+- Checked in the real dev app through WebKit's remote inspector: before, the
+  console said "Refused to load https://w.wallhaven.cc/full/… img-src"; after,
+  the full image loads (200, no CSP error).
+- When changing the CSP: change **both** `index.html` and `tauri.conf.json`.
+
 ### 2026-11-05 — PR #8 merged, branches cleaned up (host EMON)
 
 - You merged PR #8; CI and the Website deploy on `main` passed (runs
