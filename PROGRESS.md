@@ -8,27 +8,25 @@ Hand-off log between machines. Read this after `git pull`, before changing anyth
 - Repository is **public**. Website: **https://efadhemon.github.io/wallflow/**
   (GitHub Pages, `pages.yml`; no custom domain any more). Downloads and the
   in-app update check come from GitHub releases.
-- `main` = `dev` = 56c878c (PR #8 merged: Pages move, app fixes from
-  `review-fixes`, `dev`'s gallery/titlebar work, version **1.0.6**).
-  **1.0.6 released** (tag `v1.0.6` → 56c878c, Latest), website shows 1.0.6.
-- `live-engine` = `main` + the live wallpaper work (35 commits ahead):
-  Rust engine `engine/`, GNOME shim, Live page, `direct` backend, bundled
-  LGPL FFmpeg for Windows / macOS (`ffmpeg-n9.0.2-wf1` pre-release). Works on
-  GNOME (Ubuntu), checked by you in the real app and from the installed `.deb`.
-  Windows / macOS: builds and CI green, Live page says "coming soon".
-- CI is green on all three OSes for `main` and `live-engine`.
+- `main` = 9cef6fe, `dev` = 57e962c: PR #9 (`live-engine` → `dev`) and PR #10
+  (`dev` → `main`) merged. Version is **1.1.0** in the code, but **1.1.0 is
+  not released yet** (no tag). Latest release is still 1.0.6.
+- `deps-update` (from `dev`, pushed, no PR yet): Tauri update, `cn` package,
+  clean-up. Waiting for you to check the app locally (`yarn tauri dev`).
+- Live wallpapers work on GNOME (Ubuntu); Windows / macOS build, Live page
+  says "coming soon".
 
 **Next session, in order**
-1. **1.1.0 (live wallpaper on Linux/GNOME):** version bumped (326bb86), PR #9
-   `live-engine` → `dev` open (https://github.com/efadhemon/wallflow/pull/9).
-   Next: CI green → merge #9; rehearsal release (draft) from `dev` or `main`;
-   test `.deb` (helper setup, logout, play) + AppImage (FFmpeg banner) on
-   Ubuntu and that Windows / macOS install and say "coming soon"; measure
-   installer sizes (Plan 2.7); then PR `dev` → `main`, tag `v1.1.0`. This
-   machine runs the 1.0.6 `.deb` (you installed it): install the 1.1.0 draft
-   to get live wallpapers back.
-2. **1.2.0 Windows** (Plan step 4, with 3.3), needs a Windows PC.
-3. **1.3.0 macOS** (Plan step 5), needs a Mac. Later: KDE / X11 / zero-copy.
+1. **Check `deps-update` locally** (`yarn tauri dev`: wallpapers, gallery,
+   library, live page, tray, autostart, dialogs, update banner). If good: PR
+   `deps-update` → `dev`, merge, then `dev` → `main`.
+2. **Release 1.1.0 (live wallpaper on Linux/GNOME):** rehearsal release
+   (draft) from `main`; test `.deb` (helper setup, logout, play) + AppImage
+   (FFmpeg banner) on Ubuntu and that Windows / macOS install and say "coming
+   soon"; measure installer sizes (Plan 2.7); then tag `v1.1.0`. This machine
+   runs the 1.0.6 `.deb`: install the 1.1.0 draft to get live wallpapers back.
+3. **1.2.0 Windows** (Plan step 4, with 3.3), needs a Windows PC.
+4. **1.3.0 macOS** (Plan step 5), needs a Mac. Later: KDE / X11 / zero-copy.
 
 **Branch flow:** feature branch → PR into `dev` → PR `dev` → `main` → tag
 `vX.Y.Z` on `main` releases. Keep only `main`, `dev` and active feature
@@ -50,18 +48,45 @@ every platform without slowing the desktop.
 | 6   | Integrate into the app: bundle engine as Tauri sidecar, Live page, prepare progress UI, start/stop through the shim | **done** (GNOME), checked by you in the real app |
 | 7   | Shims for other desktops: Windows (WorkerW), macOS (desktop-level NSWindow), KDE/wlroots (wlr-layer-shell), X11     | planned                                           |
 | 8   | Zero-copy decode → texture (DMA-BUF / D3D11 / IOSurface)                                                            | planned                                           |
-| 9   | Merge `live-engine` → `dev` → `main`, release                                                                       | planned                                           |
+| 9   | Merge `live-engine` → `dev` → `main`, release                                                                       | merged; **release 1.1.0 next**                    |
 
 ## Branches
 
 - `main` — released code; tags `vX.Y.Z` release from here.
 - `dev` — integration; feature branches merge here first, then `dev` → `main`.
-- `live-engine` — the live wallpaper engine (feature branch), up to date with
-  `main`, 35 commits ahead. Goes to `dev` for 1.1.0.
+- `live-engine` — the live wallpaper engine, merged into `dev` / `main`
+  (PR #9, #10). Can be deleted.
+- `deps-update` — Tauri update + `cn`, goes to `dev` before the 1.1.0 release.
 - Deleted 2026-11-05: `review-fixes`, `github-pages` (both merged), `live-wall`
   (old player, kept as tag `archive/live-wall` → 14f72eb).
 
 ## Sessions
+
+### 2026-11-05 — Tauri update, `cn` package, clean-up (host EMON)
+
+- Branch `deps-update` from `dev`. Local clean-up first: deleted local
+  `live-wall`, `review-fixes` (gone on GitHub); `main`, `dev` fast-forwarded.
+- **Tauri updated** (only Tauri and its plugins, other packages left as they
+  are): JS `@tauri-apps/api` 2.12.4, `cli` 2.12.4, `plugin-autostart` 2.7.0,
+  `plugin-dialog` 2.8.4, `plugin-log` 2.10.1, `plugin-opener` 2.7.2. Rust
+  `tauri` 2.12.5, `tauri-build` 2.7.4, same plugin versions as JS,
+  `single-instance` 2.5.5 (wry 0.57.1). `tauri info` shows JS and Rust match.
+  `tauri-plugin-aptabase` git tag 1.2.0 → 1.3.0 (system proxy fix; new crash
+  reporting is opt-in and not turned on).
+- **`cn` package** (shadcn, replaces `clsx` + `tailwind-merge`): components
+  import `cn` from `"cn"`; our own `cn()` in `src/lib/utils.ts` removed.
+  Checked: all 276 class strings in `src/`, 76,176 pairs, give the same result
+  as `twMerge(clsx(...))`.
+- **Removed:** `esbuild` (not used, Vite 8 does not need it), `clsx`,
+  `tailwind-merge`, `.env.example` (only listed variables the Tauri CLI sets;
+  Vite does not load `.env` into `vite.config.ts`). `tsconfig.node.json` was
+  never checked: `yarn build` now type-checks `vite.config.ts` with it.
+- Checked: `yarn build`, eslint, `yarn install --frozen-lockfile`, `cargo fmt`,
+  clippy `-D warnings`, 32 app tests. Not checked: the running app (your
+  check), CI on Windows / macOS.
+- Known, not from this change: Vite warns about top-level await in
+  `src/main.tsx` (dev-only browser mock); Prettier flags 5 untouched files.
+- Your local `.env` (untracked) only has unused variables; you can delete it.
 
 ### 2026-11-05 — 1.1.0 bumped, PR #9 into `dev` (host EMON)
 
