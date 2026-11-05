@@ -3,12 +3,13 @@
 // source of truth: the "version" field in package.json.
 //
 // Usage:
-//   node scripts/sync-version.mjs            # rewrite Cargo.toml + Cargo.lock + website
+//   node scripts/sync-version.mjs            # rewrite Cargo.toml + Cargo.lock
 //   node scripts/sync-version.mjs --check    # exit non-zero if Cargo.toml/lock drifts
 //   node scripts/sync-version.mjs --website --version X.Y.Z
 //       only rewrite the website, for version X.Y.Z: the Pages deploy passes the
 //       latest published release, so download links never point at a release
-//       that is still being built.
+//       that is still being built. The website is not synced locally for the
+//       same reason: the deploy always writes the released version.
 
 import { readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -103,7 +104,6 @@ if (websiteOnly) {
 } else {
   syncCargo();
   syncCargoLock();
-  if (!checkOnly) syncWebsite();
 }
 
 if (checkOnly && drift) {

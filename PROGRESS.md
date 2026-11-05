@@ -5,34 +5,36 @@ Hand-off log between machines. Read this after `git pull`, before changing anyth
 ## Summary — start here (2026-11-05)
 
 **Where things are**
+
 - Repository is **public**. Website: **https://efadhemon.github.io/wallflow/**
   (GitHub Pages, `pages.yml`; no custom domain any more). Downloads and the
   in-app update check come from GitHub releases.
-- `main` = `dev` = 56c878c (PR #8 merged: Pages move, app fixes from
-  `review-fixes`, `dev`'s gallery/titlebar work, version **1.0.6**).
-  **1.0.6 released** (tag `v1.0.6` → 56c878c, Latest), website shows 1.0.6.
-- `live-engine` = `main` + the live wallpaper work (35 commits ahead):
-  Rust engine `engine/`, GNOME shim, Live page, `direct` backend, bundled
-  LGPL FFmpeg for Windows / macOS (`ffmpeg-n9.0.2-wf1` pre-release). Works on
-  GNOME (Ubuntu), checked by you in the real app and from the installed `.deb`.
-  Windows / macOS: builds and CI green, Live page says "coming soon".
-- CI is green on all three OSes for `main` and `live-engine`.
+- `main` = 9cef6fe, `dev` = 57e962c: PR #9 (`live-engine` → `dev`) and PR #10
+  (`dev` → `main`) merged. Version is **1.1.0** in the code, but **1.1.0 is
+  not released yet** (no tag). Latest release is still 1.0.6.
+- `deps-update` (from `dev`, pushed, no PR yet): Tauri update, `cn` package,
+  clean-up. Waiting for you to check the app locally (`yarn tauri dev`).
+- Live wallpapers work on GNOME (Ubuntu); Windows / macOS build, Live page
+  says "coming soon".
 
 **Next session, in order**
-1. **1.1.0 (live wallpaper on Linux/GNOME):** version bumped (326bb86), PR #9
-   `live-engine` → `dev` open (https://github.com/efadhemon/wallflow/pull/9).
-   Next: CI green → merge #9; rehearsal release (draft) from `dev` or `main`;
-   test `.deb` (helper setup, logout, play) + AppImage (FFmpeg banner) on
-   Ubuntu and that Windows / macOS install and say "coming soon"; measure
-   installer sizes (Plan 2.7); then PR `dev` → `main`, tag `v1.1.0`. This
-   machine runs the 1.0.6 `.deb` (you installed it): install the 1.1.0 draft
-   to get live wallpapers back.
-2. **1.2.0 Windows** (Plan step 4, with 3.3), needs a Windows PC.
-3. **1.3.0 macOS** (Plan step 5), needs a Mac. Later: KDE / X11 / zero-copy.
 
-**Branch flow:** feature branch → PR into `dev` → PR `dev` → `main` → tag
-`vX.Y.Z` on `main` releases. Keep only `main`, `dev` and active feature
-branches. The old `live-wall` player is kept as tag `archive/live-wall`.
+1. **PR #11 `deps-update` → `dev`** (https://github.com/efadhemon/wallflow/pull/11; checked by you in `yarn tauri dev`
+   2026-11-06, incl. the new Dashboard): CI on all three OSes (first build
+   of Tauri 2.12 / wry 0.57 on Windows / macOS), merge, then `dev` → `main`.
+2. **Release 1.1.0 (live wallpaper on Linux/GNOME):** rehearsal release
+   (draft) from `main`; test `.deb` (helper setup, logout, play) + AppImage
+   (FFmpeg banner) on Ubuntu and that Windows / macOS install and say "coming
+   soon"; measure installer sizes (Plan 2.7); then tag `v1.1.0`. This machine
+   runs the 1.0.6 `.deb`: install the 1.1.0 draft to get live wallpapers back.
+3. **1.2.0 Windows** (Plan step 4, with 3.3), needs a Windows PC.
+4. **1.3.0 macOS** (Plan step 5), needs a Mac. Later: KDE / X11 / zero-copy.
+
+**Branch flow (rule for every PR, written in README "Branches and pull
+requests"):** feature branch from `dev` → PR into `dev` → PR `dev` → `main` →
+tag `vX.Y.Z` on `main` releases. Only `dev` → `main` PRs target `main`. Keep
+only `main`, `dev` and active feature branches. The old `live-wall` player is
+kept as tag `archive/live-wall`.
 
 ## Roadmap
 
@@ -40,28 +42,130 @@ Goal: replace the old per-platform live wallpaper (`live-wall` branch: GStreamer
 inside gnome-shell, GDI on Windows) with one Rust engine that plays smoothly on
 every platform without slowing the desktop.
 
-| #   | Step                                                                                                                | Status                                            |
-| --- | ------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------- |
-| 1   | Review and fix the non-live app (scheduler, config sync, file writes, UI bugs)                                      | **done**, in `main` (1.0.6)                       |
-| 2   | Engine core: ffmpeg decode → wgpu NV12 render, frame pacing, stdin control                                          | **done** — `engine/`                              |
-| 3   | GNOME shim extension: desktop window above background, pause when hidden                                            | **done**, verified headless + real session        |
-| 4   | Multi-monitor (one window per monitor, decoded once)                                                                | **done**, verified headless (2 monitors)          |
-| 5   | `prepare` import step (downscale, ≤30 fps, poster)                                                                  | **done**                                          |
+| #   | Step                                                                                                                | Status                                           |
+| --- | ------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------ |
+| 1   | Review and fix the non-live app (scheduler, config sync, file writes, UI bugs)                                      | **done**, in `main` (1.0.6)                      |
+| 2   | Engine core: ffmpeg decode → wgpu NV12 render, frame pacing, stdin control                                          | **done** — `engine/`                             |
+| 3   | GNOME shim extension: desktop window above background, pause when hidden                                            | **done**, verified headless + real session       |
+| 4   | Multi-monitor (one window per monitor, decoded once)                                                                | **done**, verified headless (2 monitors)         |
+| 5   | `prepare` import step (downscale, ≤30 fps, poster)                                                                  | **done**                                         |
 | 6   | Integrate into the app: bundle engine as Tauri sidecar, Live page, prepare progress UI, start/stop through the shim | **done** (GNOME), checked by you in the real app |
-| 7   | Shims for other desktops: Windows (WorkerW), macOS (desktop-level NSWindow), KDE/wlroots (wlr-layer-shell), X11     | planned                                           |
-| 8   | Zero-copy decode → texture (DMA-BUF / D3D11 / IOSurface)                                                            | planned                                           |
-| 9   | Merge `live-engine` → `dev` → `main`, release                                                                       | planned                                           |
+| 7   | Shims for other desktops: Windows (WorkerW), macOS (desktop-level NSWindow), KDE/wlroots (wlr-layer-shell), X11     | planned                                          |
+| 8   | Zero-copy decode → texture (DMA-BUF / D3D11 / IOSurface)                                                            | planned                                          |
+| 9   | Merge `live-engine` → `dev` → `main`, release                                                                       | merged; **release 1.1.0 next**                   |
 
 ## Branches
 
 - `main` — released code; tags `vX.Y.Z` release from here.
 - `dev` — integration; feature branches merge here first, then `dev` → `main`.
-- `live-engine` — the live wallpaper engine (feature branch), up to date with
-  `main`, 35 commits ahead. Goes to `dev` for 1.1.0.
+- `live-engine` — the live wallpaper engine, merged into `dev` / `main`
+  (PR #9, #10). Can be deleted.
+- `deps-update` — Tauri update + `cn`, goes to `dev` before the 1.1.0 release.
 - Deleted 2026-11-05: `review-fixes`, `github-pages` (both merged), `live-wall`
   (old player, kept as tag `archive/live-wall` → 14f72eb).
 
 ## Sessions
+
+### 2026-11-06 — branch flow in README, PR #11 (host EMON)
+
+- PR #11 `deps-update` opened (first against `main`, then moved to `dev` to
+  follow the flow; description updated). CI starting.
+- README: new section "Branches and pull requests": feature branch from `dev`,
+  PR into `dev` (never `main`), CI green on all three OSes, `dev` → `main` is
+  the only PR into `main`, tag `vX.Y.Z` on `main`, delete merged branches.
+  You asked that every PR follows it.
+
+### 2026-11-06 — website: new Dashboard screenshot (host EMON)
+
+- `website/assets/screenshots/dashboard.png` replaced with the new Dashboard
+  (image rotation + live wallpaper picks + stats), 1200×860, no OS window
+  frame, dark theme. Taken with headless Chrome from `yarn dev` (browser
+  mock) filled with your real images: `~/Pictures/wallpapers` (astronaut
+  sunset) and three of your live video posters. No personal photos.
+- `website/index.html`: step 5 text describes the combined Dashboard (live
+  wallpapers in one click, Back to images); `alt`, `width`/`height` and
+  `og:image:width`/`height` set to 1200×860.
+- Checked in the browser pane: desktop and 375 px phone width, no horizontal
+  scroll. The live Pages site changes once this reaches `main`.
+
+### 2026-11-06 — Dashboard: one view for images and live (host EMON)
+
+- On `deps-update`. `src/routes/Dashboard.tsx` redesigned: the big card always
+  shows what is on the desktop now, same shape for both modes.
+  - Image rotation: "Image rotation" badge, position, countdown, Previous /
+    Pause / Next; below it "Live wallpapers" with 3 posters to play in one
+    click ("All N" → Live page), or one line for setup / no FFmpeg / no
+    videos; hidden where live is unsupported (Windows / macOS).
+  - Live: poster, "Live wallpaper" badge, name and specs, Playing / Paused
+    while covered / Starting (polled every 3 s), Change → Live page, Back to
+    images (`liveStop`); below it "Image rotation is on hold" with the image
+    that comes back. A live video with an empty image library now shows the
+    video (it used to show only "No wallpapers yet").
+  - Stats row gets a "Live wallpapers" count.
+- `describeVideo` moved from `Live.tsx` to `src/lib/utils.ts` (both use it).
+- Poster, not a playing `<video>`: CSP has no `media-src` and the asset scope
+  is the cache dir only; a moving preview would need both changed.
+- Checked in the browser mock (all states, dark + light), build, lint,
+  Prettier; you checked it in the real app.
+
+### 2026-11-06 — version scripts, Prettier (host EMON)
+
+- On `deps-update`. `scripts/sync-version.mjs`: the default run
+  (`yarn version:sync`, `version:patch|minor|major`) now writes only
+  `Cargo.toml` / `Cargo.lock`, not `website/index.html`; the Pages deploy
+  writes the released version with `--website --version` (unchanged).
+  `bump-version.js` → `bump-version.mjs`. Tested in a scratch copy: bump,
+  sync, `--check`, `--website`, bad usage.
+- You ran Prettier on the whole repo: `yarn prettier` is now clean.
+- `vite.config.ts` `build` block (`target` safari13 / chrome105, `minify`,
+  `sourcemap`) and `envPrefix` are needed and stay: the Tauri CLI sets
+  `TAURI_ENV_PLATFORM` / `TAURI_ENV_DEBUG` itself when it runs `yarn dev` /
+  `yarn build`. `.env.example` only described them; nothing read it.
+
+### 2026-11-06 — other npm updates, ESLint 10 (host EMON)
+
+- On `deps-update`. Updated after checking peer dependencies: React /
+  react-dom 19.3.1 (+ `@types/react(-dom)` 19.3.0), lucide-react 1.69.0,
+  `@tanstack/react-virtual` 3.14.26 (still pinned exact), semver 7.8.6, Vite
+  8.3.6, `@vitejs/plugin-react` 6.2.1, Tailwind 4.3.4, Babel 8.1.0 /
+  eslint-parser 8.0.7, `@types/node` 26.6.6, globals 17.14.0, prettier 3.9.10,
+  eslint-plugin-react-refresh 0.5.7.
+- **ESLint 9 → 10** (`eslint` 10.14.0, `@eslint/js` 10.0.1): every plugin
+  supports 10 and the config was already flat config, so no config change. Lint
+  still covers all 31 files (checked with a probe file).
+- Fixed `src/components/icons.tsx`: `stroke-width` etc. → `strokeWidth`
+  (React warned "Invalid DOM property" on the About page).
+- Checked: `yarn build`, lint, frozen install, `cargo check`; every page in the
+  browser dev mock. Known, not from this change: the Gallery page crashes in
+  the browser mock only (`src/dev/browserMock.ts` has no `search_gallery`);
+  in the real app the call goes to Rust.
+
+### 2026-11-05 — Tauri update, `cn` package, clean-up (host EMON)
+
+- Branch `deps-update` from `dev`. Local clean-up first: deleted local
+  `live-wall`, `review-fixes` (gone on GitHub); `main`, `dev` fast-forwarded.
+- **Tauri updated** (only Tauri and its plugins, other packages left as they
+  are): JS `@tauri-apps/api` 2.12.4, `cli` 2.12.4, `plugin-autostart` 2.7.0,
+  `plugin-dialog` 2.8.4, `plugin-log` 2.10.1, `plugin-opener` 2.7.2. Rust
+  `tauri` 2.12.5, `tauri-build` 2.7.4, same plugin versions as JS,
+  `single-instance` 2.5.5 (wry 0.57.1). `tauri info` shows JS and Rust match.
+  `tauri-plugin-aptabase` git tag 1.2.0 → 1.3.0 (system proxy fix; new crash
+  reporting is opt-in and not turned on).
+- **`cn` package** (shadcn, replaces `clsx` + `tailwind-merge`): components
+  import `cn` from `"cn"`; our own `cn()` in `src/lib/utils.ts` removed.
+  Checked: all 276 class strings in `src/`, 76,176 pairs, give the same result
+  as `twMerge(clsx(...))`.
+- **Removed:** `esbuild` (not used, Vite 8 does not need it), `clsx`,
+  `tailwind-merge`, `.env.example` (only listed variables the Tauri CLI sets;
+  Vite does not load `.env` into `vite.config.ts`). `tsconfig.node.json` was
+  never checked: `yarn build` now type-checks `vite.config.ts` with it.
+- Checked: `yarn build`, eslint, `yarn install --frozen-lockfile`, `cargo fmt`,
+  clippy `-D warnings`, 32 app tests. Not checked: the running app (your
+  check), CI on Windows / macOS.
+- Known, not from this change: Vite warns about top-level await in
+  `src/main.tsx` (dev-only browser mock); Prettier flagged 5 untouched files
+  (fixed 2026-11-06).
+- Your local `.env` (untracked) only has unused variables; you can delete it.
 
 ### 2026-11-05 — 1.1.0 bumped, PR #9 into `dev` (host EMON)
 
@@ -393,6 +497,15 @@ every platform without slowing the desktop.
 - The shim reloads only at login on Wayland: after changing `engine/gnome-shim/`,
   log out and in (or use `engine/tests/gnome-headless/run.sh`).
 - `fetch_latest_version` CSP still lists `http://127.0.0.1:5500` (dev leftover?).
+- **Later: ESLint with `typescript-eslint` instead of Babel.** Now
+  `@babel/eslint-parser` (+ its peer `@babel/core`) parses TS/TSX in
+  `eslint.config.mjs`, only because `typescript-eslint` does not support
+  TypeScript 7 yet (8.72.1 needs `typescript <6.1.0`, we use 7.0.2). Babel has
+  no types, so `no-undef`, `no-unused-vars`, `no-redeclare` are off (`tsc`
+  `noUnusedLocals` / `noUnusedParameters` cover unused code). When
+  `typescript-eslint` supports TS 7 (check `npm view typescript-eslint
+peerDependencies`): add it, remove both Babel packages, turn on its
+  recommended (type-aware) rules.
 
 ## Next step
 
@@ -411,6 +524,7 @@ and refreshes the website. Apps up to 1.0.5 look for updates at
 update banner, so their users update by hand once.
 
 **1.0.6 — the public, low-risk release (from `main`)** — **released 2026-11-05** (tag `v1.0.6`), prepared in PR #8
+
 - Branch `github-pages`: Pages move, `dev` (titlebar, gallery virtualization)
   and `review-fixes` (4193a7a) merged in, version bumped (e06534c). No live
   wallpaper. Checked: tsc, eslint, `yarn build`, fmt, clippy, 25 tests.
@@ -418,6 +532,7 @@ update banner, so their users update by hand once.
   refresh, 1.0.6 asks GitHub for updates.
 
 **1.1.0 — live wallpapers on Linux (GNOME) (`live-engine`)**
+
 - Merge `main` into `live-engine` (workflow conflicts: keep the FFmpeg fetch
   steps from `live-engine`, the Pages / no-Vercel changes from `main`).
 - Rehearsal: manual release run → draft. Check on real machines: `.deb` on
@@ -441,6 +556,7 @@ libraries: two `externalBin` sidecars, nothing to place or sign separately;
 both binaries are entirely LGPL code, so static linking is fine for the license.
 
 ### Step 1 — Linux release (done: f306fc4, `.deb` installed and playing)
+
 - 1.1 Engine release profile (strip, LTO, 1 codegen unit; opt-level 3 because
   the render loop is hot; panic stays unwind so a decoder-thread panic does not
   kill playback). Measure the size.
@@ -449,6 +565,7 @@ both binaries are entirely LGPL code, so static linking is fine for the license.
   autostart + live wallpaper after login.
 
 ### Step 2 — FFmpeg bundle (done except 2.7: real installer sizes come with the first Windows / macOS build)
+
 - 2.1 `scripts/ffmpeg/build.sh <target>`: pinned FFmpeg 8.0.x source + sha256,
   `--disable-everything` then only what the engine uses:
   protocols `file,pipe`; demuxers `mov,matroska,avi,mpegts,image2`; muxers
@@ -475,6 +592,7 @@ both binaries are entirely LGPL code, so static linking is fine for the license.
 - 2.7 Measure the real `setup.exe` / `.dmg` sizes.
 
 ### Step 3 — W0, common groundwork (3.1 980dcc6, 3.2 82c6419, 3.4 4fca41d done; 3.3 moved into W1)
+
 - 3.1 `prepare` picks the encoder from `ffmpeg -encoders`: `libx264` (CRF 20)
   → `h264_mf` / `h264_videotoolbox` (bitrate ≈ 0.1 bit per pixel per frame,
   e.g. 1080p30 ≈ 6 Mbit/s) → error. Pure function, unit tested with recorded
@@ -492,6 +610,7 @@ both binaries are entirely LGPL code, so static linking is fine for the license.
   windows, not behind the desktop).
 
 ### Step 4 — W1, Windows
+
 - 4.1 Attach: send `0x052C` to `Progman`; find the `WorkerW` behind the icons
   (Windows 10 / 11 ≤ 23H2: sibling `WorkerW` after `SHELLDLL_DefView`; 11 24H2+:
   child of `Progman`); `SetParent` each monitor window; positions relative to
@@ -509,6 +628,7 @@ both binaries are entirely LGPL code, so static linking is fine for the license.
   Explorer restart, CPU idle when covered.
 
 ### Step 5 — W2, macOS
+
 - 5.1 Attach: one borderless `NSWindow` per `NSScreen` at
   `kCGDesktopWindowLevel`, `canJoinAllSpaces | stationary | ignoresCycle`,
   `ignoresMouseEvents`; engine activation policy `accessory` (no Dock icon).
@@ -523,6 +643,7 @@ both binaries are entirely LGPL code, so static linking is fine for the license.
   external monitor, sleep / lock, Stage Manager.
 
 ### Step 6 — the rest
+
 - 6.1 KDE Plasma / wlroots: `wlr-layer-shell` background layer (winit cannot,
   needs smithay-client-toolkit for that path).
 - 6.2 X11: `_NET_WM_WINDOW_TYPE_DESKTOP` window below the icons.

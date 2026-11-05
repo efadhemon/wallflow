@@ -1,6 +1,6 @@
+import { cn } from "cn";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { useState, type ButtonHTMLAttributes, type ReactNode, type SelectHTMLAttributes } from "react";
-import { cn } from "../lib/utils";
 
 type ButtonVariant = "primary" | "secondary" | "ghost" | "danger";
 type ButtonSize = "sm" | "md" | "lg" | "icon";

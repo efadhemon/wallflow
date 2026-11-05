@@ -1,6 +1,7 @@
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
+import { cn } from "cn";
 import {
   Check,
   Eye,
@@ -21,7 +22,6 @@ import { Thumbnail } from "../components/Thumbnail";
 import { Button, Card, Divider, EmptyState, SectionTitle, Switch } from "../components/ui";
 import { api } from "../lib/api";
 import type { FolderEntry, ImageEntry } from "../lib/types";
-import { cn } from "../lib/utils";
 import { useApp } from "../state/AppContext";
 
 /** Tiles rendered per chunk; more are appended as the grid is scrolled. */

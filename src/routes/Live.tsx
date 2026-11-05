@@ -1,30 +1,18 @@
 import { open } from "@tauri-apps/plugin-dialog";
+import { cn } from "cn";
 import { Clapperboard, Film, LoaderCircle, Pause, Play, Plus, Square, Trash2, TriangleAlert } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Thumbnail } from "../components/Thumbnail";
 import { Banner, Button, Card, EmptyState, SectionTitle } from "../components/ui";
 import { api, onLiveImport } from "../lib/api";
 import type { LiveImportProgress, LiveStatus, LiveVideo } from "../lib/types";
-import { cn } from "../lib/utils";
+import { describeVideo } from "../lib/utils";
 import { useApp } from "../state/AppContext";
 
 const VIDEO_EXTENSIONS = ["mp4", "mkv", "webm", "mov", "m4v", "avi"];
 
 /** How often the page re-reads the engine state (playing / paused by a covered desktop). */
 const STATUS_POLL_MS = 3000;
-
-/** 75 → "1:15". */
-function formatLength(seconds: number | null): string | null {
-  if (seconds == null || !Number.isFinite(seconds)) return null;
-  const total = Math.round(seconds);
-  return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, "0")}`;
-}
-
-function describe(video: LiveVideo): string {
-  return [`${video.width}×${video.height}`, `${Math.round(video.fps)} fps`, formatLength(video.duration)]
-    .filter(Boolean)
-    .join(" · ");
-}
 
 export function Live() {
   const { status, notify } = useApp();
@@ -135,7 +123,7 @@ export function Live() {
                 ) : live?.running ? (
                   <>
                     <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-500" />
-                    Playing · {describe(active)}
+                    Playing · {describeVideo(active)}
                   </>
                 ) : (
                   <>
@@ -266,7 +254,7 @@ function VideoTile({
 
       <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 to-transparent px-2.5 pt-8 pb-2">
         <p className="truncate text-xs font-medium text-white">{video.name}</p>
-        <p className="truncate text-[10px] text-white/70">{describe(video)}</p>
+        <p className="truncate text-[10px] text-white/70">{describeVideo(video)}</p>
       </div>
 
       {active ? (

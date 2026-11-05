@@ -1,7 +1,7 @@
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { cn } from "cn";
 import { Copy, Minus, Square, X } from "lucide-react";
 import { useEffect, useState, type MouseEvent, type ReactNode } from "react";
-import { cn } from "../lib/utils";
 
 /**
  * Client-side window chrome for Linux and Windows. GNOME paints CSD buttons over the webview,
