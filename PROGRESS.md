@@ -29,6 +29,25 @@ every platform without slowing the desktop.
 
 ## Sessions
 
+### 2026-11-05 — FFmpeg release published, sidecars wired in (host EMON)
+
+- FFmpeg workflow: `workflow_dispatch` needs the file on `main`, so it now also
+  runs on pushes that change the FFmpeg build (an existing release is skipped).
+  Run 41982694843: all three builds green, pre-release `ffmpeg-n9.0.2-wf1`.
+  Archives: Windows 7.7 MB, macOS arm64 5.6 MB, x86_64 6.6 MB (ffmpeg +
+  ffprobe, compressed). Windows exe imports only system DLLs (kernel32,
+  msvcrt, ole32, bcrypt, shell32, user32) and has `h264_mf`; macOS smoke test
+  found `h264_videotoolbox`.
+- The repository is **private**: release files 404 without a token.
+  `fetch-ffmpeg.mjs` now downloads through the API with `GH_TOKEN` /
+  `GITHUB_TOKEN` / `gh auth token`; CI and release pass `github.token`.
+- 2.4: `tauri.windows.conf.json` / `tauri.macos.conf.json` add `ffmpeg` and
+  `ffprobe` to `externalBin` and ship `licenses/FFmpeg-LICENSE.txt` +
+  `FFmpeg-BUILD.txt`; CI (macOS, Windows) and release fetch before building.
+- 2.6: About → "Third-party software": FFmpeg, LGPL, link to FFmpeg's own
+  source at the pinned commit (users cannot open the private release).
+- 3.4 `direct` backend (4fca41d), see the commit; 3.3 moved into W1.
+
 ### 2026-11-05 — plan for steps 1–6; release build; W0 and FFmpeg started (host EMON)
 
 - You chose to bundle FFmpeg. Full plan for steps 1–6 written (below, 1d479de).
@@ -197,6 +216,11 @@ every platform without slowing the desktop.
 
 ## Open / not verified
 
+- **LGPL source (your decision):** the app ships FFmpeg's license and exact
+  configure line and links to FFmpeg's public source at the pinned commit. The
+  safest reading of the LGPL wants the distributor to offer the source itself:
+  e.g. the FFmpeg source tarball next to the installers on the website, or make
+  the `ffmpeg-n9.0.2-wf1` release public. Not done yet.
 - FFmpeg on Windows / macOS: **decided, bundled** (Plan, step 2). Earlier size
   estimates: `setup.exe` ≈ 10–15 MB, `.dmg` ≈ 13–18 MB; measure in 2.7.
 - Real session, visually checked by you: desktop playback, colours, fill, no
@@ -221,12 +245,13 @@ every platform without slowing the desktop.
 
 ## Next step
 
-1. **You approve, then run** the FFmpeg workflow (creates a pre-release in the
-   repo): `gh workflow run ffmpeg.yml --ref live-engine`. Then copy the
-   release's `SHA256SUMS` into `scripts/ffmpeg/SHA256SUMS` and do 2.4
-   (externalBin + fetch step in CI / release) — needs the release first, or the
-   Windows / macOS CI jobs fail.
-2. Meanwhile: 3.3 (engine `platform` module) and 3.4 (`direct` backend).
+1. CI on `live-engine` with the FFmpeg sidecars wired in (2.4): Windows / macOS
+   jobs must fetch FFmpeg and stay green.
+2. **You decide** where the FFmpeg source is offered publicly (Open / not
+   verified → LGPL source).
+3. Step 4 (W1, Windows) together with 3.3: engine attaches behind the desktop,
+   cover detection; then the `direct` backend becomes the default on Windows.
+   Needs a Windows PC for 4.6.
 
 ## Plan (steps 1–6)
 
@@ -243,7 +268,7 @@ both binaries are entirely LGPL code, so static linking is fine for the license.
   `/usr/bin/wallflow-live` present, `Depends: ffmpeg`. You install it and check
   autostart + live wallpaper after login.
 
-### Step 2 — FFmpeg bundle (2.1–2.3 and 2.5 done 5f0fa31, e56a117; 2.4, 2.6, 2.7 left)
+### Step 2 — FFmpeg bundle (done except 2.7: real installer sizes come with the first Windows / macOS build)
 - 2.1 `scripts/ffmpeg/build.sh <target>`: pinned FFmpeg 8.0.x source + sha256,
   `--disable-everything` then only what the engine uses:
   protocols `file,pipe`; demuxers `mov,matroska,avi,mpegts,image2`; muxers
@@ -269,14 +294,15 @@ both binaries are entirely LGPL code, so static linking is fine for the license.
   About with the version and a link to the source release.
 - 2.7 Measure the real `setup.exe` / `.dmg` sizes.
 
-### Step 3 — W0, common groundwork (3.1 done 980dcc6, 3.2 done 82c6419)
+### Step 3 — W0, common groundwork (3.1 980dcc6, 3.2 82c6419, 3.4 4fca41d done; 3.3 moved into W1)
 - 3.1 `prepare` picks the encoder from `ffmpeg -encoders`: `libx264` (CRF 20)
   → `h264_mf` / `h264_videotoolbox` (bitrate ≈ 0.1 bit per pixel per frame,
   e.g. 1080p30 ≈ 6 Mbit/s) → error. Pure function, unit tested with recorded
   encoder lists.
 - 3.2 Engine prints JSON lines on stdout while playing, with `--events`: `ready` (screens),
   `state` (`playing` / `paused`, why), `error`. The GNOME shim ignores them.
-- 3.3 Engine `platform` module: `attach_background(window, monitor)` and a
+- 3.3 (done together with 4.1 / 4.2: without a platform that sends cover
+  signals it would only be dead code) Engine `platform` module: `attach_background(window, monitor)` and a
   cover watcher that sends pause / resume into the event loop. Linux: no-op
   (the shim does both). Pause per window: a covered monitor stops drawing;
   decoding stops only when every monitor is covered.

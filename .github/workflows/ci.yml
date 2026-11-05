@@ -89,6 +89,12 @@ jobs:
 
       - run: yarn install --frozen-lockfile
 
+      # Tauri checks that every sidecar exists, FFmpeg included (fetch-ffmpeg.mjs).
+      - name: Fetch the bundled FFmpeg
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/fetch-ffmpeg.mjs
+
       - name: Build the frontend
         run: yarn build
 
@@ -129,6 +135,12 @@ jobs:
           cache: yarn
 
       - run: yarn install --frozen-lockfile
+
+      # Tauri checks that every sidecar exists, FFmpeg included (fetch-ffmpeg.mjs).
+      - name: Fetch the bundled FFmpeg
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/fetch-ffmpeg.mjs
 
       - name: Build the frontend
         run: yarn build

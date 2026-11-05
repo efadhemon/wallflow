@@ -138,6 +138,12 @@ jobs:
           fi
           echo "Aptabase app key is set."
 
+      # Windows / macOS bundle FFmpeg as sidecars; Linux depends on the package.
+      - name: Fetch the bundled FFmpeg
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/fetch-ffmpeg.mjs ${{ matrix.target }}
+
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

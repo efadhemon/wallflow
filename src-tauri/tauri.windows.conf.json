@@ -1,0 +1,9 @@
+{
+  "bundle": {
+    "externalBin": ["binaries/wallflow-live", "binaries/ffmpeg", "binaries/ffprobe"],
+    "resources": {
+      "binaries/FFmpeg-LICENSE.txt": "licenses/FFmpeg-LICENSE.txt",
+      "binaries/FFmpeg-BUILD.txt": "licenses/FFmpeg-BUILD.txt"
+    }
+  }
+}

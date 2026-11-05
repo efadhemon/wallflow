@@ -6,6 +6,10 @@ import { Button, Card, Divider, SectionTitle } from "../components/ui";
 import { api } from "../lib/api";
 import { useApp } from "../state/AppContext";
 
+/** Source of the bundled FFmpeg (n9.0.2); keep in step with
+ * scripts/ffmpeg/version.env. Its configure line ships as FFmpeg-BUILD.txt. */
+const FFMPEG_SOURCE_URL = "https://github.com/FFmpeg/FFmpeg/tree/946fcce07b6dcd0331c8cc609192aeff5e1924f8";
+
 export function About() {
   const { environment, notify } = useApp();
   const [logs, setLogs] = useState("");
@@ -46,8 +50,7 @@ export function About() {
               Version {environment?.appVersion ?? "..."} &middot; {environment?.backend}
             </p>
             <p className="mt-1 text-xs text-ink-muted">
-              Anonymous app start and exit events are sent to Aptabase. No account and no personal
-              data.
+              Anonymous app start and exit events are sent to Aptabase. No account and no personal data.
             </p>
           </div>
         </div>
@@ -94,6 +97,30 @@ export function About() {
               onClick={() => void openUrl("https://www.linkedin.com/in/efadhemon")}
             >
               <LinkedInIcon size={16} />
+            </Button>
+          </div>
+        </Card>
+      </section>
+
+      <section className="flex flex-col gap-3">
+        <SectionTitle>Third-party software</SectionTitle>
+        <Card>
+          <div className="flex items-center justify-between gap-4 px-4 py-3">
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-ink">FFmpeg</p>
+              <p className="mt-0.5 text-xs text-ink-muted">
+                Plays and prepares live wallpapers. LGPL v2.1 or later. Included on Windows and macOS (license and build
+                notes in the app&apos;s licenses folder); on Linux, your system&apos;s FFmpeg is used.
+              </p>
+            </div>
+            <Button
+              size="icon"
+              variant="ghost"
+              aria-label="Open FFmpeg source code"
+              title="Open FFmpeg source code"
+              onClick={() => void openUrl(FFMPEG_SOURCE_URL)}
+            >
+              <ExternalLink size={16} />
             </Button>
           </div>
         </Card>
