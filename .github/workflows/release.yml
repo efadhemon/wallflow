@@ -124,7 +124,10 @@ jobs:
             - **macOS (Apple Silicon):** `Wallflow_*_aarch64.dmg`
             - **macOS (Intel):** `Wallflow_*_x64.dmg`
           generateReleaseNotes: true
-          releaseDraft: false
+          # A manual run is a rehearsal: a draft release to test the
+          # installers on every system before anyone else sees them. Publish
+          # the draft by hand, then run the Website workflow.
+          releaseDraft: ${{ github.event_name == 'workflow_dispatch' }}
           prerelease: false
           includeUpdaterJson: false
           args: ${{ matrix.args }} --target ${{ matrix.target }}
@@ -134,6 +137,7 @@ jobs:
   # Pages deploy then runs on main, which the github-pages environment allows.
   website:
     needs: publish
+    if: github.ref_type == 'tag'
     runs-on: ubuntu-latest
     permissions:
       actions: write
