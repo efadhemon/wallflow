@@ -6,11 +6,11 @@
     <title>Wallflow — rotate your desktop wallpaper on a schedule</title>
     <meta
       name="description"
-      content="Wallflow picks images from folders you choose, files you add, or Wallhaven’s Gallery, and rotates your desktop background on a schedule. A small tray app for Linux, Windows and macOS."
+      content="Wallflow rotates your desktop background through folders you choose, files you add, or Wallhaven’s Gallery, on a schedule — and on GNOME it can play a video as a live wallpaper. A small tray app for Linux, Windows and macOS."
     />
     <meta
       name="keywords"
-      content="Wallflow, wallpaper rotator, desktop wallpaper, wallpaper changer, wallpaper scheduler, Wallhaven gallery, Linux wallpaper, Windows wallpaper, macOS wallpaper, system tray, Tauri"
+      content="Wallflow, wallpaper rotator, desktop wallpaper, wallpaper changer, wallpaper scheduler, live wallpaper, video wallpaper, Wallhaven gallery, Linux wallpaper, Windows wallpaper, macOS wallpaper, system tray, Tauri"
     />
     <meta name="author" content="Emon Hossain" />
     <meta name="robots" content="index, follow" />
@@ -25,7 +25,7 @@
     <meta property="og:title" content="Wallflow — rotate your desktop wallpaper on a schedule" />
     <meta
       property="og:description"
-      content="Watch folders, add files, or search Wallhaven from the Gallery. A small tray app for Linux, Windows and macOS."
+      content="Watch folders, add files, or search Wallhaven from the Gallery — or play a video as a live wallpaper on GNOME. A small tray app for Linux, Windows and macOS."
     />
     <meta property="og:image" content="https://efadhemon.github.io/wallflow/assets/screenshots/dashboard.png" />
     <meta property="og:image:type" content="image/png" />
@@ -40,7 +40,7 @@
     <meta name="twitter:title" content="Wallflow — rotate your desktop wallpaper on a schedule" />
     <meta
       name="twitter:description"
-      content="Watch folders, add files, or search Wallhaven from the Gallery. A small tray app for Linux, Windows and macOS."
+      content="Watch folders, add files, or search Wallhaven from the Gallery — or play a video as a live wallpaper on GNOME. A small tray app for Linux, Windows and macOS."
     />
     <meta name="twitter:image" content="https://efadhemon.github.io/wallflow/assets/screenshots/dashboard.png" />
     <meta
@@ -61,10 +61,10 @@
         "@type": "SoftwareApplication",
         "name": "Wallflow",
         "url": "https://efadhemon.github.io/wallflow/",
-        "description": "Wallflow picks images from folders you choose, files you add, or Wallhaven’s Gallery, and rotates your desktop background on a schedule.",
+        "description": "Wallflow rotates your desktop background through folders you choose, files you add, or Wallhaven’s Gallery, on a schedule, and on GNOME plays a video as a live wallpaper.",
         "applicationCategory": "UtilitiesApplication",
         "operatingSystem": "Linux, Windows, macOS",
-        "softwareVersion": "1.0.2",
+        "softwareVersion": "1.0.6",
         "downloadUrl": "https://efadhemon.github.io/wallflow/#download",
         "image": "https://efadhemon.github.io/wallflow/assets/screenshots/dashboard.png",
         "license": "https://github.com/efadhemon/wallflow/blob/main/LICENSE",
@@ -121,8 +121,8 @@
             <p class="eyebrow">Desktop app for Linux, Windows and macOS</p>
             <h1>Rotate your wallpaper through your own images, on a schedule you choose.</h1>
             <p class="lede">
-              Watch folders, add files, or search Wallhaven from the Gallery. Wallflow lives in the tray, starts with
-              your session, and stays out of the way.
+              Watch folders, add files, or search Wallhaven from the Gallery. On GNOME, play a video as a live
+              wallpaper. Wallflow lives in the tray, starts with your session, and stays out of the way.
             </p>
             <div class="hero-actions">
               <a class="btn btn-primary" href="#download">Download</a>
@@ -139,13 +139,21 @@
             <div class="hero-stack" aria-hidden="false">
               <figure class="hero-card is-front" data-scene="0">
                 <img
+                  src="assets/screenshots/live.png"
+                  alt="Wallflow Live: a video playing as the live wallpaper, paused while the desktop is covered, and two live wallpapers in the library"
+                  width="1000"
+                  height="700"
+                />
+              </figure>
+              <figure class="hero-card is-mid" data-scene="1">
+                <img
                   src="assets/screenshots/gallery.png"
                   alt="Wallflow Gallery: Nature selected, landscape results from Wallhaven"
                   width="997"
                   height="699"
                 />
               </figure>
-              <figure class="hero-card is-mid" data-scene="1">
+              <figure class="hero-card is-back" data-scene="2">
                 <img
                   src="assets/screenshots/library.png"
                   alt="Wallflow Library: watched folders and a thumbnail grid of wallpapers"
@@ -153,22 +161,14 @@
                   height="696"
                 />
               </figure>
-              <figure class="hero-card is-back" data-scene="2">
-                <img
-                  src="assets/screenshots/dashboard.png"
-                  alt="Wallflow Dashboard: current wallpaper, countdown, and pause controls"
-                  width="1183"
-                  height="827"
-                />
-              </figure>
             </div>
             <div class="hero-scene-bar">
               <div class="hero-tabs" role="tablist" aria-label="App screens">
-                <button type="button" role="tab" aria-selected="true" data-hero-tab="0">Gallery</button>
-                <button type="button" role="tab" aria-selected="false" data-hero-tab="1">Library</button>
-                <button type="button" role="tab" aria-selected="false" data-hero-tab="2">Dashboard</button>
+                <button type="button" role="tab" aria-selected="true" data-hero-tab="0">Live</button>
+                <button type="button" role="tab" aria-selected="false" data-hero-tab="1">Gallery</button>
+                <button type="button" role="tab" aria-selected="false" data-hero-tab="2">Library</button>
               </div>
-              <p class="hero-scene-caption" data-hero-caption>Search Wallhaven and add a wallpaper</p>
+              <p class="hero-scene-caption" data-hero-caption>Play a video behind your desktop</p>
             </div>
           </div>
         </div>
@@ -183,7 +183,7 @@
               <p>
                 Point Wallflow at folders you already have, add individual files, or browse the Gallery. Folders are
                 watched in place; added files and Gallery downloads are copied in so they stay in rotation. Skip, pause,
-                or apply one immediately.
+                or apply one immediately — or play a video as a live wallpaper.
               </p>
             </div>
             <div class="carousel-controls">
@@ -235,20 +235,29 @@
               <li class="is-featured">
                 <span class="feature-index">03</span>
                 <p class="feature-tag">New</p>
-                <h3>Wallhaven Gallery</h3>
+                <h3>Live wallpapers</h3>
                 <p>
-                  Search landscape wallpapers from Wallhaven without leaving the app. Nature, anime, fantasy, space, or
-                  cities — or type your own query. Add one to the library, or set it as the wallpaper now. Listings are
-                  SFW only; no API key required.
+                  Play a video behind your desktop. Each video is prepared once for your screen, plays on every monitor,
+                  and pauses on its own while the desktop is covered. Linux with GNOME on Wayland for now; Windows and
+                  macOS are coming.
                 </p>
               </li>
               <li>
                 <span class="feature-index">04</span>
+                <h3>Wallhaven Gallery</h3>
+                <p>
+                  Search landscape wallpapers from Wallhaven without leaving the app. Nature, anime, fantasy, space, or
+                  cities — or type your own query. Open one full screen to look closer, add it to the library, or set it
+                  as the wallpaper now. Listings are SFW only; no API key required.
+                </p>
+              </li>
+              <li>
+                <span class="feature-index">05</span>
                 <h3>Your interval</h3>
                 <p>Choose how often the wallpaper changes — in seconds, minutes, or hours.</p>
               </li>
               <li>
-                <span class="feature-index">05</span>
+                <span class="feature-index">06</span>
                 <h3>Shuffle, sequential, or random</h3>
                 <p>
                   Shuffle plays every image once before repeating. Sequential walks the library in order. Random picks
@@ -256,12 +265,12 @@
                 </p>
               </li>
               <li>
-                <span class="feature-index">06</span>
+                <span class="feature-index">07</span>
                 <h3>Fill, fit, stretch, center, or tile</h3>
                 <p>Fit modes map to whatever your desktop calls them, so the image lands the way you expect.</p>
               </li>
               <li>
-                <span class="feature-index">07</span>
+                <span class="feature-index">08</span>
                 <h3>Thumbnail library</h3>
                 <p>
                   Browse the whole library as thumbnails. Click one to apply it immediately, or exclude images you would
@@ -269,7 +278,7 @@
                 </p>
               </li>
               <li>
-                <span class="feature-index">08</span>
+                <span class="feature-index">09</span>
                 <h3>Skip, pause, tray</h3>
                 <p>
                   Skip forwards and backwards, or pause, from the window or the tray menu. Closing the window hides it;
@@ -277,7 +286,7 @@
                 </p>
               </li>
               <li>
-                <span class="feature-index">09</span>
+                <span class="feature-index">10</span>
                 <h3>Per-monitor on Windows and macOS</h3>
                 <p>
                   A different image per monitor on Windows and macOS. Linux backends set every monitor to the same
@@ -285,11 +294,9 @@
                 </p>
               </li>
               <li>
-                <span class="feature-index">10</span>
+                <span class="feature-index">11</span>
                 <h3>Starts at login</h3>
-                <p>
-                  It starts with your session and stays in the tray so the rotation keeps going in the background.
-                </p>
+                <p>It starts with your session and stays in the tray so the rotation keeps going in the background.</p>
               </li>
             </ul>
             <div class="carousel-progress" aria-hidden="true">
@@ -339,7 +346,9 @@
                   Open <strong>Gallery</strong> to search Wallhaven. It starts on <strong>Nature</strong> with landscape
                   photos already on screen. Switch parent chips (Anime, Fantasy, Space, Cities), tap a sub-topic, or use
                   <strong>Custom</strong> for a free search. Hover a tile to <strong>Add</strong> it to the library, or
-                  <strong>Use now</strong> to set it as the wallpaper immediately. Photos are provided by
+                  <strong>Use now</strong> to set it as the wallpaper immediately. Click a tile to open it full screen:
+                  step through results with the arrow keys, press <strong>W</strong> to see it cropped like a wallpaper,
+                  or <strong>Find similar</strong>. Photos are provided by
                   <a href="https://wallhaven.cc" target="_blank" rel="noopener noreferrer">Wallhaven</a>.
                 </p>
               </div>
@@ -355,6 +364,28 @@
             <li class="demo-step">
               <div class="demo-copy">
                 <span class="step-num">3</span>
+                <h3>Play a video as a live wallpaper</h3>
+                <p>
+                  Open <strong>Live</strong> and click <strong>Add videos</strong> (MP4, MKV, WebM, MOV, M4V or AVI).
+                  Each one is prepared once for your screen, then hover it and press <strong>Play</strong>. The first
+                  time, GNOME needs a small helper: click <strong>Set up</strong> and log out and back in once. The
+                  video pauses on its own while windows cover the desktop. While it plays, the image rotation waits;
+                  <strong>Stop</strong>, picking an image in Library, or pressing Next ends it. Needs GNOME on Wayland
+                  (Ubuntu’s default) and FFmpeg; Windows and macOS are coming.
+                </p>
+              </div>
+              <figure>
+                <img
+                  src="assets/screenshots/live.png"
+                  alt="Wallflow Live: the playing live wallpaper with a Stop button, and the live wallpaper library with Add videos"
+                  width="1000"
+                  height="700"
+                />
+              </figure>
+            </li>
+            <li class="demo-step demo-step-reverse">
+              <div class="demo-copy">
+                <span class="step-num">4</span>
                 <h3>Set the schedule and fill in Settings</h3>
                 <p>
                   Under Rotation, set <strong>Change every</strong> and pick <strong>Order</strong> — Shuffle plays
@@ -372,9 +403,9 @@
                 />
               </figure>
             </li>
-            <li class="demo-step demo-step-reverse">
+            <li class="demo-step">
               <div class="demo-copy">
-                <span class="step-num">4</span>
+                <span class="step-num">5</span>
                 <h3>Watch it on the Dashboard</h3>
                 <p>
                   The Dashboard shows the current wallpaper, its filename, and how long until the next change. Use
@@ -392,9 +423,9 @@
                 />
               </figure>
             </li>
-            <li class="demo-step">
+            <li class="demo-step demo-step-reverse">
               <div class="demo-copy">
-                <span class="step-num">5</span>
+                <span class="step-num">6</span>
                 <h3>Control it from the tray</h3>
                 <p>
                   Closing the window leaves Wallflow running. The tray (or menu bar) menu shows the current file, then
@@ -427,16 +458,30 @@
             <article class="download-card" data-os="linux">
               <p class="os-label">Ubuntu / Debian</p>
               <h3>.deb package</h3>
-              <p>24.04 LTS or newer. Needs <code>libwebkit2gtk-4.1-0</code>.</p>
-              <a class="btn btn-primary" href="https://github.com/efadhemon/wallflow/releases/download/v1.0.6/Wallflow_1.0.6_amd64.deb">Download .deb</a>
+              <p>
+                24.04 LTS or newer. Needs <code>libwebkit2gtk-4.1-0</code>; apt also installs FFmpeg for live
+                wallpapers.
+              </p>
+              <a
+                class="btn btn-primary"
+                href="https://github.com/efadhemon/wallflow/releases/download/v1.0.6/Wallflow_1.0.6_amd64.deb"
+                >Download .deb</a
+              >
               <pre><code>sudo apt install ./Wallflow_1.0.6_amd64.deb</code></pre>
             </article>
 
             <article class="download-card" data-os="linux">
               <p class="os-label">Other Linux</p>
               <h3>AppImage</h3>
-              <p>Any distribution. Make it executable, then run it.</p>
-              <a class="btn btn-primary" href="https://github.com/efadhemon/wallflow/releases/download/v1.0.6/Wallflow_1.0.6_amd64.AppImage">Download AppImage</a>
+              <p>
+                Any distribution. Make it executable, then run it. Live wallpapers need GNOME on Wayland and FFmpeg
+                installed.
+              </p>
+              <a
+                class="btn btn-primary"
+                href="https://github.com/efadhemon/wallflow/releases/download/v1.0.6/Wallflow_1.0.6_amd64.AppImage"
+                >Download AppImage</a
+              >
               <pre><code>chmod +x Wallflow_1.0.6_amd64.AppImage
 ./Wallflow_1.0.6_amd64.AppImage</code></pre>
             </article>
@@ -449,8 +494,16 @@
                 then <em>Open</em>.
               </p>
               <div class="download-actions">
-                <a class="btn btn-primary" href="https://github.com/efadhemon/wallflow/releases/download/v1.0.6/Wallflow_1.0.6_aarch64.dmg">Apple Silicon</a>
-                <a class="btn btn-primary" href="https://github.com/efadhemon/wallflow/releases/download/v1.0.6/Wallflow_1.0.6_x64.dmg">Intel</a>
+                <a
+                  class="btn btn-primary"
+                  href="https://github.com/efadhemon/wallflow/releases/download/v1.0.6/Wallflow_1.0.6_aarch64.dmg"
+                  >Apple Silicon</a
+                >
+                <a
+                  class="btn btn-primary"
+                  href="https://github.com/efadhemon/wallflow/releases/download/v1.0.6/Wallflow_1.0.6_x64.dmg"
+                  >Intel</a
+                >
               </div>
               <pre><code>Wallflow_1.0.6_aarch64.dmg
 Wallflow_1.0.6_x64.dmg</code></pre>
@@ -464,7 +517,11 @@ Wallflow_1.0.6_x64.dmg</code></pre>
                 ask you to confirm via
                 <em>More info</em> then <em>Run anyway</em>.
               </p>
-              <a class="btn btn-primary" href="https://github.com/efadhemon/wallflow/releases/download/v1.0.6/Wallflow_1.0.6_x64-setup.exe">Download .exe</a>
+              <a
+                class="btn btn-primary"
+                href="https://github.com/efadhemon/wallflow/releases/download/v1.0.6/Wallflow_1.0.6_x64-setup.exe"
+                >Download .exe</a
+              >
               <pre><code>Wallflow_1.0.6_x64-setup.exe</code></pre>
             </article>
           </div>

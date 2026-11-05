@@ -19,17 +19,15 @@ Hand-off log between machines. Read this after `git pull`, before changing anyth
 - CI is green on all three OSes for `main` and `live-engine`.
 
 **Next session, in order**
-1. Delete the Vercel project and the secrets `VERCEL_TOKEN`, `VERCEL_ORG_ID`,
-   `VERCEL_PROJECT_ID`, `VITE_VERSION_API_URL` (no longer used), any time.
-2. **1.1.0 (live wallpaper on Linux/GNOME):** update the website on
-   `live-engine` first (Live feature card + screenshot, how-to step, meta
-   descriptions, "GNOME only, Windows/macOS coming soon", `.deb` now needs
-   `ffmpeg`); it goes live with the merge to `main`. Then PR `live-engine` → `dev`,
-   rehearsal release (draft) from `dev`/`main`, test `.deb` + AppImage on
-   Ubuntu and that Windows / macOS install fine; measure installer sizes
-   (Plan 2.7); then `dev` → `main`, tag `v1.1.0`. Details: Release plan.
-3. **1.2.0 Windows** (Plan step 4, with 3.3), needs a Windows PC.
-4. **1.3.0 macOS** (Plan step 5), needs a Mac. Later: KDE / X11 / zero-copy.
+1. **1.1.0 (live wallpaper on Linux/GNOME):** website is ready on
+   `live-engine` (goes live with the merge to `main`). Next: bump to 1.1.0,
+   PR `live-engine` → `dev`, rehearsal release (draft), test `.deb` +
+   AppImage on Ubuntu and that Windows / macOS install fine; measure
+   installer sizes (Plan 2.7); then `dev` → `main`, tag `v1.1.0`. Details:
+   Release plan. This machine now runs the 1.0.6 `.deb` (you installed it):
+   reinstall a `live-engine` build to use live wallpapers again.
+2. **1.2.0 Windows** (Plan step 4, with 3.3), needs a Windows PC.
+3. **1.3.0 macOS** (Plan step 5), needs a Mac. Later: KDE / X11 / zero-copy.
 
 **Branch flow:** feature branch → PR into `dev` → PR `dev` → `main` → tag
 `vX.Y.Z` on `main` releases. Keep only `main`, `dev` and active feature
@@ -63,6 +61,25 @@ every platform without slowing the desktop.
   (old player, kept as tag `archive/live-wall` → 14f72eb).
 
 ## Sessions
+
+### 2026-11-05 — website for 1.1.0 (live wallpaper) on `live-engine` (host EMON)
+
+- Vercel project and secrets deleted by you (only `APTABASE_APP_KEY` left).
+- `website/`: meta / Open Graph / Twitter / structured-data text mention
+  live wallpapers on GNOME; hero lede and scenes are now Live, Gallery,
+  Library (captions in `main.js`); new featured card "Live wallpapers"
+  (GNOME on Wayland now, Windows / macOS coming), Gallery card mentions the
+  full-screen preview; new how-to step 3 "Play a video as a live wallpaper"
+  (steps now 1–6); `.deb` / AppImage cards mention FFmpeg.
+- `assets/screenshots/live.png` (1000×700): taken from the dev app through
+  the WebKit inspector (`Page.snapshotRect`), so no OS window frame.
+- `sync-version.mjs` now also updates `"softwareVersion"` in the
+  structured data (was stuck at 1.0.2; set to 1.0.6).
+- `.claude/launch.json`: `website` static server on port 4180.
+- Checked in the browser pane: desktop and 375 px phone width, no horizontal
+  scroll, no console errors.
+- Found while doing it: you had installed the 1.0.6 `.deb` (18:05), which
+  replaced the `live-engine` build, so no live wallpaper plays here now.
 
 ### 2026-11-05 — 1.0.6 released (host EMON)
 
