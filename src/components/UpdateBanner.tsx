@@ -3,7 +3,7 @@ import { openUrl } from "@tauri-apps/plugin-opener";
 import { Button } from "./ui";
 import { useUpdateCheck } from "../lib/useUpdateCheck";
 
-const DOWNLOAD_URL = "https://wallflow.efadhemon.dev/#download";
+const DOWNLOAD_URL = "https://efadhemon.github.io/wallflow/#download";
 
 export function UpdateBanner() {
   const update = useUpdateCheck();
