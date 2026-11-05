@@ -1,3 +1,5 @@
+import type { LiveVideo } from "./types";
+
 /** "2 h 5 min" style label for a duration given in seconds. */
 export function formatDuration(totalSeconds: number): string {
   if (totalSeconds < 60) return `${totalSeconds}s`;
@@ -32,4 +34,18 @@ export function shortenPath(path: string, segments = 2): string {
   const parts = path.split(/[/\\]/).filter(Boolean);
   if (parts.length <= segments) return path;
   return `...${path.includes("\\") ? "\\" : "/"}${parts.slice(-segments).join("/")}`;
+}
+
+/** 75 → "1:15". */
+function formatLength(seconds: number | null): string | null {
+  if (seconds == null || !Number.isFinite(seconds)) return null;
+  const total = Math.round(seconds);
+  return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, "0")}`;
+}
+
+/** "1920×1080 · 30 fps · 1:15" for a live wallpaper. */
+export function describeVideo(video: LiveVideo): string {
+  return [`${video.width}×${video.height}`, `${Math.round(video.fps)} fps`, formatLength(video.duration)]
+    .filter(Boolean)
+    .join(" · ");
 }
