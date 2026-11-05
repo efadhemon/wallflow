@@ -16,21 +16,26 @@ Hand-off log between machines. Read this after `git pull`, before changing anyth
   (https://github.com/efadhemon/wallflow/pull/12), CI running.
 - Live wallpapers work on GNOME (Ubuntu); Windows / macOS build, Live page
   says "coming soon".
+- **Decided 2026-11-06 (you): 1.1.0 ships live wallpapers on all three OSes**
+  (Ubuntu / GNOME, Windows, macOS). Then collect issues and feedback and fix
+  them in patch releases 1.1.1, 1.1.2, … New features → minor (1.2.0, …),
+  big changes → major. Policy in README "Versions". **Do not merge PR #12
+  until Windows and macOS live are in `dev`** (it follows `dev` by itself).
 
 **Next session, in order**
 
 1. **PR #14 `ci-macos-15` → `dev`** (macos-14 runner retired): CI green on
-   all three OSes → merge. Then **PR #12 `dev` → `main`**: CI again → merge.
-2. **Release 1.1.0:** run the Release workflow by hand on `main` → draft
-   `Wallflow v1.1.0`. Test: `.deb` on Ubuntu (helper setup from the Live page,
-   log out / in, play), AppImage (FFmpeg banner without system FFmpeg),
-   Windows `setup.exe` and macOS `.dmg` install and say "coming soon"; note
-   installer sizes (Plan 2.7). Then delete the draft, tag `v1.1.0` on `main`
-   and push it (release goes public, website deploys). Optional: add release
-   notes (GNOME only; FFmpeg LGPL, source in `ffmpeg-n9.0.2-wf1`). This
-   machine runs the 1.0.6 `.deb`: install 1.1.0 to get live wallpapers back.
-3. **1.2.0 Windows** (Plan step 4, with 3.3), needs a Windows PC.
-4. **1.3.0 macOS** (Plan step 5), needs a Mac. Later: KDE / X11 / zero-copy.
+   all three OSes → merge.
+2. **Windows live wallpaper** (Plan step 4, 4.1–4.5): feature branch
+   `live-windows` from `dev` → PR into `dev`.
+3. **macOS live wallpaper** (Plan step 5, 5.1–5.5): feature branch
+   `live-macos` from `dev` → PR into `dev`.
+4. README / website / Live page: Windows and macOS no longer "coming soon".
+5. **Release 1.1.0:** PR #12 `dev` → `main` (CI again) → merge; rehearsal
+   draft; test what can be tested here (Ubuntu `.deb` / AppImage) and the
+   Windows / macOS installers on whatever machine is at hand; tag `v1.1.0`.
+6. **After release:** issues and feedback → fixes in 1.1.1, 1.1.2, …
+   (patch). KDE / wlroots, X11, zero-copy are later minor versions.
 
 **Branch flow (rule for every PR, written in README "Branches and pull
 requests"):** feature branch from `dev` → PR into `dev` → PR `dev` → `main` →
@@ -52,9 +57,9 @@ every platform without slowing the desktop.
 | 4   | Multi-monitor (one window per monitor, decoded once)                                                                | **done**, verified headless (2 monitors)         |
 | 5   | `prepare` import step (downscale, ≤30 fps, poster)                                                                  | **done**                                         |
 | 6   | Integrate into the app: bundle engine as Tauri sidecar, Live page, prepare progress UI, start/stop through the shim | **done** (GNOME), checked by you in the real app |
-| 7   | Shims for other desktops: Windows (WorkerW), macOS (desktop-level NSWindow), KDE/wlroots (wlr-layer-shell), X11     | planned                                          |
+| 7   | Shims for other desktops: Windows (WorkerW), macOS (desktop-level NSWindow) → **1.1.0**; KDE/wlroots, X11 → later   | **next** (Windows, macOS)                        |
 | 8   | Zero-copy decode → texture (DMA-BUF / D3D11 / IOSurface)                                                            | planned                                          |
-| 9   | Merge `live-engine` → `dev` → `main`, release                                                                       | merged; **release 1.1.0 next**                   |
+| 9   | Release 1.1.0 with live wallpapers on GNOME, Windows and macOS                                                      | after step 7 (Windows, macOS)                    |
 
 ## Branches
 
@@ -67,6 +72,17 @@ every platform without slowing the desktop.
   (old player, kept as tag `archive/live-wall` → 14f72eb).
 
 ## Sessions
+
+### 2026-11-06 — plan: 1.1.0 with live wallpapers on all OSes (host EMON)
+
+- You decided: 1.1.0 ships live wallpapers on Ubuntu (GNOME), Windows and
+  macOS, then 1.1.x patches from issues / feedback, minor for new features,
+  major for big changes. Written in README "Versions" and in Summary,
+  Roadmap, Release plan here.
+- PR #12 (`dev` → `main`) stays open until Windows and macOS live are in
+  `dev`.
+- Open: label Windows / macOS live as "beta" in the app and release notes,
+  since they cannot be tested on real machines here?
 
 ### 2026-11-06 — macOS CI broken: macos-14 runner retired (host EMON)
 
@@ -559,22 +575,32 @@ update banner, so their users update by hand once.
 - Merge → tag `v1.0.6`. Proves the new pipeline: release assets, Pages
   refresh, 1.0.6 asks GitHub for updates.
 
-**1.1.0 — live wallpapers on Linux (GNOME) (`live-engine`)**
+**Versions (decided 2026-11-06, also in README "Versions")**
 
-- Merge `main` into `live-engine` (workflow conflicts: keep the FFmpeg fetch
-  steps from `live-engine`, the Pages / no-Vercel changes from `main`).
-- Rehearsal: manual release run → draft. Check on real machines: `.deb` on
-  Ubuntu 24.04 (helper install from the Live page, log out / in, play), the
-  AppImage (FFmpeg banner when the system has none), Windows and macOS install
-  and run with the Live page saying "coming soon", and their installer sizes
-  (step 2.7).
-- Release notes: GNOME only; KDE, X11, Windows, macOS later; FFmpeg LGPL
-  (source: release `ffmpeg-n9.0.2-wf1`, public now).
-- `live-engine` → `dev` → `main`, tag `v1.1.0`; drop `live-wall`.
+- **Patch** `x.y.Z`: bug fixes and changes from issues / feedback only.
+- **Minor** `x.Y.0`: a new feature (one feature or a group of them), then its
+  own patches.
+- **Major** `X.0.0`: big changes, breaking changes (config format, dropped
+  systems, a new way of working).
 
-**1.2.0 — Windows live wallpaper** (Plan step 4, needs a Windows PC)
-**1.3.0 — macOS live wallpaper** (Plan step 5, needs a Mac)
-**Later — KDE / wlroots, X11, zero-copy** (Plan step 6)
+**1.1.0 — live wallpapers on all three OSes** (Ubuntu / GNOME, Windows, macOS)
+
+- Done: engine, GNOME shim, `direct` backend, Live page, bundled FFmpeg on
+  Windows / macOS, combined Dashboard, Tauri 2.12 (PR #9, #10, #11).
+- To do: Windows (Plan step 4.1–4.5) and macOS (5.1–5.5), each on its own
+  feature branch → `dev`. Docs and website say all three OSes.
+- Tests on real Windows / macOS machines (4.6, 5.6) are not possible on host
+  EMON: only CI builds and checks them. What is not tested there is fixed
+  from user reports in 1.1.x.
+- Release notes: live wallpapers on GNOME (Wayland), Windows 10 / 11 and
+  macOS; KDE / X11 not yet; FFmpeg LGPL (source: release
+  `ffmpeg-n9.0.2-wf1`); please report problems as GitHub issues.
+- Release PR #12 `dev` → `main`, rehearsal draft, tag `v1.1.0`.
+
+**1.1.x — fixes from issues and feedback** (patches, from `dev` → `main`).
+
+**1.2.0 and later — new features**, e.g. KDE / wlroots and X11 live
+wallpapers, zero-copy decode (Plan step 6). Each feature set is a minor.
 
 ## Plan (steps 1–6)
 
@@ -678,7 +704,8 @@ both binaries are entirely LGPL code, so static linking is fine for the license.
 - 6.3 Native playback / zero-copy (old step 8).
 - 6.4 Merge `live-engine` → `dev` → `main`, release 1.1.0, drop `live-wall`.
 
-Needs from you: a Windows PC for 4.6 and a Mac for 5.6.
+Needs from you: a Windows PC for 4.6 and a Mac for 5.6. Without them, 4.6 / 5.6
+are covered by CI builds and user reports after 1.1.0 (decided 2026-11-06).
 
 ## Testing
 

@@ -192,6 +192,17 @@ Every change follows the same path. No pull request skips a step.
    `yarn version:patch`, `version:minor` or `version:major`.
 6. Delete the feature branch once it is merged.
 
+## Versions
+
+Wallflow uses [semantic versioning](https://semver.org): `MAJOR.MINOR.PATCH`.
+
+- **Patch** (`1.1.1`, `1.1.2`, …): bug fixes and changes from issues and feedback.
+- **Minor** (`1.2.0`, …): new features. Each feature release then gets its own patches.
+- **Major** (`2.0.0`): big or breaking changes, such as a new config format or a
+  dropped system.
+
+Found a problem or have an idea? Open an [issue](../../issues).
+
 ## Notes and limitations
 
 - WebP images are transcoded to PNG in the thumbnail cache before being applied,
