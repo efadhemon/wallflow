@@ -48,7 +48,8 @@ export const api = {
     atleast?: string | null;
   }) => invoke<GalleryPage>("search_gallery", args),
   addRemoteImage: (url: string, expectedSize?: number) =>
-    invoke<AddRemoteResult>("add_remote_image", { url, expected_size: expectedSize ?? null }),
+    // Tauri maps camelCase keys onto the command's snake_case arguments.
+    invoke<AddRemoteResult>("add_remote_image", { url, expectedSize: expectedSize ?? null }),
 };
 
 export function onStatus(handler: (status: Status) => void): Promise<UnlistenFn> {

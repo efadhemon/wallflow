@@ -149,7 +149,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    let unlisten: (() => void) | undefined;
+    let cancelled = false;
+    // Subscribe before the first fetch so no update in between is lost, and
+    // still unsubscribe if this unmounts before the listener is registered.
+    const listening = onStatus(setStatus);
 
     (async () => {
       try {
@@ -158,16 +161,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
           api.getConfig(),
           api.getEnvironment(),
         ]);
+        if (cancelled) return;
         setStatus(nextStatus);
         setConfigState(nextConfig);
         setEnvironment(nextEnvironment);
-        unlisten = await onStatus(setStatus);
       } catch (error) {
-        notify(String(error), "error");
+        if (!cancelled) notify(String(error), "error");
       }
     })();
 
-    return () => unlisten?.();
+    return () => {
+      cancelled = true;
+      void listening.then(unlisten => unlisten());
+    };
   }, [notify]);
 
   // Follow the OS theme live while "system" is selected.
@@ -181,20 +187,37 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return () => media.removeEventListener("change", listener);
   }, [config?.theme, config]);
 
+  // The latest config, so two quick changes merge instead of the second one
+  // starting from what the first one replaced.
+  const configRef = useRef<Config | null>(null);
+  useEffect(() => {
+    configRef.current = config;
+  }, [config]);
+
   const updateConfig = useCallback(
     async (patch: Partial<Config>) => {
-      if (!config) return;
-      const merged = { ...config, ...patch };
+      const previous = configRef.current;
+      if (!previous) return;
+      const merged = { ...previous, ...patch };
       // Optimistic so switches and sliders feel instant.
+      configRef.current = merged;
       setConfigState(merged);
       try {
-        setConfigState(await api.setConfig(merged));
+        const saved = await api.setConfig(merged);
+        // A newer change may have gone out meanwhile; only the last one wins.
+        if (configRef.current === merged) {
+          configRef.current = saved;
+          setConfigState(saved);
+        }
       } catch (error) {
-        setConfigState(config);
+        if (configRef.current === merged) {
+          configRef.current = previous;
+          setConfigState(previous);
+        }
         notify(String(error), "error");
       }
     },
-    [config, notify],
+    [notify],
   );
 
   const value = useMemo<AppContextValue>(

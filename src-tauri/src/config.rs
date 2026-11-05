@@ -113,14 +113,18 @@ impl Config {
             .with_context(|| format!("creating config dir {}", config_dir.display()))?;
         let path = config_dir.join(CONFIG_FILE);
         let raw = serde_json::to_string_pretty(self)?;
-        fs::write(&path, raw).with_context(|| format!("writing {}", path.display()))?;
+        write_atomic(&path, |temp| fs::write(temp, &raw).map_err(Into::into))
+            .with_context(|| format!("writing {}", path.display()))?;
         Ok(())
     }
 
     pub fn sanitize(&mut self) {
         self.version = CONFIG_VERSION;
         self.interval_seconds = self.interval_seconds.max(MIN_INTERVAL_SECONDS);
-        self.folders.dedup_by(|a, b| a.path == b.path);
+        // `dedup_by` only drops neighbours, and the list is in the user's order.
+        let mut seen = std::collections::HashSet::new();
+        self.folders
+            .retain(|folder| seen.insert(folder.path.clone()));
     }
 
     pub fn is_excluded(&self, path: &Path) -> bool {
@@ -128,9 +132,64 @@ impl Config {
     }
 }
 
+/// Writes `path` by having `write` fill a hidden sibling file that is then renamed
+/// over it, so a crash or a concurrent reader never sees half a file. The temp name
+/// starts with a dot, which the scanner skips.
+pub fn write_atomic(path: &Path, write: impl FnOnce(&Path) -> Result<()>) -> Result<()> {
+    use std::sync::atomic::{AtomicU64, Ordering};
+    static SEQ: AtomicU64 = AtomicU64::new(0);
+
+    let name = path
+        .file_name()
+        .map(|name| name.to_string_lossy().into_owned())
+        .unwrap_or_default();
+    let temp = path.with_file_name(format!(
+        ".{name}.{}-{}.tmp",
+        std::process::id(),
+        SEQ.fetch_add(1, Ordering::Relaxed)
+    ));
+
+    let result = write(&temp).and_then(|()| fs::rename(&temp, path).map_err(Into::into));
+    if result.is_err() {
+        let _ = fs::remove_file(&temp);
+    }
+    result
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn duplicate_folders_are_dropped_even_when_not_adjacent() {
+        let folder = |path: &str| Folder {
+            path: PathBuf::from(path),
+            recursive: true,
+        };
+        let mut cfg = Config {
+            folders: vec![folder("/a"), folder("/b"), folder("/a")],
+            ..Config::default()
+        };
+        cfg.sanitize();
+        assert_eq!(cfg.folders, vec![folder("/a"), folder("/b")]);
+    }
+
+    #[test]
+    fn atomic_write_replaces_the_file_and_leaves_no_temp() {
+        let dir = std::env::temp_dir().join(format!("wallflow-test-{}", std::process::id()));
+        fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("file.txt");
+        fs::write(&path, "old").unwrap();
+
+        write_atomic(&path, |temp| fs::write(temp, "new").map_err(Into::into)).unwrap();
+        assert_eq!(fs::read_to_string(&path).unwrap(), "new");
+
+        let failed = write_atomic(&path, |_| anyhow::bail!("boom"));
+        assert!(failed.is_err());
+        assert_eq!(fs::read_to_string(&path).unwrap(), "new");
+        assert_eq!(fs::read_dir(&dir).unwrap().count(), 1);
+        fs::remove_dir_all(&dir).unwrap();
+    }
 
     #[test]
     fn interval_is_clamped() {

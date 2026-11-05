@@ -24,7 +24,9 @@ import { useApp } from "../state/AppContext";
 const PAGE_SIZE = 120;
 
 export function Library() {
-  const { status, setConfig, notify } = useApp();
+  // `excluded` changes on the Rust side here, so the shared config is re-read
+  // afterwards; otherwise the next settings change would send the old list back.
+  const { status, setConfig, refresh, notify } = useApp();
   const [folders, setFolders] = useState<FolderEntry[]>([]);
   const [images, setImages] = useState<ImageEntry[]>([]);
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
@@ -249,8 +251,10 @@ export function Library() {
                   image={image}
                   disabled={busy}
                   onApply={() => runAndReload(() => api.applyImage(image.path))}
-                  onToggleExclude={() => runAndReload(() => api.toggleExclude(image.path))}
-                  onRemove={image.managed ? () => runAndReload(() => api.removeImage(image.path)) : undefined}
+                  onToggleExclude={() => runAndReload(() => api.toggleExclude(image.path).then(refresh))}
+                  onRemove={
+                    image.managed ? () => runAndReload(() => api.removeImage(image.path).then(refresh)) : undefined
+                  }
                   onReveal={() => void revealItemInDir(image.path)}
                 />
               ))}
